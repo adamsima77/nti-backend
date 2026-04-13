@@ -1,0 +1,28 @@
+{
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "name": "nwidart/auditcompliance",
+    "autoload": {
+        "psr-4": {
+            "Modules\\AuditCompliance\\": "app/",
+            "Modules\\AuditCompliance\\Database\\Factories\\": "database/factories/",
+            "Modules\\AuditCompliance\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\AuditCompliance\\Tests\\": "tests/"
+        }
+    }
+}

@@ -1,0 +1,11 @@
+{
+    "name": "Mentorship",
+    "alias": "mentorship",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Mentorship\\Providers\\MentorshipServiceProvider"
+    ],
+    "files": []
+}

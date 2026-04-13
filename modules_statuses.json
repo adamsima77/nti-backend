@@ -1,0 +1,12 @@
+{
+    "Programs": true,
+    "IdentityAccess": true,
+    "Content": true,
+    "Applications": true,
+    "Evaluation": true,
+    "Mentorship": true,
+    "Organizations": true,
+    "Reporting": true,
+    "Notifications": true,
+    "AuditCompliance": true
+}
