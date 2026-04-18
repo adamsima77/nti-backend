@@ -18,7 +18,7 @@ class UserController extends Controller
     public function index()
     {
         $this->authorize('viewAny', User::class);
-        $users = User::with('status')->get();
+        $users = User::with('status', 'roles')->orderByDesc('created_at')->get();
         return response()->json($users, Response::HTTP_OK);
     }
 
@@ -50,7 +50,7 @@ class UserController extends Controller
      */
     public function show($id)
     {
-        $user = User::with('status')->findOrFail($id);
+        $user = User::with('status', 'roles', 'userConsents')->findOrFail($id);
         $this->authorize('view', $user);
         return response()->json($user, Response::HTTP_OK);
     }

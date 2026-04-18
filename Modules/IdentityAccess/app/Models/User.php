@@ -4,6 +4,7 @@ namespace Modules\IdentityAccess\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -13,7 +14,7 @@ use Modules\IdentityAccess\Database\Factories\UserFactory;
 
 class User extends Authenticatable
 {
-    use HasFactory, SoftDeletes,HasApiTokens,Notifiable;
+    use HasFactory, SoftDeletes,HasApiTokens,Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -53,8 +54,9 @@ class User extends Authenticatable
         return $this->belongsToMany(Role::class);
     }
 
-    public function userConsents(): BelongsToMany{
-        return $this->belongsToMany(UserConsent::class);
+    public function userConsents(): HasMany
+    {
+        return $this->hasMany(UserConsent::class);
     }
 
     //Check roles
