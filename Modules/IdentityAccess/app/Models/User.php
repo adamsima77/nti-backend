@@ -1,6 +1,8 @@
 <?php
 
 namespace Modules\IdentityAccess\Models;
+use Modules\IdentityAccess\Notifications\VerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,8 +13,9 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 use Modules\IdentityAccess\Database\Factories\UserFactory;
+use Modules\IdentityAccess\Enums\UserStatus;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasFactory, SoftDeletes,HasApiTokens,Notifiable, SoftDeletes;
 
@@ -28,7 +31,7 @@ class User extends Authenticatable
           'surname',
           'email',
           'password',
-          'status'
+          'status_id'
     ];
 
     protected $hidden = [
@@ -94,6 +97,19 @@ class User extends Authenticatable
 
     public function isSuperAdmin(): bool{
         return $this->roles()->where('name', 'super administrátor')->exists();
+    }
+
+    //Additional methods
+    public function setStatus(UserStatus $status): void
+    {
+        $this->status = $status->value;
+        $this->save();
+    }
+
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifyEmail());
     }
 
     protected static function newFactory()

@@ -17,7 +17,7 @@ class ConsentTypeController extends Controller
     public function index()
     {
         $this->authorize('viewAny', ConsentType::class);
-        $consent_types = ConsentType::all();
+        $consent_types = ConsentType::paginate(15);
         return response()->json(['consent_types' => $consent_types], Response::HTTP_OK);
     }
 

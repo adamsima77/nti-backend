@@ -18,7 +18,7 @@ class RoleController extends Controller
     public function index()
     {
         $this->authorize('viewAny', Role::class);
-        $roles = Role::all();
+        $roles = Role::paginate(15);
         return response()->json(['roles' => $roles], Response::HTTP_OK);
     }
 

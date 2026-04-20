@@ -16,7 +16,7 @@ class StatusController extends Controller
     public function index()
     {
         $this->authorize('viewAny', Status::class);
-        $statuses = Status::all();
+        $statuses = Status::paginate(15);
         return response()->json(['statuses' => $statuses], Response::HTTP_OK);
     }
 

@@ -16,7 +16,8 @@ class UserConsentController extends Controller
     public function index()
     {
         $this->authorize('viewAny', UserConsent::class);
-        $consents = UserConsent::with(['user', 'consent'])->orderBy('created_at', 'desc')->get();
+        $consents = UserConsent::with(['user', 'consent'])->orderBy('created_at', 'desc')
+                    ->paginate(15);
         return response()->json(['consents' => $consents], Response::HTTP_OK);
     }
 

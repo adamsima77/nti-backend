@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Modules\IdentityAccess\Models\User;
 use Illuminate\Http\Response;
@@ -18,7 +19,8 @@ class UserController extends Controller
     public function index()
     {
         $this->authorize('viewAny', User::class);
-        $users = User::with('status', 'roles')->orderByDesc('created_at')->get();
+        $users = User::with('status', 'roles')->orderByDesc('created_at')
+                ->paginate(15);
         return response()->json($users, Response::HTTP_OK);
     }
 
@@ -31,16 +33,23 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
             'surname' => ['required', 'string', 'max:150'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()]
+            'email' => ['required', 'email', 'unique:users'],
+            'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
+            'status_id' => ['nullable', 'exists:statuses,id'],
+            'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => ['integer', 'exists:roles,id']
         ]);
 
-        User::create([
+        $user = User::create([
             'name' => $validated['name'],
             'surname' => $validated['surname'],
             'email' => $validated['email'],
-            'password' => 'password',
+            'password' => $validated['password'],
+            'status_id' => $validated['status_id']
+                ?? User::defaultStatus()
         ]);
+
+        $user->roles()->attach($validated['roles']);
 
         return response()->json(['message' => 'User was created.'], Response::HTTP_CREATED);
     }
@@ -65,16 +74,24 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
             'surname' => ['required', 'string', 'max:150'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()]
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'password' => ['required', 'string', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
+             'status_id' => ['nullable', 'exists:statuses,id'],
+            'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => ['integer', 'exists:roles,id']
         ]);
 
         $user->update([
             'name' => $validated['name'],
             'surname' => $validated['surname'],
             'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'password' => $validated['password'],
+            'status_id' => $validated['status_id'] ?? $user->status_id
         ]);
+
+        $user->roles()->sync($validated['roles']);
+
+
         return response()->json(['message' => 'User was succesfully updated.'], Response::HTTP_OK);
     }
 
@@ -84,7 +101,7 @@ class UserController extends Controller
     public function destroy($id)
     {
         $user = User::findOrFail($id);
-        $this->authorize('delete', User::class);
+        $this->authorize('delete', $user);
         $user->delete();
         return response()->json(['message' => 'User was succesfully deleted.'], Response::HTTP_OK);
     }
