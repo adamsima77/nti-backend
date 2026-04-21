@@ -1,6 +1,7 @@
 <?php
 
 namespace Modules\IdentityAccess\Models;
+use Modules\Content\Models\NewsTranslation;
 use Modules\IdentityAccess\Notifications\VerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -60,6 +61,10 @@ class User extends Authenticatable implements MustVerifyEmail
     public function userConsents(): HasMany
     {
         return $this->hasMany(UserConsent::class);
+    }
+
+    public function newsTranslations(): HasMany{
+        return $this->hasMany(NewsTranslation::class);
     }
 
     //Check roles

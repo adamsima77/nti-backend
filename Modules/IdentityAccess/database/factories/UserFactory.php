@@ -4,7 +4,9 @@ namespace Modules\IdentityAccess\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
+use Modules\IdentityAccess\Models\Role;
 use Modules\IdentityAccess\Models\Status;
+use Modules\IdentityAccess\Models\User;
 
 class UserFactory extends Factory
 {
@@ -25,6 +27,18 @@ class UserFactory extends Factory
             'password' => Hash::make('password'),
             'status_id' => $this->faker->numberBetween(1, 3),
         ];
+    }
+
+    public function configure()
+    {
+        return $this->afterCreating(function (User $user) {
+
+            $role = Role::inRandomOrder()->first();
+
+            if ($role) {
+                $user->roles()->attach($role->id);
+            }
+        });
     }
 }
 

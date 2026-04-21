@@ -11,16 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->foreignId('status_id')->constrained('statuses');
+        Schema::create('hero_banners', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('page_id')->constrained('pages');
+            $table->timestamps();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropForeign(['status_id']);
-            $table->dropColumn('status_id');
-        });
+        Schema::dropIfExists('hero_banners');
     }
 };
