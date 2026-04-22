@@ -4,6 +4,11 @@ namespace Modules\Content\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Modules\Content\Models\Category;
+use Illuminate\Http\Response;
+use Modules\Content\Models\Language;
 
 class CategoryController extends Controller
 {
@@ -12,45 +17,107 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        
+        $categories = Category::with('categoryTranslations')->orderByDesc('created_at')->get();
+        return response()->json($categories, Response::HTTP_OK);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        
+    public function fetchByLang(string $lang){
+        $languageId = Language::where('name', $lang)->value('id');
+
+        if (!$languageId) {
+            return response()->json([
+                'message' => 'Language not found!'
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $categories = Category::with([
+            'categoryTranslations' => fn ($q) =>
+            $q->where('language_id', $languageId)
+        ])->get();
+
+        return response()->json($categories, Response::HTTP_OK);
     }
+
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request) {}
+    public function store(Request $request) {
+        $validated = $request->validate([
+            'slug' => ['required', 'unique:categories', 'max:255'],
+            'name' => ['required', 'max:255'],
+            'language_id' => ['required', 'exists:languages,id']
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $category = Category::create(['slug' => $validated['slug']]);
+            $category->categoryTranslations()->create([
+                'name' => $validated['name'],
+                'language_id' => $validated['language_id']
+            ]);
+            DB::commit();
+            return response()->json(['message' => 'Category created!'], Response::HTTP_CREATED);
+        } catch(\Throwable  $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to create category'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 
     /**
      * Show the specified resource.
      */
     public function show($id)
     {
-        return view('content::show');
+        $category = Category::with('categoryTranslations')->findOrFail($id);
+        return response()->json($category, Response::HTTP_OK);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit($id)
-    {
-        return view('content::edit');
-    }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id) {}
+    public function update(Request $request, $id) {
+        $validated = $request->validate([
+            'slug' => ['required','max:255',Rule::unique('categories', 'slug')->ignore($id)],
+            'name' => ['required', 'max:255'],
+            'language_id' => ['required', 'exists:languages,id']
+        ]);
+
+        $category = Category::findOrFail($id);
+
+        try{
+            DB::beginTransaction();
+            $category->update(['slug' => $validated['slug']]);
+            $translation = $category->categoryTranslations()
+                ->where('language_id', $validated['language_id'])
+                ->firstOrFail();
+            $translation->update([
+                'name' => $validated['name'],
+            ]);
+            DB::commit();
+            return response()->json(['message' => 'Category updated!'], Response::HTTP_OK);
+        } catch(\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to update category'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id) {}
+    public function destroy($id) {
+        $category = Category::findOrFail($id);
+        try {
+            DB::beginTransaction();
+            $category->categoryTranslations()->delete();
+            $category->delete();
+
+            DB::commit();
+            return response()->json(['message' => 'Category deleted!'], Response::HTTP_OK);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to delete category'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

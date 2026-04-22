@@ -4,6 +4,10 @@ namespace Modules\Content\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
+use Modules\Content\Models\Language;
+use Modules\Content\Models\Partner;
 
 class PartnerController extends Controller
 {
@@ -12,45 +16,112 @@ class PartnerController extends Controller
      */
     public function index()
     {
-        return view('content::index');
+        $partners = Partner::with(['partnerTranslations'])->orderByDesc('created_at')->get();
+        return response()->json($partners, Response::HTTP_OK);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        return view('content::create');
+    public function fetchByLang(string $lang){
+        $languageId = Language::where('name', $lang)->value('id');
+
+        if (!$languageId) {
+            return response()->json([
+                'message' => 'Language not found!'
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $partners = Partner::with([
+            'partnerTranslations' => fn ($q) =>
+            $q->where('language_id', $languageId)
+        ])->get();
+
+        return response()->json($partners, Response::HTTP_OK);
     }
+
+
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request) {}
+    public function store(Request $request) {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['required', 'string', 'max:2500'],
+            'language_id' => ['required', 'exists:languages,id']
+        ]);
+
+        try{
+            DB::beginTransaction();
+            $partner = Partner::create([]);
+            $partner->partnerTranslations()->create([
+                'name' => $validated['name'],
+                'description' => $validated['description'],
+                'language_id' => $validated['language_id']
+            ]);
+            DB::commit();
+            return response()->json(['message' => 'Partner successfully created!'], Response::HTTP_CREATED);
+        } catch(\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Partner could not be created !'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 
     /**
      * Show the specified resource.
      */
     public function show($id)
     {
-        return view('content::show');
+        $partner = Partner::with(['partnerTranslations'])->findOrFail($id);
+        return response()->json($partner, Response::HTTP_OK);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit($id)
-    {
-        return view('content::edit');
-    }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id) {}
+    public function update(Request $request, $id) {
+        $partner = Partner::findOrFail($id);
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['required', 'string', 'max:2500'],
+            'language_id' => ['required', 'exists:languages,id']
+        ]);
+
+        try {
+            DB::beginTransaction();
+            $translation = $partner->partnerTranslations()
+                ->where('language_id', $validated['language_id'])
+                ->firstOrFail();
+
+            $translation->update([
+                'name' => $validated['name'],
+                'description' => $validated['description'],
+            ]);
+
+            DB::commit();
+
+            return response()->json(['message' => 'Partner successfully updated!'], Response::HTTP_OK);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json(['message' => 'Partner could not be updated!'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id) {}
+    public function destroy($id) {
+        $partner = Partner::findOrFail($id);
+        try{
+            DB::beginTransaction();
+            $partner->partnerTranslations()->delete();
+            $partner->delete();
+            DB::commit();
+            return response()->json(['message' => 'Partner successfully deleted!'], Response::HTTP_OK);
+        } catch(\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Partner could not be deleted!'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

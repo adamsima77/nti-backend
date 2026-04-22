@@ -10,8 +10,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class HeroBannerTranslation extends Model
 {
-    use HasFactory;
-
     /**
      * The attributes that are mass assignable.
      */

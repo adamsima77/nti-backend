@@ -11,11 +11,6 @@ use Modules\IdentityAccess\Models\User;
 
 class NewsTranslation extends Model
 {
-    use HasFactory;
-
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
         'title',
         'description',
@@ -23,20 +18,13 @@ class NewsTranslation extends Model
         'language_id'
     ];
 
-    public function user(): BelongsTo{
-        return $this->belongsTo(User::class);
-    }
-
-    public function news(): BelongsTo{
-        return $this->belongsTo(News::class);
-    }
-
-    public function language(): BelongsTo{
+    public function language(): BelongsTo
+    {
         return $this->belongsTo(Language::class);
     }
 
-    // protected static function newFactory(): NewsTranslationFactory
-    // {
-    //     // return NewsTranslationFactory::new();
-    // }
+    public function news(): BelongsTo
+    {
+        return $this->belongsTo(News::class);
+    }
 }

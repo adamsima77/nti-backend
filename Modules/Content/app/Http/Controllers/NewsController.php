@@ -4,7 +4,11 @@ namespace Modules\Content\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Modules\Content\Models\Language;
+use Modules\Content\Models\News;
+use Illuminate\Http\Response;
 class NewsController extends Controller
 {
     /**
@@ -12,45 +16,145 @@ class NewsController extends Controller
      */
     public function index()
     {
-        return view('content::index');
+        $news = News::with(['category', 'user', 'newsTranslations'])->orderByDesc('created_at')->get();
+        return response()->json($news, Response::HTTP_OK);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        return view('content::create');
+    public function fetchByLang(string $lang){
+        $languageId = Language::where('name', $lang)->value('id');
+
+        if (!$languageId) {
+            return response()->json([
+                'message' => 'Language not found!'
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $news = News::with([
+            'category', 'user', 'newsTranslations' => fn ($q) =>
+            $q->where('language_id', $languageId)
+        ])->get();
+
+        return response()->json($news, Response::HTTP_OK);
     }
+
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request) {}
+    public function store(Request $request) {
+        $validated = $request->validate([
+            'slug' => ['required', 'unique:news', 'max:255'],
+            'category_id' => ['required', 'exists:categories,id'],
+            'title' => ['required', 'max:255'],
+            'description' => ['required'],
+            'language_id' => ['required', 'exists:languages,id']
+        ]);
+
+        try{
+            DB::beginTransaction();
+            $news = News::create([
+                'slug' => $validated['slug'],
+                'category_id' => $validated['category_id'],
+                'user_id' => $request->user()->id
+            ]);
+
+            $news->newsTranslations()->create([
+                'title' => $validated['title'],
+                'description' => $validated['description'],
+                'language_id' => $validated['language_id']
+            ]);
+
+            DB::commit();
+            return response()->json(['message' => 'News article created'], Response::HTTP_CREATED);
+        } catch(\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'News article could not be created'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+    }
 
     /**
      * Show the specified resource.
      */
     public function show($id)
     {
-        return view('content::show');
+        $news = News::with(['category', 'user', 'newsTranslations'])->findOrFail($id);
+        return response()->json($news, Response::HTTP_OK);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit($id)
-    {
-        return view('content::edit');
-    }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id) {}
+    public function update(Request $request, $id)
+    {
+        $news = News::findOrFail($id);
+
+        $validated = $request->validate([
+            'slug' => ['required', 'max:255', Rule::unique('news', 'slug')->ignore($id)],
+            'category_id' => ['required', 'exists:categories,id'],
+            'title' => ['required', 'max:255'],
+            'description' => ['required'],
+            'language_id' => ['required', 'exists:languages,id'],
+        ]);
+
+        $languageId = $validated['language_id'];
+
+        try {
+            DB::beginTransaction();
+
+            $news->update([
+                'slug' => $validated['slug'],
+                'category_id' => $validated['category_id'],
+                //'user_id' => $request->user()->id,
+            ]);
+
+            $translation = $news->newsTranslations()
+                ->where('language_id', $languageId)
+                ->firstOrFail();
+
+            $translation->update([
+                'title' => $validated['title'],
+                'description' => $validated['description'],
+            ]);
+
+            DB::commit();
+
+            return response()->json(['message' => 'News article updated'], Response::HTTP_OK);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'News article could not be updated'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id) {}
+    public function destroy($id) {
+        $news = News::findOrFail($id);
+
+        DB::beginTransaction();
+
+        try {
+            $news->newsTranslations()->delete();
+            $news->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'News article deleted'
+            ], Response::HTTP_OK);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Failed to delete news article'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }
