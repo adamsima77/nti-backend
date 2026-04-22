@@ -1,0 +1,38 @@
+<?php
+
+namespace Modules\Programs\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class Call extends Model
+{
+    protected $table = 'call';
+
+    protected $fillable = [
+        'name',
+        'application_deadline',
+        'project_start',
+        'project_end',
+        'description',
+        'program_id',
+        'organization',
+        'call_type',
+        'active_status',
+    ];
+
+    public function program(): BelongsTo
+    {
+        return $this->belongsTo(Program::class, 'program_id');
+    }
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class, 'organization');
+    }
+
+    public function status(): BelongsTo
+    {
+        return $this->belongsTo(StatusOfCall::class, 'active_status');
+    }
+}
