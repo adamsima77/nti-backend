@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\IdentityAccess\Models\User;
 use Modules\Programs\Models\Call;
 
@@ -57,5 +58,10 @@ class Application extends Model
         )
             ->withPivot('type_of_application_id')
             ->withTimestamps();
+    }
+
+    public function statusHistory(): HasMany
+    {
+        return $this->hasMany(ApplicationStatusHistory::class, 'application_id');
     }
 }

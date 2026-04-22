@@ -34,6 +34,21 @@ class ApplicationResource extends JsonResource
                     'type_of_application_id' => $document->pivot?->type_of_application_id,
                 ];
             })->values(),
+            'status_history' => $this->whenLoaded('statusHistory', function () {
+                return $this->statusHistory
+                    ->map(function ($history) {
+                        return [
+                            'id' => $history->id,
+                            'status' => [
+                                'id' => $history->status?->id,
+                                'name' => $history->status?->name,
+                            ],
+                            'note' => $history->note,
+                            'created_at' => $history->created_at,
+                        ];
+                    })
+                    ->values();
+            }),
         ];
     }
 }
