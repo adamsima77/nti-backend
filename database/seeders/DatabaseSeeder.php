@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             \Modules\IdentityAccess\Database\Seeders\IdentityAccessDatabaseSeeder::class,
             \Modules\Content\Database\Seeders\ContentDatabaseSeeder::class,
             \Modules\Programs\Database\Seeders\ProgramsDatabaseSeeder::class,
+            \Modules\Applications\Database\Seeders\ApplicationsDatabaseSeeder::class,
         ]);
     }
 }

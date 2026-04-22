@@ -3,8 +3,6 @@
 namespace Modules\Applications\Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Modules\Applications\Models\Applications;
-use Illuminate\Support\Facades\Hash;
 
 class ApplicationsDatabaseSeeder extends Seeder
 {
@@ -13,6 +11,10 @@ class ApplicationsDatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        
+        $this->call([
+            StatusOfApplicationSeeder::class,
+            TypeOfApplicationSeeder::class,
+        ]);
     }
 }
+
