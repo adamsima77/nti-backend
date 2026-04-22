@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             \Modules\IdentityAccess\Database\Seeders\IdentityAccessDatabaseSeeder::class,
             \Modules\Content\Database\Seeders\ContentDatabaseSeeder::class,
+            \Modules\Programs\Database\Seeders\ProgramsDatabaseSeeder::class,
         ]);
     }
 }

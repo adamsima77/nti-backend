@@ -11,6 +11,13 @@ class ProgramsDatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // $this->call([]);
+        $this->call([
+            TypeOfProgramSeeder::class,
+            ProgramSeeder::class,
+            CallTypeSeeder::class,
+            StatusOfCallSeeder::class,
+            CallCriterionSeeder::class,
+            CallSeeder::class,
+        ]);
     }
 }
