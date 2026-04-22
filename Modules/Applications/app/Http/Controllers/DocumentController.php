@@ -1,15 +1,16 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace Modules\Applications\Http\Controllers;
 
-use App\Models\Document;
-use App\Models\DocumentVersion;
-use App\Models\SecurityClassification;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Modules\Applications\Models\Document;
+use Modules\Applications\Models\DocumentVersion;
+use Modules\Applications\Models\SecurityClassification;
 
 class DocumentController extends Controller
 {

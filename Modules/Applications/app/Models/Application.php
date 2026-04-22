@@ -2,7 +2,6 @@
 
 namespace Modules\Applications\Models;
 
-use App\Models\Document;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
