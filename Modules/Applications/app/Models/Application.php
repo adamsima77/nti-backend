@@ -2,9 +2,11 @@
 
 namespace Modules\Applications\Models;
 
+use App\Models\Document;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Application extends Model
 {
@@ -31,5 +33,17 @@ class Application extends Model
     public function status(): BelongsTo
     {
         return $this->belongsTo(StatusOfApplication::class, 'active_status');
+    }
+
+    public function documents(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Document::class,
+            'document_has_application',
+            'application_id',
+            'document_id'
+        )
+            ->withPivot('type_of_application_id')
+            ->withTimestamps();
     }
 }
