@@ -21,6 +21,10 @@ class CallResource extends JsonResource
             'project_start' => $this->project_start,
             'project_end' => $this->project_end,
             'description' => $this->description,
+            'status' => [
+                'id' => $this->status?->id,
+                'name' => $this->status?->name,
+            ],
             'program' => [
                 'id' => $this->program?->id,
                 'name' => $this->program?->name,
@@ -29,6 +33,12 @@ class CallResource extends JsonResource
                 'id' => $this->organization?->id,
                 'name' => $this->organization?->name,
             ],
+            'call_criteria' => $this->callCriteria->map(function ($criterion) {
+                return [
+                    'id' => $criterion->id,
+                    'name' => $criterion->name,
+                ];
+            })->values(),
         ];
     }
 }

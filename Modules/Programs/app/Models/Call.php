@@ -3,6 +3,7 @@
 namespace Modules\Programs\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Call extends Model
@@ -34,5 +35,15 @@ class Call extends Model
     public function status(): BelongsTo
     {
         return $this->belongsTo(StatusOfCall::class, 'active_status');
+    }
+
+    public function callCriteria(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            CallCriterion::class,
+            'call_has_call_criterion',
+            'call_id',
+            'call_criterion_id'
+        );
     }
 }

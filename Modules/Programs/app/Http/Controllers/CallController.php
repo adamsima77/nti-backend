@@ -23,4 +23,21 @@ class CallController extends Controller
 
         return CallResource::collection($calls);
     }
+
+    public function show(int $id)
+    {
+        $call = Call::query()
+            ->with([
+                'program:id,name',
+                'organization:id,name',
+                'status:id,name',
+                'callCriteria:id,name',
+            ])
+            ->whereHas('status', function ($query) {
+                $query->where('name', 'Publikované');
+            })
+            ->findOrFail($id);
+
+        return new CallResource($call);
+    }
 }
