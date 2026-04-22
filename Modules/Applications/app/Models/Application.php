@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Modules\IdentityAccess\Models\User;
+use Modules\Programs\Models\Call;
 
 class Application extends Model
 {
@@ -33,6 +35,16 @@ class Application extends Model
     public function status(): BelongsTo
     {
         return $this->belongsTo(StatusOfApplication::class, 'active_status');
+    }
+
+    public function call(): BelongsTo
+    {
+        return $this->belongsTo(Call::class, 'call_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function documents(): BelongsToMany
