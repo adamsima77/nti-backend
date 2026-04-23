@@ -1,0 +1,36 @@
+# Dependencies
+/vendor
+/node_modules
+
+# Laravel storage (runtime data)
+/storage/*.key
+/storage/logs
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/framework/testing/*
+/bootstrap/cache/*
+public/storage
+# Environment
+.env
+.env.*
+!.env.example
+
+# Testing / cache
+.phpunit.result.cache
+coverage
+*.cache
+
+# Git
+.git
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea
+.vscode
+
+# Logs
+*.log
