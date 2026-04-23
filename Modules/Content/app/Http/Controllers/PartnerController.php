@@ -3,6 +3,7 @@
 namespace Modules\Content\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -11,11 +12,13 @@ use Modules\Content\Models\Partner;
 
 class PartnerController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
+        $this->authorize('viewAny', Partner::class);
         $partners = Partner::with(['partnerTranslations'])->orderByDesc('created_at')->get();
         return response()->json($partners, Response::HTTP_OK);
     }
@@ -28,6 +31,7 @@ class PartnerController extends Controller
                 'message' => 'Language not found!'
             ], Response::HTTP_NOT_FOUND);
         }
+        $this->authorize('fetchByLanguage', Partner::class);
 
         $partners = Partner::with([
             'partnerTranslations' => fn ($q) =>
@@ -43,6 +47,7 @@ class PartnerController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request) {
+        $this->authorize('create', Partner::class);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:2500'],
@@ -71,6 +76,7 @@ class PartnerController extends Controller
     public function show($id)
     {
         $partner = Partner::with(['partnerTranslations'])->findOrFail($id);
+        $this->authorize('view', $partner);
         return response()->json($partner, Response::HTTP_OK);
     }
 
@@ -80,6 +86,7 @@ class PartnerController extends Controller
      */
     public function update(Request $request, $id) {
         $partner = Partner::findOrFail($id);
+        $this->authorize('update', $partner);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:2500'],
@@ -113,6 +120,7 @@ class PartnerController extends Controller
      */
     public function destroy($id) {
         $partner = Partner::findOrFail($id);
+        $this->authorize('delete', $partner);
         try{
             DB::beginTransaction();
             $partner->partnerTranslations()->delete();

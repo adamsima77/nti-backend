@@ -3,16 +3,19 @@
 namespace Modules\Content\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Modules\Content\Models\Language;
 use Illuminate\Http\Response;
 class LanguageController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
+        $this->authorize('viewAny', Language::class);
         $languages = Language::orderByDesc('created_at')->get();
         return response($languages, Response::HTTP_OK);
     }
@@ -22,6 +25,7 @@ class LanguageController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request) {
+        $this->authorize('create', Language::class);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255']
         ]);
@@ -38,6 +42,7 @@ class LanguageController extends Controller
     public function show($id)
     {
         $language = Language::findOrFail($id);
+        $this->authorize('view', $language);
         return response($language, Response::HTTP_OK);
     }
 
@@ -46,6 +51,7 @@ class LanguageController extends Controller
      */
     public function update(Request $request, $id) {
         $language = Language::findOrFail($id);
+        $this->authorize('update', $language);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255']
@@ -63,6 +69,7 @@ class LanguageController extends Controller
      */
     public function destroy($id) {
         $language = Language::findOrFail($id);
+        $this->authorize('delete', $language);
         $language->delete();
         return response(['message' => 'Language deleted !'], Response::HTTP_OK);
     }

@@ -3,6 +3,7 @@
 namespace Modules\Content\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use League\CommonMark\Reference\Reference;
@@ -12,11 +13,13 @@ use Illuminate\Http\Response;
 
 class PartnerReferenceController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
+        $this->authorize('viewAny', PartnerReference::class);
         $references = PartnerReference::with('partnerReferenceTranslations')->orderByDesc('created_at')->get();
         return response()->json($references, Response::HTTP_OK);
     }
@@ -29,6 +32,7 @@ class PartnerReferenceController extends Controller
                 'message' => 'Language not found!'
             ], Response::HTTP_NOT_FOUND);
         }
+        $this->authorize('fetchByLanguage', PartnerReference::class);
 
         $references = PartnerReference::with([
             'partnerReferenceTranslations' => fn ($q) =>
@@ -44,6 +48,7 @@ class PartnerReferenceController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request) {
+        $this->authorize('create', PartnerReference::class);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'job_position' => ['required', 'string', 'max:255'],
@@ -74,6 +79,7 @@ class PartnerReferenceController extends Controller
     public function show($id)
     {
        $reference = PartnerReference::with('partnerReferenceTranslations')->findOrFail($id);
+       $this->authorize('view', $reference);
        return response()->json($reference, Response::HTTP_OK);
     }
 
@@ -83,6 +89,7 @@ class PartnerReferenceController extends Controller
      */
     public function update(Request $request, $id) {
         $reference = PartnerReference::findOrFail($id);
+        $this->authorize('update', $reference);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'job_position' => ['required', 'string', 'max:255'],
@@ -113,6 +120,7 @@ class PartnerReferenceController extends Controller
      */
     public function destroy($id) {
           $reference = PartnerReference::findOrFail($id);
+          $this->authorize('delete', $reference);
           try{
               DB::beginTransaction();
               $reference->partnerReferenceTranslations()->delete();

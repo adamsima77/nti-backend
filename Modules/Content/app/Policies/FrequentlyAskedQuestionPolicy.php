@@ -3,10 +3,10 @@
 namespace Modules\Content\Policies;
 
 use Illuminate\Auth\Access\HandlesAuthorization;
-use Modules\Content\Models\News;
+use Modules\Content\Models\FrequentlyAskedQuestion;
 use Modules\IdentityAccess\Models\User;
 
-class NewsPolicy
+class FrequentlyAskedQuestionPolicy
 {
     use HandlesAuthorization;
 
@@ -19,7 +19,7 @@ class NewsPolicy
         return true;
     }
 
-    public function view(User $user, News $news): bool
+    public function view(User $user, FrequentlyAskedQuestion $faq): bool
     {
         return true;
     }
@@ -29,12 +29,12 @@ class NewsPolicy
         return $user->isAdmin() || $user->isSuperAdmin() || $user->isCMSEditor();
     }
 
-    public function update(User $user, News $news): bool
+    public function update(User $user, FrequentlyAskedQuestion $faq): bool
     {
         return $user->isAdmin() || $user->isSuperAdmin() || $user->isCMSEditor();
     }
 
-    public function delete(User $user, News $news): bool
+    public function delete(User $user, FrequentlyAskedQuestion $faq): bool
     {
         return $user->isAdmin() || $user->isSuperAdmin() || $user->isCMSEditor();
     }

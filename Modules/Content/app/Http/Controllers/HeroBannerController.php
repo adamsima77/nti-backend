@@ -3,6 +3,7 @@
 namespace Modules\Content\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Modules\Content\Models\HeroBanner;
@@ -11,11 +12,13 @@ use Modules\Content\Models\Language;
 
 class HeroBannerController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
+        $this->authorize('viewAny', HeroBanner::class);
         $banners = HeroBanner::with(['page', 'heroBannerTranslations'])->orderByDesc('created_at')->get();
         return response()->json($banners, Response::HTTP_OK);
     }
@@ -28,7 +31,7 @@ class HeroBannerController extends Controller
                 'message' => 'Language not found!'
             ], Response::HTTP_NOT_FOUND);
         }
-
+        $this->authorize('fetchByLanguage', HeroBanner::class);
         $banners = HeroBanner::with([
             'page', 'heroBannerTranslations' => fn ($q) =>
             $q->where('language_id', $languageId)
@@ -42,6 +45,7 @@ class HeroBannerController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request) {
+        $this->authorize('create', HeroBanner::class);
         $validated = $request->validate([
            'page_id' => ['required', 'exists:pages,id'],
            'title' => ['required', 'string', 'max:255'],
@@ -73,6 +77,7 @@ class HeroBannerController extends Controller
     public function show($id)
     {
         $banner = HeroBanner::with(['page', 'heroBannerTranslations'])->findOrFail($id);
+        $this->authorize('view', $banner);
         return response()->json($banner, Response::HTTP_OK);
     }
 
@@ -87,11 +92,10 @@ class HeroBannerController extends Controller
             'description' => ['required', 'string', 'max:2000'],
             'language_id' => ['required', 'exists:languages,id']
         ]);
-
+        $banner = HeroBanner::findOrFail($id);
+        $this->authorize('update', $banner);
         try{
             DB::beginTransaction();
-
-            $banner = HeroBanner::findOrFail($id);
             $banner->update([
                 'page_id' => $validated['page_id'],
             ]);
@@ -119,6 +123,7 @@ class HeroBannerController extends Controller
      */
     public function destroy($id) {
         $banner = HeroBanner::findOrFail($id);
+        $this->authorize('delete', $banner);
         try{
             DB::beginTransaction();
             $banner->heroBannerTranslations()->delete();

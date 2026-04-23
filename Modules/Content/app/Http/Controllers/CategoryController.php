@@ -3,6 +3,7 @@
 namespace Modules\Content\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -12,11 +13,13 @@ use Modules\Content\Models\Language;
 
 class CategoryController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
+        $this->authorize('viewAny', Category::class);
         $categories = Category::with('categoryTranslations')->orderByDesc('created_at')->get();
         return response()->json($categories, Response::HTTP_OK);
     }
@@ -29,6 +32,8 @@ class CategoryController extends Controller
                 'message' => 'Language not found!'
             ], Response::HTTP_NOT_FOUND);
         }
+
+        $this->authorize('fetchByLanguage', Category::class);
 
         $categories = Category::with([
             'categoryTranslations' => fn ($q) =>
@@ -43,6 +48,7 @@ class CategoryController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request) {
+        $this->authorize('create', Category::class);
         $validated = $request->validate([
             'slug' => ['required', 'unique:categories', 'max:255'],
             'name' => ['required', 'max:255'],
@@ -70,6 +76,7 @@ class CategoryController extends Controller
     public function show($id)
     {
         $category = Category::with('categoryTranslations')->findOrFail($id);
+        $this->authorize('view', $category);
         return response()->json($category, Response::HTTP_OK);
     }
 
@@ -78,13 +85,14 @@ class CategoryController extends Controller
      * Update the specified resource in storage.
      */
     public function update(Request $request, $id) {
+        $category = Category::findOrFail($id);
+        $this->authorize('update', $category);
+
         $validated = $request->validate([
             'slug' => ['required','max:255',Rule::unique('categories', 'slug')->ignore($id)],
             'name' => ['required', 'max:255'],
             'language_id' => ['required', 'exists:languages,id']
         ]);
-
-        $category = Category::findOrFail($id);
 
         try{
             DB::beginTransaction();
@@ -108,6 +116,7 @@ class CategoryController extends Controller
      */
     public function destroy($id) {
         $category = Category::findOrFail($id);
+        $this->authorize('delete', $category);
         try {
             DB::beginTransaction();
             $category->categoryTranslations()->delete();

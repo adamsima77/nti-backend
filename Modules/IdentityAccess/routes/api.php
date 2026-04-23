@@ -34,4 +34,5 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
 Route::post('/auth/resend-verification', [AuthController::class, 'resendNotification']);
 Route::get('/auth/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
-        ->name('verification.verify');
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('verification.verify');

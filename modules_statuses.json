@@ -8,5 +8,6 @@
     "Organizations": true,
     "Reporting": true,
     "Notifications": true,
-    "AuditCompliance": true
+    "AuditCompliance": true,
+    "Support": true
 }

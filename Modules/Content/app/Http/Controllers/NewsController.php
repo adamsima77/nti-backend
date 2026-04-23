@@ -3,6 +3,7 @@
 namespace Modules\Content\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -11,11 +12,13 @@ use Modules\Content\Models\News;
 use Illuminate\Http\Response;
 class NewsController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
+        $this->authorize('viewAny', News::class);
         $news = News::with(['category', 'user', 'newsTranslations'])->orderByDesc('created_at')->get();
         return response()->json($news, Response::HTTP_OK);
     }
@@ -28,6 +31,7 @@ class NewsController extends Controller
                 'message' => 'Language not found!'
             ], Response::HTTP_NOT_FOUND);
         }
+        $this->authorize('fetchByLanguage', News::class);
 
         $news = News::with([
             'category', 'user', 'newsTranslations' => fn ($q) =>
@@ -42,6 +46,7 @@ class NewsController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request) {
+        $this->authorize('create', News::class);
         $validated = $request->validate([
             'slug' => ['required', 'unique:news', 'max:255'],
             'category_id' => ['required', 'exists:categories,id'],
@@ -79,6 +84,7 @@ class NewsController extends Controller
     public function show($id)
     {
         $news = News::with(['category', 'user', 'newsTranslations'])->findOrFail($id);
+        $this->authorize('view', $news);
         return response()->json($news, Response::HTTP_OK);
     }
 
@@ -89,6 +95,7 @@ class NewsController extends Controller
     public function update(Request $request, $id)
     {
         $news = News::findOrFail($id);
+        $this->authorize('update', $news);
 
         $validated = $request->validate([
             'slug' => ['required', 'max:255', Rule::unique('news', 'slug')->ignore($id)],
@@ -136,6 +143,7 @@ class NewsController extends Controller
      */
     public function destroy($id) {
         $news = News::findOrFail($id);
+        $this->authorize('delete', $news);
 
         DB::beginTransaction();
 
