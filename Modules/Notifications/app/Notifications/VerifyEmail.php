@@ -1,15 +1,21 @@
 <?php
-namespace Modules\IdentityAccess\Notifications;
 
+namespace Modules\Notifications\Notifications;
+
+use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\URL;
-class VerifyEmail extends Notification
+
+class VerifyEmail extends Notification implements ShouldQueue
 {
-public function via($notifiable)
-{
-    return ['mail'];
-}
+    use Queueable;
+
+    public function via($notifiable)
+    {
+        return ['mail'];
+    }
 
     public function toMail($notifiable)
     {
@@ -26,9 +32,9 @@ public function via($notifiable)
 
         return (new MailMessage)
             ->subject('Verify your email address')
-            ->greeting('Hello ' . $notifiable->name)
-            ->line('Please verify your email address by clicking the button below.')
-            ->action('Verify Email', $frontendUrl)
-            ->line('If you did not create this account, you can ignore this email.');
+            ->view('notifications::emails.verify-email', [
+                'name' => $notifiable->name,
+                'verificationUrl' => $frontendUrl,
+            ]);
     }
 }

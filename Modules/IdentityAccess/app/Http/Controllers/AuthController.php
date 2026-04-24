@@ -8,13 +8,17 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password as PasswordBroker;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Modules\IdentityAccess\Events\PasswordChanged;
+use Modules\IdentityAccess\Events\PasswordResetRequested;
 use Modules\IdentityAccess\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Modules\IdentityAccess\Enums\UserStatus;
+use Modules\Notifications\Emails\ResetPasswordMail;
+
 
 class AuthController extends Controller
 {
@@ -100,44 +104,48 @@ class AuthController extends Controller
             'email' => ['required', 'email'],
         ]);
 
-        $status = PasswordBroker::sendResetLink(
-            $request->only('email')
-        );
-        if ($status !== PasswordBroker::RESET_LINK_SENT) {
-            return response()->json(['message' => 'Reset link coudlnt be sent.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'User not found.'
+            ], 404);
         }
+
+        event(new PasswordResetRequested($user));
 
         return response()->json([
             'message' => 'Reset link has been sent to your email address.'
-        ], Response::HTTP_OK);
+        ]);
     }
-
-    public function resetPassword(Request $request){
+    public function resetPassword(Request $request)
+    {
         $validated = $request->validate([
             'token' => ['required'],
             'password' => ['required', 'string', 'confirmed', PasswordRule::min(8)->mixedCase()->numbers()->symbols()],
             'email' => ['required', 'email']
         ]);
-        $log_token = "";
+
         $status = PasswordBroker::reset(
             $validated,
-            function (User $user, string $password) use (&$log_token) {
+            function (User $user, string $password) {
                 $user->forceFill([
                     'password' => Hash::make($password)
-                ]);
-                $user->save();
+                ])->save();
+
                 $user->tokens()->delete();
-                $log_token = $user->createToken("web-login")->plainTextToken;
-                //Event that notifies laravel internally
-                event(new PasswordReset($user));
-                //Notify notification class of change
                 event(new PasswordChanged($user));
             }
         );
 
         if ($status !== PasswordBroker::PASSWORD_RESET) {
-            return response()->json(['message' => "Invalid or expired reset token."], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return response()->json([
+                'message' => "Invalid or expired reset token."
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        return response()->json(['message' => 'Password reset successfully.', 'token' => $log_token], Response::HTTP_OK);
+
+        return response()->json([
+            'message' => 'Password reset successfully.'
+        ], Response::HTTP_OK);
     }
 }

@@ -1,8 +1,9 @@
 <?php
 
 namespace Modules\IdentityAccess\Models;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Modules\Content\Models\NewsTranslation;
-use Modules\IdentityAccess\Notifications\VerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +16,8 @@ use Laravel\Sanctum\HasApiTokens;
 
 use Modules\IdentityAccess\Database\Factories\UserFactory;
 use Modules\IdentityAccess\Enums\UserStatus;
+use Modules\Notifications\Emails\VerifyEmailMail;
+use Modules\Notifications\Notifications\VerifyEmail;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -107,14 +110,23 @@ class User extends Authenticatable implements MustVerifyEmail
     //Additional methods
     public function setStatus(UserStatus $status): void
     {
-        $this->status = $status->value;
+        $this->status_id = $status->value;
         $this->save();
     }
 
 
     public function sendEmailVerificationNotification(): void
     {
-        $this->notify(new VerifyEmail());
+        $verificationUrl = URL::temporarySignedRoute(
+            'api.verification.verify',
+            now()->addMinutes(15),
+            [
+                'id' => $this->id,
+                'hash' => sha1($this->email),
+            ]
+        );
+
+        Mail::to($this->email)->send(new VerifyEmailMail($verificationUrl, $this));
     }
 
     protected static function newFactory()

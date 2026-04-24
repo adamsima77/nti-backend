@@ -1,46 +1,79 @@
-<div style="font-family: Inter, system-ui, sans-serif; background-color:#f8fafc; padding:40px 0;">
-    <div style="max-width:600px; margin:0 auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Security Alert</title>
+</head>
 
-        <!-- HEADER -->
-        <div style="background:#0a1628; padding:24px; text-align:center;">
-            <h1 style="color:#ffffff; margin:0; font-size:20px; font-weight:600;">
-                Password Changed
-            </h1>
-        </div>
+<body style="margin:0; padding:0; background-color:#f8fafc; font-family: Arial, Helvetica, sans-serif;">
 
-        <!-- BODY -->
-        <div style="padding:32px; color:#1e293b;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8fafc; padding:40px 0;">
+    <tr>
+        <td align="center">
 
-            <p style="margin:0 0 16px; color:#64748b;">
-                Hello,
-            </p>
+            <!-- Container -->
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.08);">
 
-            <p style="margin:0 0 16px;">
-                Your password was successfully changed for account:
-            </p>
+                <!-- Header -->
+                <tr>
+                    <td style="padding:30px; text-align:center; background:#0a1628;">
+                        <img src="{{ $message->embed(public_path('emails/nti-logo.png')) }}"
+                             alt="NTI Logo"
+                             style="height:50px;">
+                    </td>
+                </tr>
 
-            <div style="background:#f1f5f9; border:1px solid #e2e8f0; padding:12px 16px; border-radius:8px; font-weight:600; color:#0a1628; margin-bottom:20px;">
-                {{ $userEmail }}
-            </div>
+                <!-- Content -->
+                <tr>
+                    <td style="padding:40px; color:#0a1628;">
 
-            <div style="background:#f0fdf4; border:1px solid #16803c; padding:16px; border-radius:8px; margin-bottom:20px;">
-                <p style="margin:0; color:#15803d; font-size:14px;">
-                    ✔ If this was you, no further action is needed.
-                </p>
-            </div>
+                        <h1 style="margin:0 0 16px; font-size:24px;">
+                            Security Alert
+                        </h1>
 
-            <div style="background:#fef2f2; border:1px solid #dc2626; padding:16px; border-radius:8px;">
-                <p style="margin:0; color:#b91c1c; font-size:14px;">
-                    ⚠ If this was NOT you, please contact support immediately.
-                </p>
-            </div>
+                        <p style="margin:0 0 20px; font-size:15px; color:#64748b; line-height:1.6;">
+                            Your NTI account password has been successfully updated.
+                        </p>
 
-        </div>
+                        <p style="margin:0 0 16px; font-size:14px; color:#64748b;">
+                            Hello {{ $userEmail }},
+                        </p>
 
-        <!-- FOOTER -->
-        <div style="padding:16px; text-align:center; font-size:12px; color:#94a3b8; border-top:1px solid #e2e8f0;">
-            NTI Security Team
-        </div>
+                        <!-- Account box -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:24px;">
+                            <tr>
+                                <td style="background:#f8fafc; border:1px solid #e2e8f0; padding:14px; border-radius:10px;">
+                                    <div style="font-size:12px; color:#64748b;">Account</div>
+                                    <div style="font-weight:600; color:#0a1628;">
+                                        {{ $userEmail }}
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
 
-    </div>
-</div>
+                        <p style="margin:0 0 12px; font-size:14px; color:#0a1628;">
+                            If you made this change, you can safely ignore this email.
+                        </p>
+
+                        <p style="margin:0; font-size:14px; color:#0a1628;">
+                            If you did NOT change your password, please reset it immediately or contact support.
+                        </p>
+
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="padding:20px; text-align:center; font-size:12px; color:#94a3b8; background:#f1f5f9;">
+                        NTI Security Team • Keep your account secure
+                    </td>
+                </tr>
+
+            </table>
+
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>
