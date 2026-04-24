@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Route;
 
 class RouteServiceProvider extends ServiceProvider
 {
-    protected string $name = 'Organizations';
+    protected string $name = 'Organization';
 
     public function boot(): void
     {
