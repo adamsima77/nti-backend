@@ -20,7 +20,8 @@ class ContentDatabaseSeeder extends Seeder
             LanguageSeeder::class,
             CategorySeeder::class,
             HeroBannerSeeder::class,
-            FrequentlyAskedQuestionSeeder::class
+            FrequentlyAskedQuestionSeeder::class,
+            MetaTagTranslationSeeder::class
 
         ]);
         News::factory()->count(20)->create();
