@@ -29,8 +29,23 @@ class Organization extends Model
 
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'user_organization', 'organization_id', 'user_id')
+        return $this->belongsToMany(
+            User::class,
+            'user_organization',
+            'organization_id',
+            'user_id'
+        )
             ->using(UserOrganization::class)
             ->withPivot('organization_role');
+    }
+
+    public function sectors(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Sector::class,
+            'sector_has_organization',
+            'organization_id',
+            'sector_id'
+        );
     }
 }
