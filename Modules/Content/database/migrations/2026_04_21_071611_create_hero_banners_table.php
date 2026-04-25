@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('hero_banners', function (Blueprint $table) {
             $table->id();
             $table->foreignId('page_id')->constrained('pages');
+            $table->softDeletes();
             $table->timestamps();
         });
     }

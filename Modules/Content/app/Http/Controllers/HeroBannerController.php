@@ -23,6 +23,19 @@ class HeroBannerController extends Controller
         return response()->json($banners, Response::HTTP_OK);
     }
 
+    public function getByPageAndLang($pageId, $lang)
+    {
+        $languageId = Language::where('name', $lang)->value('id');
+
+        $banner = HeroBanner::with(['heroBannerTranslations' => function ($q) use ($languageId) {
+            $q->where('language_id', $languageId);
+        }])
+            ->where('page_id', $pageId)
+            ->firstOrFail();
+
+        return response()->json($banner, Response::HTTP_OK);
+    }
+
     public function fetchByLang(string $lang){
         $languageId = Language::where('name', $lang)->value('id');
 
