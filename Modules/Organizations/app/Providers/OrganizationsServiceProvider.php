@@ -6,7 +6,7 @@ use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class OrganizationsServiceProvider extends ModuleServiceProvider
 {
-    protected string $name = 'Organization';
+    protected string $name = 'Organizations';
     protected string $nameLower = 'organizations';
 
     protected array $providers = [
