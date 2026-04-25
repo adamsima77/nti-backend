@@ -1,5 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Organizations\Http\Controllers\OrganizationController;
 
-// Routes for module.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::apiResource('organizations', OrganizationController::class);
+});

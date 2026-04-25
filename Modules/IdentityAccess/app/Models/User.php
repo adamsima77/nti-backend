@@ -18,6 +18,8 @@ use Modules\IdentityAccess\Database\Factories\UserFactory;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\Notifications\Emails\VerifyEmailMail;
 use Modules\Notifications\Notifications\VerifyEmail;
+use Modules\Organizations\Models\Organization;
+use Modules\Organizations\Models\UserOrganization;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -68,6 +70,18 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function newsTranslations(): HasMany{
         return $this->hasMany(NewsTranslation::class);
+    }
+
+    public function organizations(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Organization::class,
+            'user_organization',
+            'user_id',
+            'organization_id'
+        )
+            ->using(UserOrganization::class)
+            ->withPivot('organization_role');
     }
 
     //Check roles

@@ -20,7 +20,7 @@ return new class extends Migration
 
             $table->foreign('user_id')
                 ->references('id')
-                ->on('user');
+                ->on('users');
 
             $table->foreign('organization_id')
                 ->references('id')
@@ -42,7 +42,7 @@ return new class extends Migration
             $table->dropForeign(['organization_id']);
             $table->dropForeign(['organization_role']);
         });
-        
+
         Schema::dropIfExists('user_organization');
     }
 };
