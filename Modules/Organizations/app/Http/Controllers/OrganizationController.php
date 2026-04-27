@@ -3,6 +3,7 @@
 namespace Modules\Organizations\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -12,11 +13,14 @@ use Modules\Organizations\Models\OrganizationRole;
 
 class OrganizationController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
+        $this->authorize('viewAny', Organization::class);
+
         $organizations = Organization::with('address', 'sectors')->get();
 
         return response()->json([
@@ -37,6 +41,8 @@ class OrganizationController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', Organization::class);
+
         $validated = $request->validate([
             'name'    => ['required', 'string', 'max:255'],
             'phone'   => ['required', 'string', 'max:30'],
@@ -87,6 +93,8 @@ class OrganizationController extends Controller
      */
     public function show(Organization $organization)
     {
+        $this->authorize('view', $organization);
+
         return response()->json([
             'organization' => $organization->load('address', 'sectors', 'users'),
         ], Response::HTTP_OK);
@@ -103,7 +111,10 @@ class OrganizationController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Organization $organization) {
+    public function update(Request $request, Organization $organization)
+    {
+        $this->authorize('update', $organization);
+
         $validated = $request->validate([
             'name'    => ['sometimes', 'string', 'max:255'],
             'phone'   => ['sometimes', 'string', 'max:30'],
@@ -140,7 +151,10 @@ class OrganizationController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Organization $organization) {
+    public function destroy(Organization $organization)
+    {
+        $this->authorize('delete', $organization);
+
         DB::transaction(function () use ($organization) {
             $address = $organization->address;
 

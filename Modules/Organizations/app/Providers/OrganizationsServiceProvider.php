@@ -2,7 +2,10 @@
 
 namespace Modules\Organizations\Providers;
 
+use Modules\Organizations\Models\Organization;
+use Modules\Organizations\Policies\OrganizationPolicy;
 use Nwidart\Modules\Support\ModuleServiceProvider;
+use Illuminate\Support\Facades\Gate;
 
 class OrganizationsServiceProvider extends ModuleServiceProvider
 {
@@ -13,4 +16,11 @@ class OrganizationsServiceProvider extends ModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
+
+    public function boot(): void
+    {
+        parent::boot();
+
+        Gate::policy(Organization::class, OrganizationPolicy::class);
+    }
 }
