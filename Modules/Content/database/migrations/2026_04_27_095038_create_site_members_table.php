@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('site_members', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('img_url')->nullable();
             $table->timestamps();
         });
     }

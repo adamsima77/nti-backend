@@ -11,6 +11,7 @@ use Modules\Content\Http\Controllers\PartnerController;
 use Modules\Content\Http\Controllers\PartnerReferenceController;
 use Modules\Content\Http\Controllers\SiteMemberController;
 
+Route::get('partners/fetch-images',  [PartnerController::class, 'fetchImages']);
 Route::get('/categories/lang/{lang}', [CategoryController::class, 'fetchByLang']);
 Route::get('/hero-banners/lang/{lang}', [HeroBannerController::class, 'fetchByLang']);
 Route::get('/news/lang/{lang}', [NewsController::class, 'fetchByLang']);
@@ -30,6 +31,7 @@ Route::apiResource('partner-references', PartnerReferenceController::class)->onl
 Route::apiResource('faq', FrequentlyAskedQuestionController::class)->only(['index', 'show']);
 Route::apiResource('meta-tags', MetaTagController::class)->only(['index', 'show']);
 Route::apiResource('site-members', SiteMemberController::class)->only(['index', 'show']);
+
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('languages', LanguageController::class);
 
