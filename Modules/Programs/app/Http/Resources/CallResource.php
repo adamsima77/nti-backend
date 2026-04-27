@@ -14,6 +14,8 @@ class CallResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $currentStatus = $this->currentStatusHistory?->status;
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -22,8 +24,8 @@ class CallResource extends JsonResource
             'project_end' => $this->project_end,
             'description' => $this->description,
             'status' => [
-                'id' => $this->status?->id,
-                'name' => $this->status?->name,
+                'id' => $currentStatus?->id,
+                'name' => $currentStatus?->name,
             ],
             'program' => [
                 'id' => $this->program?->id,

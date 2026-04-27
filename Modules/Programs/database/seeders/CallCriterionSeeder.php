@@ -3,7 +3,7 @@
 namespace Modules\Programs\Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Modules\Programs\Models\CallCriterion;
+use Modules\Programs\Models\Criterion;
 
 class CallCriterionSeeder extends Seeder
 {
@@ -17,7 +17,7 @@ class CallCriterionSeeder extends Seeder
         ];
 
         foreach ($items as $item) {
-            CallCriterion::query()->updateOrCreate(
+            Criterion::query()->updateOrCreate(
                 ['name' => $item['name']],
                 $item
             );

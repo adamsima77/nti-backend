@@ -10,19 +10,19 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::create('call_has_call_criterion', function (Blueprint $table) {
+        Schema::create('call_has_criterion', function (Blueprint $table) {
             $table->unsignedBigInteger('call_id');
-            $table->unsignedBigInteger('call_criterion_id');
+            $table->unsignedBigInteger('criterion_id');
 
-            $table->primary(['call_id', 'call_criterion_id']);
+            $table->primary(['call_id', 'criterion_id']);
 
             $table->foreign('call_id')
                 ->references('id')
                 ->on('call');
 
-            $table->foreign('call_criterion_id')
+            $table->foreign('criterion_id')
                 ->references('id')
-                ->on('call_criterion');
+                ->on('criterion');
         });
     }
 
@@ -31,6 +31,6 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('call_has_call_criterion');
+        Schema::dropIfExists('call_has_criterion');
     }
 };

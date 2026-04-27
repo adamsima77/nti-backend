@@ -16,9 +16,9 @@ class CallController extends Controller
             ->with([
                 'program:id,name',
                 'organization:id,name',
-                'status:id,name',
+                'currentStatusHistory.status:id,name',
             ])
-            ->whereHas('status', function ($query) use ($request) {
+            ->whereHas('currentStatusHistory.status', function ($query) use ($request) {
                 if ($request->filled('status')) {
                     $query->where('name', $request->query('status'));
                     return;
@@ -46,10 +46,10 @@ class CallController extends Controller
             ->with([
                 'program:id,name',
                 'organization:id,name',
-                'status:id,name',
+                'currentStatusHistory.status:id,name',
                 'callCriteria:id,name',
             ])
-            ->whereHas('status', function ($query) {
+            ->whereHas('currentStatusHistory.status', function ($query) {
                 $query->where('name', 'Publikované');
             })
             ->findOrFail($id);

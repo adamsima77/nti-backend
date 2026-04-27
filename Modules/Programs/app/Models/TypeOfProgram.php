@@ -18,6 +18,6 @@ class TypeOfProgram extends Model
 
     public function programs(): HasMany
     {
-        return $this->hasMany(Program::class, 'type_of_program');
+        return $this->hasMany(Program::class, 'type_of_program_id');
     }
 }

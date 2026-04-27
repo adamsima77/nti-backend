@@ -15,13 +15,13 @@ class Program extends Model
 
     protected $fillable = [
         'name',
-        'type_of_program',
+        'type_of_program_id',
         'description',
     ];
 
     public function typeOfProgram(): BelongsTo
     {
-        return $this->belongsTo(TypeOfProgram::class, 'type_of_program');
+        return $this->belongsTo(TypeOfProgram::class, 'type_of_program_id');
     }
 
     public function calls(): HasMany

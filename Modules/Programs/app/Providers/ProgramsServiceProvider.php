@@ -5,8 +5,10 @@ namespace Modules\Programs\Providers;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Gate;
+use Modules\Programs\Models\Call;
 use Modules\Programs\Models\Program;
 use Modules\Programs\Models\Programs;
+use Modules\Programs\Policies\CallPolicy;
 use Modules\Programs\Policies\ProgramPolicy;
 
 class ProgramsServiceProvider extends ModuleServiceProvider
@@ -44,6 +46,7 @@ class ProgramsServiceProvider extends ModuleServiceProvider
 
         Gate::policy(Program::class, ProgramPolicy::class);
         Gate::policy(Programs::class, ProgramPolicy::class);
+        Gate::policy(Call::class, CallPolicy::class);
     }
 
     /**

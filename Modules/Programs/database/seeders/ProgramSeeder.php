@@ -17,7 +17,7 @@ class ProgramSeeder extends Seeder
             Program::query()->updateOrCreate(
                 ['name' => 'Grantový inkubačný program'],
                 [
-                    'type_of_program' => $programA->id,
+                    'type_of_program_id' => $programA->id,
                     'description' => 'Program pre vlastné inovatívne nápady študentov a tímov.',
                 ]
             );
@@ -27,7 +27,7 @@ class ProgramSeeder extends Seeder
             Program::query()->updateOrCreate(
                 ['name' => 'Program živej praxe'],
                 [
-                    'type_of_program' => $programB->id,
+                    'type_of_program_id' => $programB->id,
                     'description' => 'Program pre reálne zadania od firiem a partnerov.',
                 ]
             );
