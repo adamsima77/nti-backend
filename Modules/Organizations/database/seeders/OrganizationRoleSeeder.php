@@ -3,6 +3,7 @@
 namespace Modules\Organizations\Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Modules\Organizations\Models\OrganizationRole;
 
 class OrganizationRoleSeeder extends Seeder
 {

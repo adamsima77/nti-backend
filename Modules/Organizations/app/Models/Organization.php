@@ -12,6 +12,11 @@ class Organization extends Model
 {
     use HasFactory;
 
+    protected static function newFactory()
+    {
+        return \Modules\Organizations\Database\Factories\OrganizationFactory::new();
+    }
+
     protected $table = 'organization';
 
     protected $fillable = [

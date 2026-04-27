@@ -6,11 +6,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-// use Modules\Organization\Database\Factories\AddressFactory;
-
 class Address extends Model
 {
     use HasFactory;
+
+    protected static function newFactory()
+    {
+        return \Modules\Organizations\Database\Factories\AddressFactory::new();
+    }
 
     protected $table = 'address';
 
