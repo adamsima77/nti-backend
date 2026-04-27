@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Modules\Content\Models\Language;
 use Modules\Content\Models\News;
@@ -65,15 +66,21 @@ class NewsController extends Controller
             'category_id' => ['required', 'exists:categories,id'],
             'title' => ['required', 'max:255'],
             'description' => ['required'],
-            'language_id' => ['required', 'exists:languages,id']
+            'language_id' => ['required', 'exists:languages,id'],
+            'image' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:4096']
         ]);
 
         try{
             DB::beginTransaction();
+            $path = null;
+            if ($request->hasFile('image')) {
+                $path = $request->file('image')->store('news', 'public');
+            }
             $news = News::create([
                 'slug' => $validated['slug'],
                 'category_id' => $validated['category_id'],
-                'user_id' => $request->user()->id
+                'user_id' => $request->user()->id,
+                'image' => $path
             ]);
 
             $news->newsTranslations()->create([
@@ -116,17 +123,23 @@ class NewsController extends Controller
             'title' => ['required', 'max:255'],
             'description' => ['required'],
             'language_id' => ['required', 'exists:languages,id'],
+            'image' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:4096']
         ]);
 
         $languageId = $validated['language_id'];
 
         try {
             DB::beginTransaction();
-
+            if($request->hasFile('image')) {
+            if($news->image && Storage::disk('public')->exists($news->image)) {
+                Storage::delete($news->image);
+            }
+            $path = $request->file('image')->store('news', 'public');
+            }
             $news->update([
                 'slug' => $validated['slug'],
                 'category_id' => $validated['category_id'],
-                //'user_id' => $request->user()->id,
+                'image' => $path ?? $news->image
             ]);
 
             $translation = $news->newsTranslations()
@@ -158,9 +171,11 @@ class NewsController extends Controller
         $news = News::findOrFail($id);
         $this->authorize('delete', $news);
 
-        DB::beginTransaction();
-
         try {
+            DB::beginTransaction();
+            if($news->image && Storage::disk('public')->exists($news->image)){
+                Storage::delete($news->image);
+            }
             $news->newsTranslations()->delete();
             $news->delete();
 

@@ -22,10 +22,9 @@ class ContentDatabaseSeeder extends Seeder
             HeroBannerSeeder::class,
             FrequentlyAskedQuestionSeeder::class,
             MetaTagTranslationSeeder::class,
-            SiteMemberSeeder::class
-
+            SiteMemberSeeder::class,
+            NewsSeeder::class
         ]);
-        News::factory()->count(20)->create();
         PartnerReference::factory()->count(20)->create();
         Partner::factory()->count(20)->create();
     }

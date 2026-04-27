@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('meta_tags', function (Blueprint $table) {
             $table->id();
+            $table->string('image_url', 255)->nullable();
             $table->foreignId('page_id')->constrained('pages')->unique();
             $table->timestamps();
         });

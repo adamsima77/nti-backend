@@ -42,6 +42,11 @@ class PartnerController extends Controller
         return response()->json($partners, Response::HTTP_OK);
     }
 
+    public function fetchImages(){
+        $images = Partner::get(['image']);
+        return response()->json($images, Response::HTTP_OK);
+    }
+
 
 
     /**
