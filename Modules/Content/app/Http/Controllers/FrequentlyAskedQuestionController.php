@@ -23,6 +23,19 @@ class FrequentlyAskedQuestionController extends Controller
         return response()->json($faq, Response::HTTP_OK);
     }
 
+    public function getByPageAndLang($pageId, $lang)
+    {
+        $languageId = Language::where('name', $lang)->value('id');
+
+        $banner = FrequentlyAskedQuestion::with(['frequentlyAskedQuestionTranslations' => function ($q) use ($languageId) {
+            $q->where('language_id', $languageId);
+        }])
+            ->where('page_id', $pageId)
+            ->get();
+
+        return response()->json($banner, Response::HTTP_OK);
+    }
+
     public function fetchByLang(string $lang){
         $languageId = Language::where('name', $lang)->value('id');
 

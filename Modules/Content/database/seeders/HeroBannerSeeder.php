@@ -22,6 +22,7 @@ class HeroBannerSeeder extends Seeder
         $hero_1 = HeroBanner::create(['page_id' => PageType::CALLS_AND_DEADLINES->value]);
         $hero_2 = HeroBanner::create(['page_id' => PageType::PROGRAM_A->value]);
         $hero_3 = HeroBanner::create(['page_id' => PageType::PROGRAM_B->value]);
+        $hero_4 = HeroBanner::create(['page_id' => PageType::PARTNERS->value]);
 
 
        $hero->heroBannerTranslations()->create([
@@ -79,6 +80,18 @@ class HeroBannerSeeder extends Seeder
                 'description' => 'Hire talented students and junior developers to solve your technical problems. Discover innovative solutions that help your business grow.'
             ]
         );
+
+        $hero_4->heroBannerTranslations()->create([
+            'language_id' => LanguageType::SLOVAK->value,
+            'title' => 'Naši partneri a mentori',
+            'description' => 'Spoznajte spoločnosti a odborníkov, ktorí podporujú talenty a pomáhajú budovať dôveru v našej komunite.'
+        ]);
+
+        $hero_4->heroBannerTranslations()->create([
+            'language_id' => LanguageType::ENGLISH->value,
+            'title' => 'Our partners and mentors',
+            'description' => 'Meet companies and experts who support talent and help build trust in our community.'
+        ]);
 
     }
 }

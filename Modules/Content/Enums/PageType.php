@@ -8,5 +8,6 @@ enum PageType: int {
     case PROGRAM_A = 4;
     case PROGRAM_B = 5;
     case CONTACT = 6;
+    case PARTNERS = 7;
 
 }

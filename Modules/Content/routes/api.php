@@ -9,6 +9,8 @@ use Modules\Content\Http\Controllers\MetaTagController;
 use Modules\Content\Http\Controllers\NewsController;
 use Modules\Content\Http\Controllers\PartnerController;
 use Modules\Content\Http\Controllers\PartnerReferenceController;
+use Modules\Content\Http\Controllers\SiteMemberController;
+
 Route::get('/categories/lang/{lang}', [CategoryController::class, 'fetchByLang']);
 Route::get('/hero-banners/lang/{lang}', [HeroBannerController::class, 'fetchByLang']);
 Route::get('/news/lang/{lang}', [NewsController::class, 'fetchByLang']);
@@ -17,8 +19,9 @@ Route::get('/partner-references/lang/{lang}', [PartnerReferenceController::class
 Route::get('/faq/lang/{lang}', [FrequentlyAskedQuestionController::class, 'fetchByLang']);
 Route::get('/meta-tags/lang/{lang}', [MetaTagController::class, 'fetchByLang']);
 Route::get('/pages/{page}/hero-banner/{lang}', [HeroBannerController::class, 'getByPageAndLang']);
-
-
+Route::get('/pages/{page}/faq/{lang}', [FrequentlyAskedQuestionController::class, 'getByPageAndLang']);
+Route::get('/site-members/lang/{lang}', [SiteMemberController::class, 'fetchByLang']);
+Route::get('/news/slug/{slug}/lang/{lang}', [NewsController::class, 'fetchBySlug']);
 Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
 Route::apiResource('news', NewsController::class)->only(['index', 'show']);
 Route::apiResource('hero-banners', HeroBannerController::class)->only(['index', 'show']);
@@ -26,8 +29,8 @@ Route::apiResource('partners', PartnerController::class)->only(['index', 'show']
 Route::apiResource('partner-references', PartnerReferenceController::class)->only(['index', 'show']);
 Route::apiResource('faq', FrequentlyAskedQuestionController::class)->only(['index', 'show']);
 Route::apiResource('meta-tags', MetaTagController::class)->only(['index', 'show']);
+Route::apiResource('site-members', SiteMemberController::class)->only(['index', 'show']);
 Route::middleware(['auth:sanctum'])->group(function () {
-
     Route::apiResource('languages', LanguageController::class);
 
     Route::apiResource('categories', CategoryController::class)
@@ -50,4 +53,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::apiResource('meta-tags', MetaTagController::class)
         ->except(['index', 'show']);
+
+    Route::apiResource('site-members', SiteMemberController::class)->except(['index', 'show']);
 });

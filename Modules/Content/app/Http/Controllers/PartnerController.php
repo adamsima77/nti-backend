@@ -19,7 +19,8 @@ class PartnerController extends Controller
     public function index()
     {
         $this->authorize('viewAny', Partner::class);
-        $partners = Partner::with(['partnerTranslations'])->orderByDesc('created_at')->get();
+        $partners = Partner::with(['partnerTranslations'])->orderByDesc('created_at')
+            ->paginate(15);
         return response()->json($partners, Response::HTTP_OK);
     }
 
@@ -36,7 +37,7 @@ class PartnerController extends Controller
         $partners = Partner::with([
             'partnerTranslations' => fn ($q) =>
             $q->where('language_id', $languageId)
-        ])->get();
+        ])->paginate(15);
 
         return response()->json($partners, Response::HTTP_OK);
     }

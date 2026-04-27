@@ -20,7 +20,8 @@ class CategoryController extends Controller
     public function index()
     {
         $this->authorize('viewAny', Category::class);
-        $categories = Category::with('categoryTranslations')->orderByDesc('created_at')->get();
+        $categories = Category::with('categoryTranslations')->orderByDesc('created_at')
+            ->paginate(15);
         return response()->json($categories, Response::HTTP_OK);
     }
 
@@ -38,7 +39,7 @@ class CategoryController extends Controller
         $categories = Category::with([
             'categoryTranslations' => fn ($q) =>
             $q->where('language_id', $languageId)
-        ])->get();
+        ])->paginate(15);
 
         return response()->json($categories, Response::HTTP_OK);
     }

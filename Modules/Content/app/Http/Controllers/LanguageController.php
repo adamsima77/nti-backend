@@ -16,7 +16,7 @@ class LanguageController extends Controller
     public function index()
     {
         $this->authorize('viewAny', Language::class);
-        $languages = Language::orderByDesc('created_at')->get();
+        $languages = Language::orderByDesc('created_at')->paginate(15);
         return response($languages, Response::HTTP_OK);
     }
 

@@ -19,7 +19,8 @@ class HeroBannerController extends Controller
     public function index()
     {
         $this->authorize('viewAny', HeroBanner::class);
-        $banners = HeroBanner::with(['page', 'heroBannerTranslations'])->orderByDesc('created_at')->get();
+        $banners = HeroBanner::with(['page', 'heroBannerTranslations'])->orderByDesc('created_at')
+            ->paginate(15);
         return response()->json($banners, Response::HTTP_OK);
     }
 
@@ -48,7 +49,7 @@ class HeroBannerController extends Controller
         $banners = HeroBanner::with([
             'page', 'heroBannerTranslations' => fn ($q) =>
             $q->where('language_id', $languageId)
-        ])->get();
+        ])->paginate(15);
 
         return response()->json($banners, Response::HTTP_OK);
     }

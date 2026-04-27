@@ -19,7 +19,21 @@ class NewsController extends Controller
     public function index()
     {
         $this->authorize('viewAny', News::class);
-        $news = News::with(['category', 'user', 'newsTranslations'])->orderByDesc('created_at')->get();
+        $news = News::with(['category', 'user', 'newsTranslations'])->orderByDesc('created_at')->paginate(15);
+        return response()->json($news, Response::HTTP_OK);
+    }
+
+    public function fetchBySlug($slug, $lang)
+    {
+        $lang_id = Language::where('name', $lang)->firstOrFail()->id;
+        $news = News::with([
+            'category',
+            'user',
+            'newsTranslations' => fn($q) => $q->where('language_id', $lang_id)
+        ])
+            ->where('slug', $slug)
+            ->firstOrFail();
+
         return response()->json($news, Response::HTTP_OK);
     }
 
@@ -31,12 +45,11 @@ class NewsController extends Controller
                 'message' => 'Language not found!'
             ], Response::HTTP_NOT_FOUND);
         }
-        $this->authorize('fetchByLanguage', News::class);
 
         $news = News::with([
             'category', 'user', 'newsTranslations' => fn ($q) =>
             $q->where('language_id', $languageId)
-        ])->get();
+        ])->paginate(15);
 
         return response()->json($news, Response::HTTP_OK);
     }

@@ -18,7 +18,8 @@ class MetaTagController extends Controller
     public function index()
     {
         $this->authorize('viewAny', MetaTag::class);
-        $tags = MetaTag::with('metaTagTranslations')->orderByDesc('created_at')->get();
+        $tags = MetaTag::with('metaTagTranslations')->orderByDesc('created_at')
+            ->paginate(15);
         return response()->json($tags, Response::HTTP_OK);
     }
     public function fetchByLang(string $lang){
@@ -35,7 +36,7 @@ class MetaTagController extends Controller
         $metaTags = MetaTag::with([
             'metaTagTranslations' => fn ($q) =>
             $q->where('language_id', $languageId)
-        ])->get();
+        ])->paginate(15);
 
         return response()->json($metaTags, Response::HTTP_OK);
     }
