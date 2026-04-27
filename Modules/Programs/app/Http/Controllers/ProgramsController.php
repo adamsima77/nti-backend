@@ -4,6 +4,7 @@ namespace Modules\Programs\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Modules\Programs\Models\Program;
 
 class ProgramsController extends Controller
 {
@@ -12,6 +13,8 @@ class ProgramsController extends Controller
      */
     public function index()
     {
+        $this->authorize('viewAny', Program::class);
+
         return view('programs::index');
     }
 
@@ -20,19 +23,27 @@ class ProgramsController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', Program::class);
+
         return view('programs::create');
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request) {}
+    public function store(Request $request)
+    {
+        $this->authorize('create', Program::class);
+    }
 
     /**
      * Show the specified resource.
      */
     public function show($id)
     {
+        $program = Program::query()->findOrFail($id);
+        $this->authorize('view', $program);
+
         return view('programs::show');
     }
 
@@ -41,16 +52,27 @@ class ProgramsController extends Controller
      */
     public function edit($id)
     {
+        $program = Program::query()->findOrFail($id);
+        $this->authorize('update', $program);
+
         return view('programs::edit');
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id) {}
+    public function update(Request $request, $id)
+    {
+        $program = Program::query()->findOrFail($id);
+        $this->authorize('update', $program);
+    }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id) {}
+    public function destroy($id)
+    {
+        $program = Program::query()->findOrFail($id);
+        $this->authorize('delete', $program);
+    }
 }
