@@ -9,5 +9,6 @@
     "Reporting": true,
     "Notifications": true,
     "AuditCompliance": true,
-    "Support": true
+    "Support": true,
+    "Students": true
 }
