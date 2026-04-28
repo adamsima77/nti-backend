@@ -18,7 +18,6 @@ class FrequentlyAskedQuestionController extends Controller
      */
     public function index()
     {
-        $this->authorize('viewAny', FrequentlyAskedQuestion::class);
         $faq = FrequentlyAskedQuestion::with(['frequentlyAskedQuestionTranslations'])->orderByDesc('created_at')->get();
         return response()->json($faq, Response::HTTP_OK);
     }
@@ -44,8 +43,6 @@ class FrequentlyAskedQuestionController extends Controller
                 'message' => 'Language not found!'
             ], Response::HTTP_NOT_FOUND);
         }
-
-        $this->authorize('fetchByLanguage', FrequentlyAskedQuestion::class);
 
         $faq = FrequentlyAskedQuestion::with([
             'frequentlyAskedQuestionTranslations' => fn ($q) =>

@@ -21,6 +21,7 @@ class IdentityAccessServiceProvider extends ModuleServiceProvider
 {
 
     public function boot(): void{
+        parent::boot();
         $this->registerRateLimiters();
        //Add policies if they are not detected
     }
@@ -74,6 +75,7 @@ class IdentityAccessServiceProvider extends ModuleServiceProvider
     protected array $providers = [
         EventServiceProvider::class,
         RouteServiceProvider::class,
+        AuthServiceProvider::class
     ];
 
 

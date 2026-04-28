@@ -19,7 +19,6 @@ class NewsController extends Controller
      */
     public function index()
     {
-        $this->authorize('viewAny', News::class);
         $news = News::with(['category', 'user', 'newsTranslations'])->orderByDesc('created_at')->paginate(15);
         return response()->json($news, Response::HTTP_OK);
     }
@@ -40,7 +39,6 @@ class NewsController extends Controller
 
     public function fetchByLang(string $lang){
         $languageId = Language::where('name', $lang)->value('id');
-
         if (!$languageId) {
             return response()->json([
                 'message' => 'Language not found!'

@@ -7,12 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
-use Modules\Content\Database\Factories\NewsFactory;
 use Modules\IdentityAccess\Models\User;
 class News extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'slug',
         'category_id',
