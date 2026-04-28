@@ -33,7 +33,6 @@ class PartnerReferenceController extends Controller
                 'message' => 'Language not found!'
             ], Response::HTTP_NOT_FOUND);
         }
-        $this->authorize('fetchByLanguage', PartnerReference::class);
 
         $references = PartnerReference::with([
             'partnerReferenceTranslations' => fn ($q) =>

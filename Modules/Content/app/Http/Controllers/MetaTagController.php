@@ -17,7 +17,6 @@ class MetaTagController extends Controller
      */
     public function index()
     {
-        $this->authorize('viewAny', MetaTag::class);
         $tags = MetaTag::with('metaTagTranslations')->orderByDesc('created_at')
             ->paginate(15);
         return response()->json($tags, Response::HTTP_OK);

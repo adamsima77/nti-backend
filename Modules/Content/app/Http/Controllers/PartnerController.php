@@ -18,7 +18,6 @@ class PartnerController extends Controller
      */
     public function index()
     {
-        $this->authorize('viewAny', Partner::class);
         $partners = Partner::with(['partnerTranslations'])->orderByDesc('created_at')
             ->paginate(15);
         return response()->json($partners, Response::HTTP_OK);
@@ -32,7 +31,6 @@ class PartnerController extends Controller
                 'message' => 'Language not found!'
             ], Response::HTTP_NOT_FOUND);
         }
-        $this->authorize('fetchByLanguage', Partner::class);
 
         $partners = Partner::with([
             'partnerTranslations' => fn ($q) =>
