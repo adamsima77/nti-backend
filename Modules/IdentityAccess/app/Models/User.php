@@ -21,6 +21,8 @@ use Modules\Notifications\Emails\VerifyEmailMail;
 use Modules\Notifications\Notifications\VerifyEmail;
 use Modules\Organizations\Models\Organization;
 use Modules\Organizations\Models\UserOrganization;
+use Modules\Students\Models\Team;
+use Modules\Students\Models\TeamMember;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -101,6 +103,18 @@ class User extends Authenticatable implements MustVerifyEmail
         )
             ->using(UserOrganization::class)
             ->withPivot('organization_role');
+    }
+
+    public function teams(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Team::class,
+            'team_members',
+            'user_id',
+            'team_id'
+        )
+            ->using(TeamMember::class)
+            ->withPivot('team_role_id');
     }
 
     //Check roles
