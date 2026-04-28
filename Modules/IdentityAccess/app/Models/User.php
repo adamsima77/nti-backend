@@ -2,6 +2,7 @@
 
 namespace Modules\IdentityAccess\Models;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Modules\Content\Models\NewsTranslation;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -31,20 +32,38 @@ class User extends Authenticatable implements MustVerifyEmail
 
     protected $table = 'users';
 
-    //TODO: profile picture
     protected $fillable = [
           'name',
           'surname',
           'email',
           'password',
-          'status_id'
+          'status_id',
+          'avatar'
     ];
 
     protected $hidden = [
          'password',
          'remember_token'
-
     ];
+
+    protected $appends = [
+        'avatar_url'
+    ];
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (!$this->avatar) {
+            return null;
+        }
+
+        if (filter_var($this->avatar, FILTER_VALIDATE_URL)) {
+            return $this->avatar;
+        }
+
+        return Storage::url($this->avatar);
+    }
+
+
     protected function casts(): array
     {
         return [

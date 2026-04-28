@@ -72,24 +72,47 @@ class AuthController extends Controller
         return $request->user();
     }
 
-    public function login(Request $request){
+    public function login(Request $request)
+    {
         $validated = $request->validate([
-            'email' =>  ['required', 'email','max:255'],
-            'password' =>  ['required', 'string','max:255']
+            'email'    => ['required', 'email', 'max:255'],
+            'password' => ['required', 'string', 'max:255'],
         ]);
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user->hasVerifiedEmail()) {
+        if (!$user || !Hash::check($validated['password'], $user->password)) {
             return response()->json([
-                'message' => 'Please verify your email first.'
-            ], 403);
+                'message' => 'The provided credentials are incorrect.'
+            ], Response::HTTP_UNAUTHORIZED);
         }
 
-        if(!$user || !Hash::check($validated['password'], $user->password)){
-            return response()->json(['message' => "The provided credentials are incorrect."], Response::HTTP_UNAUTHORIZED);
+        if (!$user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Please verify your email before logging in.'
+            ], Response::HTTP_FORBIDDEN);
         }
-        $token = $user->createToken("web-login")->plainTextToken;
+
+        if ($user->status_id === UserStatus::PENDING->value) {
+            return response()->json([
+                'message' => 'Your account is pending approval.'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if ($user->status_id === UserStatus::INACTIVE->value) {
+            return response()->json([
+                'message' => 'Your account has been deactivated.'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if ($user->status_id === UserStatus::BANNED->value) {
+            return response()->json([
+                'message' => 'Your account has been blocked. Contact support.'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $token = $user->createToken('web-login')->plainTextToken;
+
         return response()->json(['token' => $token], Response::HTTP_OK);
     }
 
