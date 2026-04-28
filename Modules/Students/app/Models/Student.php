@@ -7,8 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Modules\IdentityAccess\Models\User;
-
-// use Modules\Students\Database\Factories\StudentFactory;
+use Modules\Students\Database\Factories\StudentFactory;
 
 class Student extends Model
 {
@@ -57,5 +56,10 @@ class Student extends Model
             'student_id',
             'academic_flags_id'
         );
+    }
+
+    protected static function newFactory(): StudentFactory
+    {
+        return StudentFactory::new();
     }
 }

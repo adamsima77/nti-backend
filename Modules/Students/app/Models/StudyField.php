@@ -5,8 +5,7 @@ namespace Modules\Students\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-
-// use Modules\Students\Database\Factories\StudyFieldFactory;
+use Modules\Students\Database\Factories\StudyFieldFactory;
 
 class StudyField extends Model
 {
@@ -21,8 +20,13 @@ class StudyField extends Model
         'name',
     ];
 
-    public function studentProfiles(): HasMany
+    public function students(): HasMany
     {
         return $this->hasMany(Student::class, 'study_field_id');
+    }
+
+    protected static function newFactory(): StudyFieldFactory
+    {
+        return StudyFieldFactory::new();
     }
 }
