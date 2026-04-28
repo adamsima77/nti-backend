@@ -1,5 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Evaluation\Http\Controllers\EvaluationController;
 
-// Routes for module.
+Route::middleware('auth:sanctum')->group(function () {
+	Route::get('/evaluations/pending', [EvaluationController::class, 'pending']);
+});
