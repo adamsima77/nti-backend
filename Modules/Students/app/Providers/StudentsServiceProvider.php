@@ -2,6 +2,9 @@
 
 namespace Modules\Students\Providers;
 
+use Illuminate\Support\Facades\Gate;
+use Modules\Students\Models\Student;
+use Modules\Students\Policies\StudentPolicy;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
 
@@ -34,13 +37,10 @@ class StudentsServiceProvider extends ModuleServiceProvider
         RouteServiceProvider::class,
     ];
 
-    /**
-     * Define module schedules.
-     *
-     * @param $schedule
-     */
-    // protected function configureSchedules(Schedule $schedule): void
-    // {
-    //     $schedule->command('inspire')->hourly();
-    // }
+    public function boot(): void
+    {
+        parent::boot();
+
+        Gate::policy(Student::class, StudentPolicy::class);
+    }
 }

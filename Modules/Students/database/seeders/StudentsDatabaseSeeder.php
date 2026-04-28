@@ -11,6 +11,11 @@ class StudentsDatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // $this->call([]);
+        $this->call([
+            StudyProgramSeeder::class,
+            StudyFieldSeeder::class,
+            UniversitySeeder::class,
+            //AcademicFlagSeeder::class,
+        ]);
     }
 }
