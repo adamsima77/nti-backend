@@ -14,7 +14,11 @@ class Evaluation extends Model
 
     protected $table = 'evaluation';
 
-    protected $fillable = [];
+    protected $fillable = [
+        'application_id',
+        'commission_member_id',
+        'decision_id',
+    ];
 
     public function application(): BelongsTo
     {
