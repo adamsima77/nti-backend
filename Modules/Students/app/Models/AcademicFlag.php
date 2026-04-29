@@ -5,8 +5,7 @@ namespace Modules\Students\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-
-// use Modules\Students\Database\Factories\AcademicFlagFactory;
+use Modules\Students\Database\Factories\AcademicFlagFactory;
 
 class AcademicFlag extends Model
 {
@@ -29,5 +28,10 @@ class AcademicFlag extends Model
             'academic_flags_id',
             'student_id'
         );
+    }
+
+    protected static function newFactory(): AcademicFlagFactory
+    {
+        return AcademicFlagFactory::new();
     }
 }
