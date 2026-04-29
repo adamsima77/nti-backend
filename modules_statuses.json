@@ -10,5 +10,6 @@
     "Notifications": true,
     "AuditCompliance": true,
     "Support": true,
-    "Students": true
+    "Students": true,
+    "Teams": true
 }

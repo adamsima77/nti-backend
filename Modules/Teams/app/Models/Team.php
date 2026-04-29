@@ -1,13 +1,12 @@
 <?php
 
-namespace Modules\Students\Models;
+namespace Modules\Teams\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Modules\IdentityAccess\Models\User;
-
-// use Modules\Students\Database\Factories\TeamFactory;
+use Modules\Teams\database\factories\TeamFactory;
 
 class Team extends Model
 {
@@ -32,5 +31,10 @@ class Team extends Model
         )
             ->using(TeamMember::class)
             ->withPivot('team_role_id');
+    }
+
+    protected static function newFactory(): TeamFactory
+    {
+        return TeamFactory::new();
     }
 }

@@ -1,13 +1,12 @@
 <?php
 
-namespace Modules\Students\Models;
+namespace Modules\Teams\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\IdentityAccess\Models\User;
-
-// use Modules\Students\Database\Factories\TeamMemberFactory;
+use Modules\Teams\Database\Factories\TeamMemberFactory;
 
 class TeamMember extends Model
 {
@@ -40,5 +39,10 @@ class TeamMember extends Model
     public function role(): BelongsTo
     {
         return $this->belongsTo(TeamRole::class, 'team_role_id');
+    }
+
+    protected static function newFactory(): TeamMemberFactory
+    {
+        return TeamMemberFactory::new();
     }
 }

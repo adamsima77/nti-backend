@@ -1,12 +1,11 @@
 <?php
 
-namespace Modules\Students\Models;
+namespace Modules\Teams\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-
-// use Modules\Students\Database\Factories\TeamRoleFactory;
+use Modules\Teams\Database\Factories\TeamRoleFactory;
 
 class TeamRole extends Model
 {
@@ -24,5 +23,10 @@ class TeamRole extends Model
     public function teamMembers(): HasMany
     {
         return $this->hasMany(TeamMember::class, 'team_role_id');
+    }
+
+    protected static function newFactory(): TeamRoleFactory
+    {
+        return TeamRoleFactory::new();
     }
 }
