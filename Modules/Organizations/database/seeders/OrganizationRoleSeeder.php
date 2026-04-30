@@ -13,8 +13,9 @@ class OrganizationRoleSeeder extends Seeder
     public function run(): void
     {
         $roles = [
-            'admin',
-            'member',
+            'org_admin',
+            'org_member',
+            'org_product_owner'
         ];
 
         foreach ($roles as $role) {

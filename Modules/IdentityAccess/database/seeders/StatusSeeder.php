@@ -12,7 +12,8 @@ class StatusSeeder extends Seeder
      */
     public function run(): void
     {
-        Status::create(['name' => 'pending']);
+        Status::create(['name' => 'pending_email']);
+        Status::create(['name' => 'pending_onboarding']);
         Status::create(['name' => 'active']);
         Status::create(['name' => 'inactive']);
         Status::create(['name' => 'banned']);

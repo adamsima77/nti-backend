@@ -26,6 +26,8 @@ Route::prefix('auth')->group(function () {
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/me', [AuthController::class, 'me']);
+    Route::post('auth/organization-onboarding', [AuthController::class, 'organizationOnboarding']);
+    Route::post('auth/student-onboarding', [AuthController::class, 'studentOnboarding']);
 });
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {

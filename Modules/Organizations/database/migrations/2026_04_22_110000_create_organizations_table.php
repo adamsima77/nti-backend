@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('web_url', 255);
             $table->unsignedBigInteger('address_id');
             $table->timestamps();
+            $table->softDeletes();
 
             $table->foreign('address_id')
                 ->references('id')

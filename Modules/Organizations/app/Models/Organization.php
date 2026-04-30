@@ -6,11 +6,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\IdentityAccess\Models\User;
+use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
 class Organization extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected static function newFactory()
     {
@@ -25,6 +27,10 @@ class Organization extends Model
         'ico',
         'web_url',
         'address_id',
+    ];
+
+    protected $casts = [
+        'phone' => E164PhoneNumberCast::class,
     ];
 
     public function address(): BelongsTo

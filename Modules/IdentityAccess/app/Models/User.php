@@ -21,8 +21,8 @@ use Modules\Notifications\Emails\VerifyEmailMail;
 use Modules\Notifications\Notifications\VerifyEmail;
 use Modules\Organizations\Models\Organization;
 use Modules\Organizations\Models\UserOrganization;
-use Modules\Students\Models\Team;
-use Modules\Students\Models\TeamMember;
+use Modules\Teams\Models\Team;
+use Modules\Teams\Models\TeamMember;
 
 class User extends Authenticatable
 {

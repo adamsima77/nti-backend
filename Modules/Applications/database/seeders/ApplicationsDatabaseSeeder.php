@@ -4,6 +4,7 @@ namespace Modules\Applications\Database\Seeders;
 
 use Illuminate\Database\Seeder;
 
+
 class ApplicationsDatabaseSeeder extends Seeder
 {
     /**
@@ -14,6 +15,7 @@ class ApplicationsDatabaseSeeder extends Seeder
         $this->call([
             StatusOfApplicationSeeder::class,
             TypeOfApplicationSeeder::class,
+            SecurityClasificationSeeder::class
         ]);
     }
 }

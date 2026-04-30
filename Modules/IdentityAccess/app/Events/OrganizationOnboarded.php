@@ -10,17 +10,16 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use Modules\IdentityAccess\Models\User;
+use Modules\Organizations\Models\Organization;
 
-class UserRegistered
+class OrganizationOnboarded
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(
-        public User $user
-    ) {}
+    public function __construct(public Organization $org, public String $email) {}
 
     /**
      * Get the channels the event should be broadcast on.

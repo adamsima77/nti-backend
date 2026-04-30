@@ -5,20 +5,159 @@ namespace Modules\IdentityAccess\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password as PasswordBroker;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password as PasswordRule;
+use Modules\Applications\Models\Document;
+use Modules\Applications\Models\DocumentVersion;
+use Modules\Applications\Models\SecurityClassification;
+use Modules\IdentityAccess\Events\OrganizationOnboarded;
 use Modules\IdentityAccess\Events\PasswordChanged;
 use Modules\IdentityAccess\Events\PasswordResetRequested;
+use Modules\IdentityAccess\Events\StudentOnboarded;
 use Modules\IdentityAccess\Events\UserRegistered;
+use Modules\IdentityAccess\Models\Role;
+use Modules\IdentityAccess\Models\Status;
 use Modules\IdentityAccess\Models\User;
 use Modules\IdentityAccess\Enums\UserStatus;
+use Modules\Organizations\Models\Address;
+use Modules\Organizations\Models\Organization;
+use Modules\Organizations\Models\OrganizationRole;
+use Modules\Students\Models\Student;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        // TODO
+        $validated = $request->validate([
+            'email' => ['required', 'string', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'confirmed', 'max:255', PasswordRule::min(8)->mixedCase()->numbers()->symbols()],
+        ]);
+
+        $user = User::create([
+            'email' => $validated['email'],
+            'password' => $validated['password'],
+            'status_id' => UserStatus::PENDING_EMAIL->value,
+        ]);
+        $user->sendEmailVerificationNotification();
+        return response()->json(['message' => 'Registration succesfull, verify email !'], Response::HTTP_OK);
+    }
+
+    public function organizationOnboarding(Request $request){
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['required', 'phone'], //Propaganistas package for verifying numbers format
+            'ico' => ['required', 'digits:8'],
+            'web_url' => ['required', 'string', 'max:255'],
+            'city' => ['required', 'string', 'max:255'],
+            'street' => ['required', 'string', 'max:255'],
+            'postal_code' => ['required', 'digits:5'],
+            'country' => ['required', 'string', 'max:255'],
+            'sector' => ['required', 'array'],
+            'sector.*' => ['required', 'integer', 'exists:sector,id']
+        ]);
+
+        try{
+            DB::beginTransaction();
+            $address = Address::create([
+                'city' => $validated['city'],
+                'street' => $validated['street'],
+                'postal_code' => $validated['postal_code'],
+                'country' => $validated['country']
+            ]);
+
+            $organization = Organization::create([
+                'name' => $validated['name'],
+                'phone' => $validated['phone'],
+                'ico' => $validated['ico'],
+                'web_url' => $validated['web_url'],
+                'address_id' => $address->id
+            ]);
+
+            $org_admin = OrganizationRole::where('name', 'org_admin')->firstOrFail();
+            $organization->sectors()->sync($validated['sector']);
+
+            $partner_role = Role::where('name', 'partner')->firstOrFail();
+            $request->user()->roles()->attach($partner_role->id);
+
+            $organization->users()->attach(auth()->id(), [
+                'organization_role' => $org_admin->id,
+            ]);
+            $request->user()->setStatus(UserStatus::ACTIVE);
+            DB::commit();
+            event(new OrganizationOnboarded($organization, $request->user()->email));
+            return response()->json(['message' => 'Onboarding was successfull'], Response::HTTP_OK);
+        } catch(\Throwable $e){
+            DB::rollBack();
+            return response()->json(['message' => 'Organization could not be onboarded !'], Response::HTTP_INTERNAL_SERVER_ERROR);
+
+        }
+
+    }
+
+    public function studentOnboarding(Request $request){
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'surname' => ['required', 'string', 'max:255'],
+            'study_program' => ['required', 'integer', 'exists:study_program,id'],
+            'study_field' => ['required', 'integer', 'exists:study_field,id'],
+            'university' => ['required', 'integer', 'exists:university,id'],
+            'cv' => ['required', 'file', 'mimes:pdf,docx'],
+            'year_of_study' => ['required', 'integer', 'between:1,6'],
+            'portfolio_url' => ['nullable', 'string', 'max:255']
+        ]);
+
+        try{
+            DB::beginTransaction();
+
+            $request->user()->update([
+                'name' => $validated['name'],
+                'surname' => $validated['surname']
+            ]);
+
+            $securityClassification = SecurityClassification::where('name', 'internal')->firstOrFail();
+            $uploadedFile = $validated['cv'];
+            $fileName = $uploadedFile->getClientOriginalName();
+            $storedFileName = Str::uuid()->toString() . '_' . $fileName;
+            $filePath = Storage::disk('local')->putFileAs('documents', $uploadedFile, $storedFileName);
+
+            $document = Document::create([
+                'owner_id'                  => $request->user()->id,
+                'security_classification_id' => $securityClassification->id,
+            ]);
+
+            DocumentVersion::create([
+                'document_id' => $document->id,
+                'file_name'   => $fileName,
+                'file_path'   => $filePath,
+            ]);
+
+             Student::create([
+                'user_id' => $request->user()->id,
+                'study_program_id' => $validated['study_program'],
+                'study_field_id' => $validated['study_field'],
+                'university_id' => $validated['university'],
+                'year_of_study' => $validated['year_of_study'],
+                'portfolio_url' => $validated['portfolio_url'],
+                'cv_document_id' =>  $document->id
+            ]);
+            $student_role = Role::where('name', 'student')->firstOrFail();
+            $request->user()->roles()->attach($student_role->id);
+
+            $request->user()->setStatus(UserStatus::ACTIVE);
+            DB::commit();
+            event(new StudentOnboarded($request->user()));
+            return response()->json(['message' => 'Onboarding was successfull'], Response::HTTP_OK);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            if (isset($filePath)) {
+                Storage::disk('local')->delete($filePath);
+            }
+            return response(['message' => $th->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     public function verifyEmail($id, $hash, Request $request)
@@ -43,13 +182,11 @@ class AuthController extends Controller
 
         $user->markEmailAsVerified();
 
-        $user->update(['status_id' => UserStatus::ACTIVE->value]);
+        $user->setStatus(UserStatus::PENDING_ONBOARDING);
+        event(new UserRegistered($user));
+        $token = $user->createToken('web-token')->plainTextToken;
 
-        if ($user->hasVerifiedEmail()) {
-            event(new UserRegistered($user));
-        }
-
-        return response()->json(['message' => 'Email verified successfully. You can now log in.'], Response::HTTP_OK);
+        return response()->json(['user' => $user, 'token' => $token], Response::HTTP_OK);
     }
 
     public function resendNotification(Request $request)
@@ -97,9 +234,9 @@ class AuthController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        if ($user->status_id === UserStatus::PENDING->value) {
+        if ($user->status_id === UserStatus::PENDING_EMAIL->value) {
             return response()->json([
-                'message' => 'Your account is pending approval.'
+                'message' => 'Your account is pending email approval.'
             ], Response::HTTP_FORBIDDEN);
         }
 

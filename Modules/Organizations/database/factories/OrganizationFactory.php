@@ -17,7 +17,7 @@ class OrganizationFactory extends Factory
     {
         return [
             'name'       => $this->faker->company(),
-            'phone'      => $this->faker->phoneNumber(),
+            'phone' => $this->faker->e164PhoneNumber(),
             'ico'        => $this->faker->unique()->numerify('########'),
             'web_url'    => $this->faker->url(),
             'address_id' => Address::factory(),

@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Welcome</title>
+    <title>Welcome Student</title>
 </head>
 
 <body style="margin:0; padding:0; background-color:#f8fafc; font-family: Arial, Helvetica, sans-serif;">
@@ -27,35 +27,33 @@
                     <td style="padding:40px; color:#0a1628;">
 
                         <h1 style="margin:0 0 16px; font-size:24px;">
-                            Welcome to NTI, {{ $userName }} 👋
+                            You're in, {{ $userName }}! 🎓
                         </h1>
 
                         <p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
-                            Your email has been verified successfully. You're almost there — just one more step before you can start exploring everything Nitriansky Technický Inkubátor has to offer.
+                            Your student profile has been successfully set up. You now have full access to the NTI platform and everything it has to offer.
                         </p>
 
-                        <!-- Step indicator -->
+                        <!-- What you can do -->
                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
                             <tr>
                                 <td style="background:#f1f5f9; border-radius:8px; padding:20px;">
-                                    <p style="margin:0 0 12px; font-size:14px; font-weight:600; color:#0a1628;">Complete your setup in 2 simple steps:</p>
+                                    <p style="margin:0 0 12px; font-size:14px; font-weight:600; color:#0a1628;">Here's what you can do now:</p>
                                     <p style="margin:0; font-size:14px; color:#64748b; line-height:2;">
-                                        ✅ Step 1 — Verify your email<br>
-                                        🔲 Step 2 — Complete your onboarding profile
+                                        🚀 Browse and apply for projects<br>
+                                        🤝 Connect with mentors and partners<br>
+                                        📁 Showcase your portfolio<br>
+                                        🏆 Join teams and competitions
                                     </p>
                                 </td>
                             </tr>
                         </table>
 
-                        <p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
-                            Tell us a bit about yourself — whether you're a student looking for opportunities or an organization ready to collaborate, we'll get you set up in minutes.
-                        </p>
-
                         <!-- Button -->
                         <table role="presentation" cellspacing="0" cellpadding="0">
                             <tr>
                                 <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-                                    <a href="{{ config('app.frontend_url') }}/onboarding"
+                                    <a href="{{ config('app.frontend_url') }}/dashboard"
                                        target="_blank"
                                        style="
                                             display:inline-block;
@@ -67,7 +65,7 @@
                                             border-radius:8px;
                                             background-color:#0d5fbf;
                                        ">
-                                        Complete Onboarding
+                                        Go to Dashboard
                                     </a>
                                 </td>
                             </tr>

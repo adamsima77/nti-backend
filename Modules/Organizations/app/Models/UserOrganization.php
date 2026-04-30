@@ -5,11 +5,12 @@ namespace Modules\Organizations\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Modules\IdentityAccess\Models\User;
 
 // use Modules\Organizations\Database\Factories\UserOrganizationFactory;
 
-class UserOrganization extends Model
+class UserOrganization extends Pivot
 {
     use HasFactory;
 
