@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Mentorship\Models\Milestone;
 use Modules\IdentityAccess\Models\User;
 use Modules\Programs\Models\Call;
 
@@ -62,5 +63,10 @@ class Application extends Model
     public function statusHistory(): HasMany
     {
         return $this->hasMany(ApplicationStatusHistory::class, 'application_id');
+    }
+
+    public function milestones(): HasMany
+    {
+        return $this->hasMany(Milestone::class, 'project_id');
     }
 }
