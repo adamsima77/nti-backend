@@ -1,6 +1,7 @@
 <?php
 namespace Modules\IdentityAccess\Providers;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Modules\IdentityAccess\Models\ConsentType;
 use Modules\IdentityAccess\Models\Permission;
 use Modules\IdentityAccess\Models\Role;
 use Modules\IdentityAccess\Models\Status;
@@ -17,7 +18,7 @@ use Modules\IdentityAccess\Policies\UserPolicy;
 class AuthServiceProvider extends ServiceProvider
 {
     protected $policies = [
-        ConsentTypePolicy::class => ConsentTypePolicy::class,
+        ConsentType::class => ConsentTypePolicy::class,
         Role::class => RolePolicy::class,
         Status::class => StatusPolicy::class,
         UserConsent::class => UserConsentPolicy::class,

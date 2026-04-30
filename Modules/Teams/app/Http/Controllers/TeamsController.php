@@ -3,6 +3,7 @@
 namespace Modules\Teams\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Services\Pdf\PdfService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -78,6 +79,19 @@ class TeamsController extends Controller
         return response()->json([
             'team' => $team->load('members'),
         ], Response::HTTP_OK);
+    }
+
+    public function downloadPdf(Team $team, PdfService $pdfService)
+    {
+        $this->authorize('pdf', $team);
+
+        $team->load('members');
+
+        return $pdfService->download(
+            'teams::pdf.team-report',
+            ['team' => $team],
+            'team-report-' . $team->id . '.pdf'
+        );
     }
 
     /**

@@ -8,7 +8,9 @@ use Modules\IdentityAccess\Events\PasswordChanged;
 use Modules\IdentityAccess\Events\PasswordResetRequested;
 use Modules\IdentityAccess\Events\StudentOnboarded;
 use Modules\IdentityAccess\Events\UserRegistered;
+use Modules\Mentorship\Events\MilestoneStatusChanged;
 use Modules\Notifications\Listeners\SendPasswordChangeConfirmation;
+use Modules\Notifications\Listeners\SendMilestoneStatusChangedNotification;
 use Modules\Notifications\Listeners\SendPasswordResetEmail;
 use Modules\Notifications\Listeners\SendWelcomeAfterOnboardOrganization;
 use Modules\Notifications\Listeners\SendWelcomeAfterStudentOnboarding;
@@ -16,7 +18,7 @@ use Modules\Notifications\Listeners\SendWelcomeEmail;
 
 class EventServiceProvider extends ServiceProvider
 {
-    protected $listen = [
+  protected $listen = [
         PasswordChanged::class => [
             SendPasswordChangeConfirmation::class,
         ],
@@ -27,15 +29,19 @@ class EventServiceProvider extends ServiceProvider
 
         UserRegistered::class => [
             SendWelcomeEmail::class,
+        ],
 
-            OrganizationOnboarded::class =>[
-                SendWelcomeAfterOnboardOrganization::class
-            ],
+        OrganizationOnboarded::class => [
+            SendWelcomeAfterOnboardOrganization::class,
+        ],
 
-            StudentOnboarded::class => [
-                SendWelcomeAfterStudentOnboarding::class
-            ]
-        ]
+        StudentOnboarded::class => [
+            SendWelcomeAfterStudentOnboarding::class,
+        ],
+
+        MilestoneStatusChanged::class => [
+            SendMilestoneStatusChangedNotification::class,
+        ],
     ];
     protected static $shouldDiscoverEvents = true;
 

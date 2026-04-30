@@ -40,6 +40,13 @@ class ProgramsServiceProvider extends ModuleServiceProvider
         RouteServiceProvider::class,
     ];
 
+    public function boot(): void
+    {
+        parent::boot();
+
+        $this->loadViewsFrom(module_path($this->name, '/resources/views'), $this->nameLower);
+    }
+
     public function register(): void
     {
         parent::register();

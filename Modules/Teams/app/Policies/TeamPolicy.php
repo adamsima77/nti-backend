@@ -55,6 +55,11 @@ class TeamPolicy
         return $this->isTeamLeader($user, $team);
     }
 
+    public function pdf(User $user, Team $team): bool
+    {
+        return $this->isTeamMember($user, $team);
+    }
+
     private function isTeamLeader(User $user, Team $team): bool
     {
         $teamleader = TeamRole::where('name', 'Vedúci tímu')->first();
@@ -66,6 +71,13 @@ class TeamPolicy
         return $team->members()
             ->wherePivot('user_id', $user->id)
             ->wherePivot('team_role_id', $teamleader->id)
+            ->exists();
+    }
+
+    private function isTeamMember(User $user, Team $team): bool
+    {
+        return $team->members()
+            ->wherePivot('user_id', $user->id)
             ->exists();
     }
 }

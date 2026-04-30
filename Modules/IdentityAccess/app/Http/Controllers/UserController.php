@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use App\Services\Pdf\PdfService;
 use Modules\IdentityAccess\Models\User;
 use Illuminate\Http\Response;
 class UserController extends Controller
@@ -75,6 +76,19 @@ class UserController extends Controller
         $user = User::with('status', 'roles', 'userConsents')->findOrFail($id);
         $this->authorize('view', $user);
         return response()->json($user, Response::HTTP_OK);
+    }
+
+    public function downloadPdf(User $user, PdfService $pdfService)
+    {
+        $this->authorize('pdf', $user);
+
+        $user->load(['status', 'roles', 'teams']);
+
+        return $pdfService->download(
+            'identityaccess::pdf.profile',
+            ['user' => $user],
+            'user-profile-' . $user->id . '.pdf'
+        );
     }
 
     /**

@@ -5,6 +5,7 @@ namespace Modules\Programs\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use App\Services\Pdf\PdfService;
 use Modules\Programs\Http\Resources\CallResource;
 use Modules\Programs\Models\Call;
 
@@ -55,5 +56,26 @@ class CallController extends Controller
             ->findOrFail($id);
 
         return new CallResource($call);
+    }
+
+    public function downloadPdf(int $id, PdfService $pdfService)
+    {
+        $call = Call::query()
+            ->with([
+                'program:id,name',
+                'organization:id,name',
+                'currentStatusHistory.status:id,name',
+                'callCriteria:id,name',
+            ])
+            ->whereHas('currentStatusHistory.status', function ($query) {
+                $query->where('name', 'Publikované');
+            })
+            ->findOrFail($id);
+
+        return $pdfService->download(
+            'programs::pdf.project-report',
+            ['call' => $call],
+            'project-report-' . $call->id . '.pdf'
+        );
     }
 }
