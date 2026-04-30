@@ -35,6 +35,11 @@ class CallPolicy
         return $user->isAdmin() || $user->isSuperAdmin();
     }
 
+    public function pdf(User $user, Call $call): bool
+    {
+        return true;
+    }
+
     public function export(User $user): bool
     {
         return $user->isAdmin() || $user->isSuperAdmin();

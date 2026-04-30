@@ -7,6 +7,7 @@ use Modules\Programs\Http\Controllers\ExportController;
 
 Route::get('calls', [CallController::class, 'index']);
 Route::get('calls/{id}', [CallController::class, 'show']);
+Route::get('calls/{id}/pdf', [CallController::class, 'downloadPdf'])->name('calls.pdf');
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('calls/export/{format?}', [ExportController::class, 'calls'])->name('calls.export');
 

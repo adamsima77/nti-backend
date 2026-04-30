@@ -42,5 +42,6 @@ class TeamsServiceProvider extends ModuleServiceProvider
         parent::boot();
 
         Gate::policy(Team::class, TeamPolicy::class);
+        $this->loadViewsFrom(module_path($this->name, '/resources/views'), $this->nameLower);
     }
 }

@@ -30,6 +30,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+    Route::get('users/{user}/pdf', [UserController::class, 'downloadPdf'])->name('users.pdf');
     Route::get('users/export/{format?}', [ExportController::class, 'users'])->name('users.export');
     Route::apiResource('users', UserController::class)->only(['index', 'show', 'update', 'destroy']);
     Route::apiResource('consent-types', ConsentTypeController::class)->only(['index', 'show', 'store', 'update', 'destroy']);

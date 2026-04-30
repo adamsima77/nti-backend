@@ -23,6 +23,7 @@ class IdentityAccessServiceProvider extends ModuleServiceProvider
     public function boot(): void{
         parent::boot();
         $this->registerRateLimiters();
+        $this->loadViewsFrom(module_path($this->name, '/resources/views'), $this->nameLower);
        //Add policies if they are not detected
     }
 

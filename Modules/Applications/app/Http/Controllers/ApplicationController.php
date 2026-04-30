@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\Pdf\PdfService;
 use Modules\Applications\Http\Resources\ApplicationResource;
 use Modules\Applications\Models\Application;
 use Modules\Applications\Models\ApplicationStatusHistory;
@@ -53,6 +54,25 @@ class ApplicationController extends Controller
             ->findOrFail($id);
 
         return new ApplicationResource($application);
+    }
+
+    public function downloadPdf(Request $request, int $id, PdfService $pdfService)
+    {
+        $application = Application::query()
+            ->with([
+                'call:id,name',
+                'status:id,name',
+                'documents:id',
+                'statusHistory.status:id,name',
+            ])
+            ->where('created_by', $request->user()->id)
+            ->findOrFail($id);
+
+        return $pdfService->download(
+            'applications::pdf.application-details',
+            ['application' => $application],
+            'application-' . $application->id . '.pdf'
+        );
     }
 
     public function store(Request $request): JsonResponse
