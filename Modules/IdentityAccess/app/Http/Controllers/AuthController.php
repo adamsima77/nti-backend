@@ -3,33 +3,22 @@
 namespace Modules\IdentityAccess\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password as PasswordBroker;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Modules\IdentityAccess\Events\PasswordChanged;
 use Modules\IdentityAccess\Events\PasswordResetRequested;
+use Modules\IdentityAccess\Events\UserRegistered;
 use Modules\IdentityAccess\Models\User;
-use Illuminate\Auth\Events\PasswordReset;
 use Modules\IdentityAccess\Enums\UserStatus;
-use Modules\Notifications\Emails\ResetPasswordMail;
-
 
 class AuthController extends Controller
 {
-    public function register(Request $request){
-        //TODO
-
-
-
-
-        //$user->setStatus(UserStatus::PENDING);
-        //event(new Registered($user));
+    public function register(Request $request)
+    {
+        // TODO
     }
 
     public function verifyEmail($id, $hash, Request $request)
@@ -40,15 +29,27 @@ class AuthController extends Controller
             return response()->json(['message' => 'User not found.'], Response::HTTP_NOT_FOUND);
         }
 
+        if (!$request->hasValidSignature()) {
+            return response()->json(['message' => 'Invalid or expired verification link.'], Response::HTTP_FORBIDDEN);
+        }
+
         if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
             return response()->json(['message' => 'Invalid verification link.'], Response::HTTP_FORBIDDEN);
         }
 
-        if (!$user->hasVerifiedEmail()) {
-            $user->markEmailAsVerified();
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Email already verified.'], Response::HTTP_OK);
         }
 
-        return response()->json(['message' => 'Email verified successfully!']);
+        $user->markEmailAsVerified();
+
+        $user->update(['status_id' => UserStatus::ACTIVE->value]);
+
+        if ($user->hasVerifiedEmail()) {
+            event(new UserRegistered($user));
+        }
+
+        return response()->json(['message' => 'Email verified successfully. You can now log in.'], Response::HTTP_OK);
     }
 
     public function resendNotification(Request $request)
@@ -56,20 +57,23 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (!$user) {
-            return response()->json(['message' => 'User not found.'], 404);
+            return response()->json(['message' => 'User not found.'], Response::HTTP_NOT_FOUND);
         }
 
         if ($user->hasVerifiedEmail()) {
-            return response()->json(['message' => 'Email already verified.'], 400);
+            return response()->json(['message' => 'Email already verified.'], Response::HTTP_BAD_REQUEST);
         }
 
         $user->sendEmailVerificationNotification();
+
         return response()->json(['message' => 'Verification link resent!']);
     }
 
+    public function me(Request $request)
+    {
+        $user = $request->user()->load('roles');
 
-    public function me(Request $request){
-        return $request->user();
+        return response()->json($user);
     }
 
     public function login(Request $request)
@@ -111,13 +115,20 @@ class AuthController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
+        $user->load('roles');
+
         $token = $user->createToken('web-login')->plainTextToken;
 
-        return response()->json(['token' => $token], Response::HTTP_OK);
+        return response()->json([
+            'token' => $token,
+            'user'  => $user,
+        ], Response::HTTP_OK);
     }
 
-    public function logout(Request $request){
+    public function logout(Request $request)
+    {
         $request->user()->currentAccessToken()->delete();
+
         return response()->json(['message' => 'Logged out successfully.'], Response::HTTP_OK);
     }
 
@@ -130,9 +141,7 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (!$user) {
-            return response()->json([
-                'message' => 'User not found.'
-            ], 404);
+            return response()->json(['message' => 'User not found.'], Response::HTTP_NOT_FOUND);
         }
 
         event(new PasswordResetRequested($user));
@@ -141,12 +150,13 @@ class AuthController extends Controller
             'message' => 'Reset link has been sent to your email address.'
         ]);
     }
+
     public function resetPassword(Request $request)
     {
         $validated = $request->validate([
-            'token' => ['required'],
+            'token'    => ['required'],
+            'email'    => ['required', 'email'],
             'password' => ['required', 'string', 'confirmed', PasswordRule::min(8)->mixedCase()->numbers()->symbols()],
-            'email' => ['required', 'email']
         ]);
 
         $status = PasswordBroker::reset(
@@ -157,13 +167,14 @@ class AuthController extends Controller
                 ])->save();
 
                 $user->tokens()->delete();
+
                 event(new PasswordChanged($user));
             }
         );
 
         if ($status !== PasswordBroker::PASSWORD_RESET) {
             return response()->json([
-                'message' => "Invalid or expired reset token."
+                'message' => 'Invalid or expired reset token.'
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 

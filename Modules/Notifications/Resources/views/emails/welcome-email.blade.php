@@ -2,11 +2,10 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Verify Email</title>
+    <title>Welcome</title>
 </head>
 
 <body style="margin:0; padding:0; background-color:#f8fafc; font-family: Arial, Helvetica, sans-serif;">
-
 
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8fafc; padding:40px 0;">
     <tr>
@@ -29,18 +28,23 @@
                     <td style="padding:40px; color:#0a1628;">
 
                         <h1 style="margin:0 0 16px; font-size:24px;">
-                            Verify your email address
+                            Welcome, {{ $userName }} 👋
                         </h1>
 
                         <p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
-                            Thanks for joining Nitriansky Technický Inkubátor. Please confirm your email to activate your account.
+                            We're excited to have you at Nitriansky Technický Inkubátor.
+                            Your account has been successfully created and you're ready to get started.
+                        </p>
+
+                        <p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+                            Explore opportunities, connect with innovators, and start building your projects today.
                         </p>
 
                         <!-- Button -->
                         <table role="presentation" cellspacing="0" cellpadding="0">
                             <tr>
                                 <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-                                    <a href="{{ $verificationUrl }}"
+                                    <a href="{{ config('app.url') }}"
                                        target="_blank"
                                        style="
                                             display:inline-block;
@@ -52,18 +56,15 @@
                                             border-radius:8px;
                                             background-color:#0d5fbf;
                                        ">
-                                        Verify Email
+                                        Go to Dashboard
                                     </a>
                                 </td>
                             </tr>
                         </table>
 
-                        <!-- Fallback link -->
+                        <!-- Extra info -->
                         <p style="margin-top:30px; font-size:12px; color:#94a3b8; line-height:1.5;">
-                            If the button doesn’t work, copy and paste this link:<br>
-                            <a href="{{ $verificationUrl }}" style="color:#0d5fbf; word-break:break-all;">
-                                {{ $verificationUrl }}
-                            </a>
+                            If you have any questions, feel free to contact our support team anytime.
                         </p>
 
                     </td>

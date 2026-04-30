@@ -24,9 +24,9 @@ use Modules\Organizations\Models\UserOrganization;
 use Modules\Students\Models\Team;
 use Modules\Students\Models\TeamMember;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable
 {
-    use HasFactory, SoftDeletes,HasApiTokens,Notifiable, SoftDeletes;
+    use HasFactory, SoftDeletes,HasApiTokens,Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -164,16 +164,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function sendEmailVerificationNotification(): void
     {
-        $verificationUrl = URL::temporarySignedRoute(
-            'api.verification.verify',
-            now()->addMinutes(15),
-            [
-                'id' => $this->id,
-                'hash' => sha1($this->email),
-            ]
-        );
-
-        Mail::to($this->email)->send(new VerifyEmailMail($verificationUrl, $this));
+        $this->notify(new VerifyEmail());
     }
 
     protected static function newFactory()

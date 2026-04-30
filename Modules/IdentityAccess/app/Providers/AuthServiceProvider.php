@@ -1,11 +1,13 @@
 <?php
 namespace Modules\IdentityAccess\Providers;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Modules\IdentityAccess\Models\Permission;
 use Modules\IdentityAccess\Models\Role;
 use Modules\IdentityAccess\Models\Status;
 use Modules\IdentityAccess\Models\User;
 use Modules\IdentityAccess\Models\UserConsent;
 use Modules\IdentityAccess\Policies\ConsentTypePolicy;
+use Modules\IdentityAccess\Policies\PermissionPolicy;
 use Modules\IdentityAccess\Policies\RolePolicy;
 use Modules\IdentityAccess\Policies\StatusPolicy;
 use Modules\IdentityAccess\Policies\UserConsentPolicy;
@@ -19,7 +21,8 @@ class AuthServiceProvider extends ServiceProvider
         Role::class => RolePolicy::class,
         Status::class => StatusPolicy::class,
         UserConsent::class => UserConsentPolicy::class,
-        User::class  => UserPolicy::class
+        User::class  => UserPolicy::class,
+        Permission::class => PermissionPolicy::class
     ];
 
     public function boot(): void
