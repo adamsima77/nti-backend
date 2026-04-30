@@ -13,4 +13,11 @@ class NotificationsServiceProvider extends ModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
+
+    public function boot(): void
+    {
+        parent::boot();
+
+        $this->loadViewsFrom(module_path($this->name, '/Resources/views'), $this->nameLower);
+    }
 }

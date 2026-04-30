@@ -6,7 +6,9 @@ use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvi
 use Modules\IdentityAccess\Events\PasswordChanged;
 use Modules\IdentityAccess\Events\PasswordResetRequested;
 use Modules\IdentityAccess\Events\UserRegistered;
+use Modules\Mentorship\Events\MilestoneStatusChanged;
 use Modules\Notifications\Listeners\SendPasswordChangeConfirmation;
+use Modules\Notifications\Listeners\SendMilestoneStatusChangedNotification;
 use Modules\Notifications\Listeners\SendPasswordResetEmail;
 use Modules\Notifications\Listeners\SendWelcomeEmail;
 
@@ -23,6 +25,10 @@ class EventServiceProvider extends ServiceProvider
 
         UserRegistered::class => [
             SendWelcomeEmail::class
+        ],
+
+        MilestoneStatusChanged::class => [
+            SendMilestoneStatusChangedNotification::class,
         ]
     ];
     protected static $shouldDiscoverEvents = true;
