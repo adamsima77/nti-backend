@@ -33,6 +33,11 @@ class UserPolicy
         return $user->isAdmin() || $user->isSuperAdmin() || $user->id === $model->id;
     }
 
+    public function export(User $user): bool
+    {
+        return $user->isAdmin() || $user->isSuperAdmin();
+    }
+
     public function restore(User $user, User $model): bool
     {
         return false;

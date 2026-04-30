@@ -7,6 +7,7 @@ use Modules\IdentityAccess\Http\Controllers\StatusController;
 use Modules\IdentityAccess\Http\Controllers\UserConsentController;
 use Modules\IdentityAccess\Http\Controllers\UserController;
 use Modules\IdentityAccess\Http\Controllers\AuthController;
+use Modules\IdentityAccess\Http\Controllers\ExportController;
 
 Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login'])
@@ -29,6 +30,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+    Route::get('users/export/{format?}', [ExportController::class, 'users'])->name('users.export');
     Route::apiResource('users', UserController::class)->only(['index', 'show', 'update', 'destroy']);
     Route::apiResource('consent-types', ConsentTypeController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::apiResource('roles', RoleController::class)->only(['index', 'show', 'store', 'update', 'destroy']);

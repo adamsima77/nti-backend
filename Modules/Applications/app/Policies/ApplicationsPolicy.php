@@ -4,7 +4,7 @@ namespace Modules\Applications\Policies;
 
 use Illuminate\Auth\Access\HandlesAuthorization;
 use Modules\Applications\Models\Applications;
-use App\Models\User;
+use Modules\IdentityAccess\Models\User;
 
 class ApplicationsPolicy
 {
@@ -64,5 +64,10 @@ class ApplicationsPolicy
     public function reject(User $user, Applications $application): bool
     {
         return $user->hasRole('admin'); // Only admins can reject
+    }
+
+    public function export(User $user): bool
+    {
+        return $user->isAdmin() || $user->isSuperAdmin();
     }
 }

@@ -34,4 +34,9 @@ class CallPolicy
     {
         return $user->isAdmin() || $user->isSuperAdmin();
     }
+
+    public function export(User $user): bool
+    {
+        return $user->isAdmin() || $user->isSuperAdmin();
+    }
 }
