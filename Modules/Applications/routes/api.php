@@ -3,11 +3,13 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Applications\Http\Controllers\ApplicationController;
 use Modules\Applications\Http\Controllers\DocumentController;
-use Modules\Applications\Http\Controllers\ExportController;
+use Modules\Reporting\Http\Controllers\ExportController;
+
+
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('applications/export/{format?}', [ExportController::class, 'applications'])->name('applications.export');
-    Route::get('applications/{id}/pdf', [ApplicationController::class, 'downloadPdf'])->name('applications.pdf');
+    Route::get('applications/{id}/pdf', [ExportController::class, 'applicationPdf'])->name('applications.pdf');
     Route::post('/documents', [DocumentController::class, 'store']);
     Route::get('/applications', [ApplicationController::class, 'index']);
     Route::get('/applications/{id}', [ApplicationController::class, 'show']);

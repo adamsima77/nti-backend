@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Applications\Exports;
+namespace Modules\Reporting\Exports;
 
 use Modules\Applications\Models\Application;
 use Maatwebsite\Excel\Concerns\FromQuery;

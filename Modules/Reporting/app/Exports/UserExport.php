@@ -1,8 +1,8 @@
 <?php
 
-namespace Modules\Programs\Exports;
+namespace Modules\Reporting\Exports;
 
-use Modules\Programs\Models\Call;
+use Modules\IdentityAccess\Models\User;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
@@ -10,7 +10,7 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 
-class CallExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithEvents
+class UserExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithEvents
 {
     protected $query;
 
@@ -21,30 +21,30 @@ class CallExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
 
     public function query()
     {
-        return $this->query ?? Call::query()->select(['id', 'name', 'description', 'application_deadline', 'project_start', 'project_end']);
+        return $this->query ?? User::query()->select(['id', 'name', 'surname', 'email', 'status_id', 'created_at']);
     }
 
     public function headings(): array
     {
         return [
             'ID',
-            'Názov',
-            'Popis',
-            'Deadline prihlášok',
-            'Začiatok projektu',
-            'Koniec projektu'
+            'Meno',
+            'Priezvisko',
+            'Email',
+            'Status',
+            'Vytvorené'
         ];
     }
 
-    public function map($call): array
+    public function map($user): array
     {
         return [
-            $call->id,
-            $call->name,
-            strip_tags(substr($call->description ?? '', 0, 200)),
-            $call->application_deadline?->toDateTimeString(),
-            $call->project_start?->toDateTimeString(),
-            $call->project_end?->toDateTimeString(),
+            $user->id,
+            $user->name,
+            $user->surname,
+            $user->email,
+            optional($user->status)->name,
+            $user->created_at?->toDateTimeString(),
         ];
     }
 
