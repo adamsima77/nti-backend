@@ -7,7 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Mail;
 use Modules\Notifications\Emails\StudentOnboardingEmail;
 
-class SendWelcomeAfterStudentOnboarding
+class SendWelcomeAfterStudentOnboarding implements ShouldQueue
 {
     /**
      * Create the event listener.

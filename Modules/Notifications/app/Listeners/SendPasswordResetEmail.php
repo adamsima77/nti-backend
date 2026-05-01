@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Password;
 use Modules\IdentityAccess\Events\PasswordResetRequested;
 use Modules\Notifications\Emails\ResetPasswordMail;
 
-class SendPasswordResetEmail
+class SendPasswordResetEmail implements ShouldQueue
 {
     public function handle(PasswordResetRequested $event): void
     {

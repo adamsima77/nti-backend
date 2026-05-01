@@ -3,6 +3,7 @@
 namespace Modules\IdentityAccess\Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Modules\IdentityAccess\Models\Permission;
 use Modules\IdentityAccess\Models\User;
 use Modules\IdentityAccess\Models\UserConsent;
 
@@ -15,8 +16,9 @@ class IdentityAccessDatabaseSeeder extends Seeder
     {
          $this->call([
              RoleSeeder::class,
+             PermissionSeeder::class,
              StatusSeeder::class,
-             ConsentTypeSeeder::class
+             ConsentTypeSeeder::class,
          ]);
         User::factory()->count(10)->create();
         UserConsent::factory()->count(20)->create();

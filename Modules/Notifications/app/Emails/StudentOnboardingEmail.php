@@ -8,14 +8,14 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Modules\IdentityAccess\Models\User;
 
-class StudentOnboardingEmail extends Mailable implements ShouldQueue
+class StudentOnboardingEmail extends Mailable
 {
     use Queueable, SerializesModels;
 
     /**
      * Create a new message instance.
      */
-    private User $user;
+    public User $user;
     public function __construct(User $user) {
         $this->user = $user;
     }

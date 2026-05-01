@@ -9,7 +9,7 @@ use Illuminate\Queue\SerializesModels;
 use Modules\IdentityAccess\Models\User;
 use Modules\Mentorship\Models\Milestone;
 
-class MilestoneStatusChangedMail extends Mailable implements ShouldQueue
+class MilestoneStatusChangedMail extends Mailable
 {
     use Queueable, SerializesModels;
 

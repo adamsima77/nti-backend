@@ -53,7 +53,7 @@
                         <table role="presentation" cellspacing="0" cellpadding="0">
                             <tr>
                                 <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-                                    <a href="{{ config('app.frontend_url') }}/dashboard"
+                                    <a href="{{ config('app.frontend_url') }}/student"
                                        target="_blank"
                                        style="
                                             display:inline-block;

@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Mail;
 use Modules\IdentityAccess\Models\User;
 use Modules\Notifications\Emails\WelcomeEmail;
 
-class SendWelcomeEmail
+class SendWelcomeEmail implements ShouldQueue
 {
     /**
      * Create the event listener.

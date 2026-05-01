@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Mail;
 use Modules\IdentityAccess\Models\User;
 use Modules\Notifications\Emails\OrganizationOnboardingEmail;
 
-class SendWelcomeAfterOnboardOrganization
+class SendWelcomeAfterOnboardOrganization implements ShouldQueue
 {
     /**
      * Create the event listener.
@@ -19,7 +19,7 @@ class SendWelcomeAfterOnboardOrganization
      * Handle the event.
      */
     public function handle($event): void {
-        $org = $event->organization;
+        $org = $event->org;
         $email = $event->email;
         Mail::to($email)->send(new OrganizationOnboardingEmail($org, $email));
     }

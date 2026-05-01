@@ -2,11 +2,12 @@
 
 namespace Modules\Notifications\Listeners;
 
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Mail;
 use Modules\Mentorship\Events\MilestoneStatusChanged;
 use Modules\Notifications\Emails\MilestoneStatusChangedMail;
 
-class SendMilestoneStatusChangedNotification
+class SendMilestoneStatusChangedNotification implements ShouldQueue
 {
     public function handle(MilestoneStatusChanged $event): void
     {

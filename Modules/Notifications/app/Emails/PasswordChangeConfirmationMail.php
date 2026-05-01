@@ -7,10 +7,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class PasswordChangeConfirmationMail extends Mailable implements ShouldQueue
+class PasswordChangeConfirmationMail extends Mailable
 {
     use Queueable, SerializesModels;
-    private string $email;
+    public string $email;
 
     /**
      * Create a new message instance.

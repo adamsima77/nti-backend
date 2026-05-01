@@ -60,6 +60,12 @@ class AuthController extends Controller
             'sector.*' => ['required', 'integer', 'exists:sector,id']
         ]);
 
+        if ($request->user()->status_id !== UserStatus::PENDING_ONBOARDING->value) {
+            return response()->json([
+                'message' => 'User is not eligible for onboarding.'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
         try{
             DB::beginTransaction();
             $address = Address::create([
@@ -92,7 +98,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Onboarding was successfull'], Response::HTTP_OK);
         } catch(\Throwable $e){
             DB::rollBack();
-            return response()->json(['message' => 'Organization could not be onboarded !'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['message' => 'Onboarding was not succesfull'], Response::HTTP_INTERNAL_SERVER_ERROR);
 
         }
 
@@ -109,6 +115,12 @@ class AuthController extends Controller
             'year_of_study' => ['required', 'integer', 'between:1,6'],
             'portfolio_url' => ['nullable', 'string', 'max:255']
         ]);
+
+        if ($request->user()->status_id !== UserStatus::PENDING_ONBOARDING->value) {
+            return response()->json([
+                'message' => 'User is not eligible for onboarding.'
+            ], Response::HTTP_FORBIDDEN);
+        }
 
         try{
             DB::beginTransaction();
@@ -156,7 +168,7 @@ class AuthController extends Controller
             if (isset($filePath)) {
                 Storage::disk('local')->delete($filePath);
             }
-            return response(['message' => $th->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response(['message' => 'Student could not be onboarded !'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

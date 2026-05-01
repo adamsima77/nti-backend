@@ -9,15 +9,15 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Modules\IdentityAccess\Models\User;
 use Modules\Organizations\Models\Organization;
 
-class OrganizationOnboardingEmail extends Mailable implements ShouldQueue
+class OrganizationOnboardingEmail extends Mailable
 {
     use Queueable, SerializesModels;
 
     /**
      * Create a new message instance.
      */
-    private Organization $org;
-    private String $email;
+    public Organization $org;
+    public String $email;
     public function __construct(Organization $org, String $email) {
         $this->org = $org;
         $this->email = $email;
