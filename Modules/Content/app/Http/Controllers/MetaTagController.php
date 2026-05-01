@@ -40,6 +40,19 @@ class MetaTagController extends Controller
         return response()->json($metaTags, Response::HTTP_OK);
     }
 
+    public function getByPageAndLang($pageId, $lang)
+    {
+        $languageId = Language::where('name', $lang)->value('id');
+
+        $metaTag = MetaTag::with(['metaTagTranslations' => function ($q) use ($languageId) {
+            $q->where('language_id', $languageId);
+        }])
+            ->where('page_id', $pageId)
+            ->firstOrFail();
+
+        return response()->json($metaTag, Response::HTTP_OK);
+    }
+
     /**
      * Store a newly created resource in storage.
      */

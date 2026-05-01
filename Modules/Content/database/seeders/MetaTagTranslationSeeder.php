@@ -20,6 +20,8 @@ class MetaTagTranslationSeeder extends Seeder
         $programA = MetaTag::create(['page_id' => PageType::PROGRAM_A->value]);
         $programB = MetaTag::create(['page_id' => PageType::PROGRAM_B->value]);
         $contact = MetaTag::create(['page_id' => PageType::CONTACT->value]);
+        $partners = MetaTag::create(['page_id' => PageType::PARTNERS->value]);
+        $news = MetaTag::create(['page_id' => PageType::NEWS->value]);
 
         /*
         | HOME
@@ -193,6 +195,59 @@ class MetaTagTranslationSeeder extends Seeder
             'twitter_card' => 'summary',
             'twitter_title' => 'Contact',
             'twitter_description' => 'Reach out to us.',
+        ]);
+
+        $partners->metaTagTranslations()->create([
+            'language_id' => LanguageType::SLOVAK->value,
+            'title' => 'Partneri',
+            'description' => 'Naši partneri, ktorí podporujú inovácie a rozvoj komunity NTI.',
+            'og_title' => 'Partneri | NTI',
+            'og_description' => 'Zoznam partnerov, ktorí spolupracujú s NTI na podpore inovácií.',
+            'og_type' => 'website',
+            'og_url' => '/sk/partneri',
+            'twitter_card' => 'summary',
+            'twitter_title' => 'Partneri',
+            'twitter_description' => 'Naši partneri a spolupráce NTI.',
+        ]);
+
+        $partners->metaTagTranslations()->create([
+            'language_id' => LanguageType::ENGLISH->value,
+            'title' => 'Partners',
+            'description' => 'Our partners supporting innovation and the growth of the NTI community.',
+            'og_title' => 'Partners | NTI',
+            'og_description' => 'A list of partners collaborating with NTI to support innovation.',
+            'og_type' => 'website',
+            'og_url' => '/en/partners',
+            'twitter_card' => 'summary',
+            'twitter_title' => 'Partners',
+            'twitter_description' => 'Our partners and collaborations at NTI.',
+        ]);
+
+
+        $news->metaTagTranslations()->create([
+            'language_id' => LanguageType::SLOVAK->value,
+            'title' => 'Novinky',
+            'description' => 'Sledujte najnovšie články, aktuality a dianie v komunite NTI.',
+            'og_title' => 'Novinky | NTI',
+            'og_description' => 'Najnovšie správy, články a aktuality z komunity NTI.',
+            'og_type' => 'website',
+            'og_url' => '/sk/novinky',
+            'twitter_card' => 'summary_large_image',
+            'twitter_title' => 'Novinky',
+            'twitter_description' => 'Najnovšie aktuality a články z NTI.',
+        ]);
+
+        $news->metaTagTranslations()->create([
+            'language_id' => LanguageType::ENGLISH->value,
+            'title' => 'News',
+            'description' => 'Follow the latest articles, updates, and events from the NTI community.',
+            'og_title' => 'News | NTI',
+            'og_description' => 'Latest news, articles, and updates from the NTI community.',
+            'og_type' => 'website',
+            'og_url' => '/en/news',
+            'twitter_card' => 'summary_large_image',
+            'twitter_title' => 'News',
+            'twitter_description' => 'Latest updates and articles from NTI.',
         ]);
     }
 }

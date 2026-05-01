@@ -14,9 +14,7 @@ class Program extends Model
     protected $table = 'program';
 
     protected $fillable = [
-        'name',
-        'type_of_program_id',
-        'description',
+        'type_of_program_id'
     ];
 
     public function typeOfProgram(): BelongsTo
@@ -27,5 +25,9 @@ class Program extends Model
     public function calls(): HasMany
     {
         return $this->hasMany(Call::class, 'program_id');
+    }
+
+    public function programTranslations(): HasMany{
+        return $this->hasMany(ProgramTranslation::class, 'program_id');
     }
 }

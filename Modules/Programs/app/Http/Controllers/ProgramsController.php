@@ -4,8 +4,9 @@ namespace Modules\Programs\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Modules\Content\Models\Language;
 use Modules\Programs\Models\Program;
-
+use Illuminate\Http\Response;
 class ProgramsController extends Controller
 {
     /**
@@ -16,6 +17,23 @@ class ProgramsController extends Controller
         $this->authorize('viewAny', Program::class);
 
         return view('programs::index');
+    }
+
+    public function getProgramByLang($lang){
+        $languageId = Language::where('name', $lang)->value('id');
+
+        if (!$languageId) {
+            return response()->json([
+                'message' => 'Language not found!'
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $programs = Program::with([
+            'programTranslations' => fn ($q) =>
+            $q->where('language_id', $languageId)
+        ])->get();
+
+        return response()->json($programs, Response::HTTP_OK);
     }
 
     /**

@@ -19,6 +19,7 @@ class PageSeeder extends Seeder
         Page::create(['name' => 'program-b']);
         Page::create(['name' => 'contact']);
         Page::create(['name' => 'partners']);
+        Page::create(['name' => 'news']);
 }
 
 }

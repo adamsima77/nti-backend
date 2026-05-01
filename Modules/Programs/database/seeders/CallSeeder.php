@@ -15,12 +15,9 @@ class CallSeeder extends Seeder
 {
     public function run(): void
     {
-        $organization = Organization::query()->select(['id', 'name'])->first();
+        $organization = Organization::query()->first();
         $publicCallType = CallType::query()->where('name', 'Verejná výzva')->first();
         $publishedStatus = StatusOfCall::query()->where('name', 'Publikované')->first();
-
-        $programA = Program::query()->where('name', 'Grantový inkubačný program')->first();
-        $programB = Program::query()->where('name', 'Program živej praxe')->first();
 
         if ($organization === null || $publicCallType === null || $publishedStatus === null) {
             return;
@@ -28,15 +25,29 @@ class CallSeeder extends Seeder
 
         $criteria = Criterion::query()->pluck('id')->all();
 
+
+        $programA = Program::query()
+            ->where('type_of_program_id', 1)
+            ->first();
+
+        $programB = Program::query()
+            ->where('type_of_program_id', 2)
+            ->first();
+
+        /*
+        | PROGRAM A CALL
+        */
         if ($programA !== null) {
-            $callA = Call::query()->updateOrCreate(
-                ['name' => 'Výzva 2026 - Program A'],
+            $callA = Call::updateOrCreate(
+                [
+                    'program_id' => $programA->id,
+                    'name' => 'Výzva 2026 - Program A',
+                ],
                 [
                     'description' => 'Podpora inovatívnych študentských tímov v programe A.',
                     'application_deadline' => now()->addMonths(1),
                     'project_start' => now()->addMonths(2),
                     'project_end' => now()->addMonths(8),
-                    'program_id' => $programA->id,
                     'organization_id' => $organization->id,
                     'call_type_id' => $publicCallType->id,
                 ]
@@ -44,7 +55,7 @@ class CallSeeder extends Seeder
 
             $callA->callCriteria()->syncWithoutDetaching($criteria);
 
-            StatusOfCallHasCall::query()->updateOrCreate(
+            StatusOfCallHasCall::updateOrCreate(
                 [
                     'call_id' => $callA->id,
                     'status_of_call_id' => $publishedStatus->id,
@@ -55,15 +66,20 @@ class CallSeeder extends Seeder
             );
         }
 
+        /*
+        | PROGRAM B CALL
+        */
         if ($programB !== null) {
-            $callB = Call::query()->updateOrCreate(
-                ['name' => 'Výzva 2026 - Program B'],
+            $callB = Call::updateOrCreate(
+                [
+                    'program_id' => $programB->id,
+                    'name' => 'Výzva 2026 - Program B',
+                ],
                 [
                     'description' => 'Riesenie realnych zadani od partnerov v programe B.',
                     'application_deadline' => now()->addMonths(1),
                     'project_start' => now()->addMonths(2),
                     'project_end' => now()->addMonths(8),
-                    'program_id' => $programB->id,
                     'organization_id' => $organization->id,
                     'call_type_id' => $publicCallType->id,
                 ]
@@ -71,7 +87,7 @@ class CallSeeder extends Seeder
 
             $callB->callCriteria()->syncWithoutDetaching($criteria);
 
-            StatusOfCallHasCall::query()->updateOrCreate(
+            StatusOfCallHasCall::updateOrCreate(
                 [
                     'call_id' => $callB->id,
                     'status_of_call_id' => $publishedStatus->id,

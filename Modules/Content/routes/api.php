@@ -12,6 +12,7 @@ use Modules\Content\Http\Controllers\PartnerController;
 use Modules\Content\Http\Controllers\PartnerReferenceController;
 use Modules\Content\Http\Controllers\SiteMemberController;
 
+Route::get('/pages/{page}/meta-tags/{lang}', [MetaTagController::class, 'getByPageAndLang']);
 Route::get('partners/fetch-images', [PartnerController::class, 'fetchImages']);
 Route::get('/categories/lang/{lang}', [CategoryController::class, 'fetchByLang']);
 Route::get('/hero-banners/lang/{lang}', [HeroBannerController::class, 'fetchByLang']);

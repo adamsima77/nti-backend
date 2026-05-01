@@ -24,7 +24,7 @@ class MetaTagTranslation extends Model
         'language_id'
     ];
 
-    public function metaTagTranslation(): BelongsTo{
+    public function metaTag(): BelongsTo{
         return $this->belongsTo(MetaTag::class);
     }
 
