@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Programs\Models\CallTranslation;
 
 // use Modules\Content\Database\Factories\LanguageFactory;
 
@@ -27,6 +28,10 @@ class Language extends Model
     public function newsTranslations(): HasMany
     {
         return $this->hasMany(NewsTranslation::class);
+    }
+
+    public function callTranslations(): HasMany{
+        return $this->hasMany(CallTranslation::class);
     }
 
     public function heroBannerTranslations(): HasMany

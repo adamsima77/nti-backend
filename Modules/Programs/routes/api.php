@@ -6,6 +6,7 @@ use Modules\Programs\Http\Controllers\ProgramsController;
 use Modules\Reporting\Http\Controllers\ExportController;
 
 Route::get('/programs/lang/{lang}', [ProgramsController::class, 'getProgramByLang']);
+Route::get('/calls/lang/{lang}', [CallController::class, 'fetchCallByLang']);
 Route::get('calls', [CallController::class, 'index']);
 Route::get('calls/{id}', [CallController::class, 'show']);
 Route::get('calls/{id}/pdf', [ExportController::class, 'callPdf'])->name('calls.pdf');

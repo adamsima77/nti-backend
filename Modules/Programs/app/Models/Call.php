@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Modules\Applications\Models\Application;
 use Modules\Organizations\Models\Organization;
 
 class Call extends Model
@@ -22,6 +23,7 @@ class Call extends Model
         'program_id',
         'organization_id',
         'call_type_id',
+        'application_start'
     ];
 
     public function program(): BelongsTo
@@ -32,6 +34,10 @@ class Call extends Model
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'organization_id');
+    }
+
+    public function callTranslations(): HasMany{
+        return $this->hasMany(CallTranslation::class, 'call_id');
     }
 
     public function callType(): BelongsTo
@@ -57,5 +63,10 @@ class Call extends Model
             'call_id',
             'criterion_id'
         );
+    }
+
+    public function applications(): HasMany
+    {
+        return $this->hasMany(Application::class, 'call_id');
     }
 }

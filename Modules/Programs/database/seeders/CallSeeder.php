@@ -19,41 +19,46 @@ class CallSeeder extends Seeder
         $publicCallType = CallType::query()->where('name', 'Verejná výzva')->first();
         $publishedStatus = StatusOfCall::query()->where('name', 'Publikované')->first();
 
-        if ($organization === null || $publicCallType === null || $publishedStatus === null) {
+        if (!$organization || !$publicCallType || !$publishedStatus) {
             return;
         }
 
         $criteria = Criterion::query()->pluck('id')->all();
 
+        $programs = Program::query()
+            ->whereIn('type_of_program_id', [1, 2])
+            ->get()
+            ->keyBy('type_of_program_id');
 
-        $programA = Program::query()
-            ->where('type_of_program_id', 1)
-            ->first();
 
-        $programB = Program::query()
-            ->where('type_of_program_id', 2)
-            ->first();
+        if (isset($programs[1])) {
 
-        /*
-        | PROGRAM A CALL
-        */
-        if ($programA !== null) {
+            $applicationStart = now()->subDays(3);
+            $applicationDeadline = now()->addMonth();
+            $projectStart = now()->addMonths(2);
+            $projectEnd = now()->addMonths(8);
+
             $callA = Call::updateOrCreate(
                 [
-                    'program_id' => $programA->id,
+                    'program_id' => $programs[1]->id,
                     'name' => 'Výzva 2026 - Program A',
                 ],
                 [
                     'description' => 'Podpora inovatívnych študentských tímov v programe A.',
-                    'application_deadline' => now()->addMonths(1),
-                    'project_start' => now()->addMonths(2),
-                    'project_end' => now()->addMonths(8),
+
+                    'application_start' => $applicationStart,
+                    'application_deadline' => $applicationDeadline,
+                    'project_start' => $projectStart,
+                    'project_end' => $projectEnd,
+
                     'organization_id' => $organization->id,
                     'call_type_id' => $publicCallType->id,
                 ]
             );
 
+
             $callA->callCriteria()->syncWithoutDetaching($criteria);
+
 
             StatusOfCallHasCall::updateOrCreate(
                 [
@@ -64,28 +69,54 @@ class CallSeeder extends Seeder
                     'note' => 'Inicialny publikovany stav.',
                 ]
             );
+
+
+            $callA->callTranslations()->updateOrCreate(
+                ['language_id' => 1],
+                [
+                    'name' => 'Výzva 2026 - Program A',
+                    'description' => 'Podpora inovatívnych študentských tímov v programe A.',
+                ]
+            );
+
+            $callA->callTranslations()->updateOrCreate(
+                ['language_id' => 2], // EN
+                [
+                    'name' => 'Call 2026 - Program A',
+                    'description' => 'Support for innovative student teams in Program A.',
+                ]
+            );
         }
 
-        /*
-        | PROGRAM B CALL
-        */
-        if ($programB !== null) {
+
+        if (isset($programs[2])) {
+
+            $applicationStart = now()->addDays(5);
+            $applicationDeadline = now()->addMonths(1);
+            $projectStart = now()->addMonths(2);
+            $projectEnd = now()->addMonths(8);
+
             $callB = Call::updateOrCreate(
                 [
-                    'program_id' => $programB->id,
+                    'program_id' => $programs[2]->id,
                     'name' => 'Výzva 2026 - Program B',
                 ],
                 [
                     'description' => 'Riesenie realnych zadani od partnerov v programe B.',
-                    'application_deadline' => now()->addMonths(1),
-                    'project_start' => now()->addMonths(2),
-                    'project_end' => now()->addMonths(8),
+
+                    'application_start' => $applicationStart,
+                    'application_deadline' => $applicationDeadline,
+                    'project_start' => $projectStart,
+                    'project_end' => $projectEnd,
+
                     'organization_id' => $organization->id,
                     'call_type_id' => $publicCallType->id,
                 ]
             );
 
+
             $callB->callCriteria()->syncWithoutDetaching($criteria);
+
 
             StatusOfCallHasCall::updateOrCreate(
                 [
@@ -94,6 +125,23 @@ class CallSeeder extends Seeder
                 ],
                 [
                     'note' => 'Inicialny publikovany stav.',
+                ]
+            );
+
+
+            $callB->callTranslations()->updateOrCreate(
+                ['language_id' => 1],
+                [
+                    'name' => 'Výzva 2026 - Program B',
+                    'description' => 'Riesenie realnych zadani od partnerov v programe B.',
+                ]
+            );
+
+            $callB->callTranslations()->updateOrCreate(
+                ['language_id' => 2], // EN
+                [
+                    'name' => 'Call 2026 - Program B',
+                    'description' => 'Solving real-world challenges from partners in Program B.',
                 ]
             );
         }
