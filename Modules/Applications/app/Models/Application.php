@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Mentorship\Models\Milestone;
 use Modules\IdentityAccess\Models\User;
 use Modules\Programs\Models\Call;
+use Modules\Reporting\Models\ProjectKpi;
+use Modules\Reporting\Models\ProjectOutput;
 
 class Application extends Model
 {
@@ -68,5 +70,15 @@ class Application extends Model
     public function milestones(): HasMany
     {
         return $this->hasMany(Milestone::class, 'project_id');
+    }
+
+    public function kpis(): HasMany
+    {
+        return $this->hasMany(ProjectKpi::class, 'application_id');
+    }
+
+    public function outputs(): HasMany
+    {
+        return $this->hasMany(ProjectOutput::class, 'application_id');
     }
 }
