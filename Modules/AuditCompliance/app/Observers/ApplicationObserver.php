@@ -33,14 +33,12 @@ class ApplicationObserver
 
     private function log(string $action, Application $model, array $payload = []): void
     {
-        $actor = request()->user();
-
-        if (!$actor) {
+        if (!request()->user()) {
             return;
         }
 
         AuditCompliance::log(
-            userId: $actor->id,
+            userId: request()->user()->id,
             action: $action,
             objectType: Application::class,
             objectId: $model->id,

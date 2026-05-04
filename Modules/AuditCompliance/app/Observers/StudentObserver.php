@@ -33,14 +33,12 @@ class StudentObserver
 
     private function log(string $action, Student $model, array $payload = []): void
     {
-        $actor = request()->user();
-
-        if (!$actor) {
+        if (!request()->user()) {
             return;
         }
 
         AuditCompliance::log(
-            userId: $actor->id,
+            userId: request()->user()->id,
             action: $action,
             objectType: Student::class,
             objectId: $model->id,
