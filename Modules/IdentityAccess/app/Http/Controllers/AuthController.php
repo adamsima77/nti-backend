@@ -80,7 +80,7 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'phone'],
             'ico' => ['required', 'digits:8'],
-            'web_url' => ['required', 'string', 'max:255'],
+            'web_url' => ['nullable', 'string', 'max:255'],
             'city' => ['required', 'string', 'max:255'],
             'street' => ['required', 'string', 'max:255'],
             'postal_code' => ['required', 'digits:5'],
@@ -109,7 +109,7 @@ class AuthController extends Controller
                 'name' => $validated['name'],
                 'phone' => $validated['phone'],
                 'ico' => $validated['ico'],
-                'web_url' => $validated['web_url'],
+                'web_url' => $validated['web_url'] ?? null,
                 'address_id' => $address->id
             ]);
 

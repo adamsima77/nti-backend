@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name', 255);
             $table->string('phone', 30);
             $table->string('ico', 30);
-            $table->string('web_url', 255);
+            $table->string('web_url', 255)->nullable();
             $table->unsignedBigInteger('address_id');
             $table->timestamps();
             $table->softDeletes();
