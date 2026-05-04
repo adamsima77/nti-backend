@@ -12,35 +12,40 @@ class VerifyEmail extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function via($notifiable)
+    public function via($notifiable): array
     {
         return ['mail'];
     }
 
-    public function toMail($notifiable)
+    public function toMail($notifiable): MailMessage
     {
+        $hash = sha1($notifiable->getEmailForVerification());
+
         $signedUrl = URL::temporarySignedRoute(
             'api.verification.verify',
-            now()->addMinutes(15),
+            now()->addMinutes(60),
             [
-                'id' => $notifiable->id,
-                'hash' => sha1($notifiable->getEmailForVerification()),
+                'id'   => $notifiable->id,
+                'hash' => $hash,
             ]
         );
 
-        parse_str(parse_url($signedUrl, PHP_URL_QUERY), $params);
 
-        $frontendUrl = config('app.frontend_url') . '/auth/verify-email?' . http_build_query([
-                'id'        => $notifiable->id,
-                'hash'      => $params['hash'],
-                'expires'   => $params['expires'],
-                'signature' => $params['signature'],
-            ]);
+        $queryString = parse_url($signedUrl, PHP_URL_QUERY) ?? '';
+        parse_str($queryString, $params);
+
+
+        $frontendUrl = rtrim(config('app.frontend_url'), '/')
+            . '/auth/verify-email'
+            . '/' . $notifiable->id
+            . '/' . $hash
+            . '?expires='   . ($params['expires'] ?? '')
+            . '&signature=' . urlencode($params['signature'] ?? '');
 
         return (new MailMessage)
             ->subject('Verify your email address')
             ->view('notifications::emails.verify-email', [
-                'name' => $notifiable->name,
+                'name'            => $notifiable->name ?? $notifiable->email,
                 'verificationUrl' => $frontendUrl,
             ]);
     }

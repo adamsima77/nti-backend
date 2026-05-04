@@ -18,10 +18,12 @@ use Modules\IdentityAccess\Events\PasswordChanged;
 use Modules\IdentityAccess\Events\PasswordResetRequested;
 use Modules\IdentityAccess\Events\StudentOnboarded;
 use Modules\IdentityAccess\Events\UserRegistered;
+use Modules\IdentityAccess\Models\ConsentType;
 use Modules\IdentityAccess\Models\Role;
 use Modules\IdentityAccess\Models\Status;
 use Modules\IdentityAccess\Models\User;
 use Modules\IdentityAccess\Enums\UserStatus;
+use Modules\IdentityAccess\Models\UserConsent;
 use Modules\Organizations\Models\Address;
 use Modules\Organizations\Models\Organization;
 use Modules\Organizations\Models\OrganizationRole;
@@ -33,23 +35,50 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'email' => ['required', 'string', 'max:255', 'unique:users,email'],
+            'email'    => ['required', 'string', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', 'max:255', PasswordRule::min(8)->mixedCase()->numbers()->symbols()],
+            'role'     => ['required', 'string', 'in:student,partner'],
         ]);
 
-        $user = User::create([
-            'email' => $validated['email'],
-            'password' => $validated['password'],
-            'status_id' => UserStatus::PENDING_EMAIL->value,
-        ]);
-        $user->sendEmailVerificationNotification();
-        return response()->json(['message' => 'Registration succesfull, verify email !'], Response::HTTP_OK);
+        DB::beginTransaction();
+        try {
+            $user = User::create([
+                'email'     => $validated['email'],
+                'password'  => $validated['password'],
+                'status_id' => UserStatus::PENDING_EMAIL->value,
+            ]);
+
+            $role = Role::where('name', $validated['role'])->firstOrFail();
+            $user->roles()->attach($role->id);
+
+
+            $termsConsent = ConsentType::where('name', 'privacy_policy')->firstOrFail();
+
+            UserConsent::create([
+                'user_id'    => $user->id,
+                'consent_id' => $termsConsent->id,
+                'granted'    => true,
+                'granted_at' => now(),
+                'revoked_at' => null,
+                'ip'         => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            $user->sendEmailVerificationNotification();
+
+            DB::commit();
+            return response()->json(['message' => 'Registration successful, verify email!'], Response::HTTP_OK);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Registration failed.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     public function organizationOnboarding(Request $request){
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'phone'], //Propaganistas package for verifying numbers format
+            'phone' => ['required', 'phone'],
             'ico' => ['required', 'digits:8'],
             'web_url' => ['required', 'string', 'max:255'],
             'city' => ['required', 'string', 'max:255'],
@@ -66,8 +95,9 @@ class AuthController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        try{
+        try {
             DB::beginTransaction();
+
             $address = Address::create([
                 'city' => $validated['city'],
                 'street' => $validated['street'],
@@ -84,24 +114,30 @@ class AuthController extends Controller
             ]);
 
             $org_admin = OrganizationRole::where('name', 'org_admin')->firstOrFail();
-            $organization->sectors()->sync($validated['sector']);
 
-            $partner_role = Role::where('name', 'partner')->firstOrFail();
-            $request->user()->roles()->attach($partner_role->id);
+            $organization->sectors()->sync($validated['sector']);
 
             $organization->users()->attach(auth()->id(), [
                 'organization_role' => $org_admin->id,
             ]);
+
             $request->user()->setStatus(UserStatus::ACTIVE);
+
             DB::commit();
+
             event(new OrganizationOnboarded($organization, $request->user()->email));
-            return response()->json(['message' => 'Onboarding was successfull'], Response::HTTP_OK);
-        } catch(\Throwable $e){
+
+            return response()->json([
+                'message' => 'Onboarding was successful'
+            ], Response::HTTP_OK);
+
+        } catch (\Throwable $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Onboarding was not succesfull'], Response::HTTP_INTERNAL_SERVER_ERROR);
 
+            return response()->json([
+                'message' => 'Organization could not be onboarded !'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
     }
 
     public function studentOnboarding(Request $request){
@@ -117,12 +153,10 @@ class AuthController extends Controller
         ]);
 
         if ($request->user()->status_id !== UserStatus::PENDING_ONBOARDING->value) {
-            return response()->json([
-                'message' => 'User is not eligible for onboarding.'
-            ], Response::HTTP_FORBIDDEN);
+            return response()->json(['message' => 'User is not eligible for onboarding.'], 403);
         }
 
-        try{
+        try {
             DB::beginTransaction();
 
             $request->user()->update([
@@ -131,44 +165,51 @@ class AuthController extends Controller
             ]);
 
             $securityClassification = SecurityClassification::where('name', 'internal')->firstOrFail();
+
             $uploadedFile = $validated['cv'];
             $fileName = $uploadedFile->getClientOriginalName();
-            $storedFileName = Str::uuid()->toString() . '_' . $fileName;
+            $storedFileName = Str::uuid(). '_' . $fileName;
             $filePath = Storage::disk('local')->putFileAs('documents', $uploadedFile, $storedFileName);
 
             $document = Document::create([
-                'owner_id'                  => $request->user()->id,
+                'owner_id' => $request->user()->id,
                 'security_classification_id' => $securityClassification->id,
             ]);
 
             DocumentVersion::create([
                 'document_id' => $document->id,
-                'file_name'   => $fileName,
-                'file_path'   => $filePath,
+                'file_name' => $fileName,
+                'file_path' => $filePath,
             ]);
 
-             Student::create([
+            Student::create([
                 'user_id' => $request->user()->id,
                 'study_program_id' => $validated['study_program'],
                 'study_field_id' => $validated['study_field'],
                 'university_id' => $validated['university'],
                 'year_of_study' => $validated['year_of_study'],
-                'portfolio_url' => $validated['portfolio_url'],
-                'cv_document_id' =>  $document->id
+                'portfolio_url' => $validated['portfolio_url'] ?? null,
+                'cv_document_id' => $document->id
             ]);
-            $student_role = Role::where('name', 'student')->firstOrFail();
-            $request->user()->roles()->attach($student_role->id);
 
             $request->user()->setStatus(UserStatus::ACTIVE);
+
             DB::commit();
+
             event(new StudentOnboarded($request->user()));
-            return response()->json(['message' => 'Onboarding was successfull'], Response::HTTP_OK);
+
+            return response()->json(['message' => 'Onboarding was successful'], 200);
+
         } catch (\Throwable $th) {
             DB::rollBack();
+
             if (isset($filePath)) {
                 Storage::disk('local')->delete($filePath);
             }
-            return response(['message' => 'Student could not be onboarded !'], Response::HTTP_INTERNAL_SERVER_ERROR);
+
+            return response()->json([
+                'message' => $th->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -193,12 +234,17 @@ class AuthController extends Controller
         }
 
         $user->markEmailAsVerified();
-
         $user->setStatus(UserStatus::PENDING_ONBOARDING);
         event(new UserRegistered($user));
-        $token = $user->createToken('web-token')->plainTextToken;
 
-        return response()->json(['user' => $user, 'token' => $token], Response::HTTP_OK);
+        $token = $user->createToken(
+            name: 'web-token',
+        )->plainTextToken;
+
+        return response()->json([
+            'user'  => $user,
+            'token' => $token,
+        ], Response::HTTP_OK);
     }
 
     public function resendNotification(Request $request)
@@ -303,19 +349,30 @@ class AuthController extends Controller
     public function resetPassword(Request $request)
     {
         $validated = $request->validate([
-            'token'    => ['required'],
-            'email'    => ['required', 'email'],
-            'password' => ['required', 'string', 'confirmed', PasswordRule::min(8)->mixedCase()->numbers()->symbols()],
+            'token' => ['required'],
+            'email' => ['required', 'email'],
+            'password' => [
+                'required',
+                'string',
+                'confirmed',
+                PasswordRule::min(8)->mixedCase()->numbers()->symbols()
+            ],
         ]);
 
         $status = PasswordBroker::reset(
-            $validated,
+            [
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+                'token' => $validated['token'],
+            ],
             function (User $user, string $password) {
                 $user->forceFill([
-                    'password' => Hash::make($password)
+                    'password' => Hash::make($password),
                 ])->save();
 
-                $user->tokens()->delete();
+                if (method_exists($user, 'tokens')) {
+                    $user->tokens()->delete();
+                }
 
                 event(new PasswordChanged($user));
             }
@@ -323,12 +380,13 @@ class AuthController extends Controller
 
         if ($status !== PasswordBroker::PASSWORD_RESET) {
             return response()->json([
-                'message' => 'Invalid or expired reset token.'
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                'message' => 'Invalid or expired reset token.',
+                'status' => $status,
+            ], 422);
         }
 
         return response()->json([
-            'message' => 'Password reset successfully.'
-        ], Response::HTTP_OK);
+            'message' => 'Password reset successfully.',
+        ]);
     }
 }

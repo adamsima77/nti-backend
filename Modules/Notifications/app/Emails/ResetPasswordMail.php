@@ -22,7 +22,7 @@ class ResetPasswordMail extends Mailable
 
     public function build()
     {
-        $url = config('app.frontend_url') . '/reset-password?token=' . $this->token
+        $url = config('app.frontend_url') . '/auth/reset-password?token=' . $this->token
             . '&email=' . urlencode($this->user->email);
 
         return $this->subject('Reset your password')
