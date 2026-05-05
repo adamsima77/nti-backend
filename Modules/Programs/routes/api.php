@@ -5,6 +5,7 @@ use Modules\Programs\Http\Controllers\CallController;
 use Modules\Programs\Http\Controllers\ProgramsController;
 use Modules\Reporting\Http\Controllers\ExportController;
 
+Route::get('/calls/{id}/lang/{lang}', [CallController::class, 'fetchCallByIdAndLang']);
 Route::get('/programs/lang/{lang}', [ProgramsController::class, 'getProgramByLang']);
 Route::get('/calls/lang/{lang}', [CallController::class, 'fetchCallByLang']);
 Route::get('calls', [CallController::class, 'index']);

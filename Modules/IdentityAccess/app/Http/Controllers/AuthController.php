@@ -78,9 +78,9 @@ class AuthController extends Controller
     public function organizationOnboarding(Request $request){
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'phone'],
+            'phone' => ['required', 'phone:SK,CZ,AUTO'],
             'ico' => ['required', 'digits:8'],
-            'web_url' => ['nullable', 'string', 'max:255'],
+            'web_url' => ['nullable', 'url', 'max:255'],
             'city' => ['required', 'string', 'max:255'],
             'street' => ['required', 'string', 'max:255'],
             'postal_code' => ['required', 'digits:5'],
