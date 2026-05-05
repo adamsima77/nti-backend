@@ -60,7 +60,7 @@ class CallController extends Controller
                 'organization:id,name',
                 'callType:id,name',
                 'callTranslations.language:id,name',
-                'callCriteria:id,name',  // ✅ added
+                'callCriteria:id,name',  
             ])
             ->paginate(15);
 
@@ -94,7 +94,7 @@ class CallController extends Controller
                     'name' => $call->callType?->name,
                 ],
 
-                'call_criteria' => collect($call->callCriteria)  // ✅ added
+                'call_criteria' => collect($call->callCriteria)
                 ->map(fn ($criterion) => [
                     'id'   => $criterion->id,
                     'name' => $criterion->name,
@@ -203,7 +203,7 @@ class CallController extends Controller
                 'organization:id,name',
                 'currentStatusHistory.status:id,name',
                 'callCriteria:id,name',
-                'callTranslations.language:id,name', // ✅ needed by CallResource for translation
+                'callTranslations.language:id,name',
             ])
             ->whereHas('currentStatusHistory.status', function ($query) {
                 $query->where('name', 'Publikované');
