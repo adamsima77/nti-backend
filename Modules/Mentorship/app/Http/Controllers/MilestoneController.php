@@ -15,6 +15,8 @@ class MilestoneController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Milestone::class);
+
         $milestones = Milestone::query()
             ->with(['application:id,name'])
             ->when(
@@ -35,6 +37,8 @@ class MilestoneController extends Controller
 
     public function show(Milestone $milestone): JsonResponse
     {
+        $this->authorize('view', $milestone);
+
         $milestone->load(['application:id,name']);
 
         return response()->json($milestone);
@@ -42,6 +46,8 @@ class MilestoneController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorize('create', Milestone::class);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'deadline' => ['required', 'date'],
@@ -67,6 +73,8 @@ class MilestoneController extends Controller
 
     public function update(Request $request, Milestone $milestone): JsonResponse
     {
+        $this->authorize('update', $milestone);
+
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'deadline' => ['sometimes', 'date'],
@@ -97,6 +105,8 @@ class MilestoneController extends Controller
 
     public function destroy(Milestone $milestone): JsonResponse
     {
+        $this->authorize('delete', $milestone);
+
         $milestone->delete();
 
         return response()->json([

@@ -60,6 +60,7 @@ class CallController extends Controller
                 'organization:id,name',
                 'callType:id,name',
                 'callTranslations.language:id,name',
+                'callCriteria:id,name',  
             ])
             ->paginate(15);
 
@@ -92,6 +93,13 @@ class CallController extends Controller
                     'id' => $call->callType?->id,
                     'name' => $call->callType?->name,
                 ],
+
+                'call_criteria' => collect($call->callCriteria)
+                ->map(fn ($criterion) => [
+                    'id'   => $criterion->id,
+                    'name' => $criterion->name,
+                ])
+                    ->values(),
             ];
         });
 
@@ -189,11 +197,13 @@ class CallController extends Controller
     public function show(int $id)
     {
         $call = Call::query()
+            ->withCount('applications')
             ->with([
                 'program.typeOfProgram:id,name',
                 'organization:id,name',
                 'currentStatusHistory.status:id,name',
                 'callCriteria:id,name',
+                'callTranslations.language:id,name',
             ])
             ->whereHas('currentStatusHistory.status', function ($query) {
                 $query->where('name', 'Publikované');
@@ -202,6 +212,72 @@ class CallController extends Controller
 
         return new CallResource($call);
     }
+
+    public function fetchCallByIdAndLang(int $id, string $lang)
+    {
+    $language = Language::where('name', $lang)->first();
+
+    if (!$language) {
+        return response()->json([
+            'message' => 'Language not found!'
+        ], 404);
+    }
+
+    $call = Call::query()
+        ->with([
+            'program.typeOfProgram:id,name',
+            'organization:id,name',
+            'callType:id,name',
+            'callTranslations.language:id,name',
+            'callCriteria:id,name',
+        ])
+        ->whereHas('currentStatusHistory.status', function ($query) {
+            $query->where('name', 'Publikované');
+        })
+        ->findOrFail($id);
+
+    $translation = $call->callTranslations
+        ->firstWhere('language_id', $language->id);
+
+    return response()->json([
+        'id' => $call->id,
+        'name' => $translation?->name ?? $call->name,
+        'description' => $translation?->description ?? $call->description,
+
+        'application_start' => $call->application_start,
+        'application_deadline' => $call->application_deadline,
+        'project_start' => $call->project_start,
+        'project_end' => $call->project_end,
+
+        'is_open' => $call->application_deadline
+            ? now()->lt($call->application_deadline)
+            : false,
+
+        'applicants_count' => $call->applications()->count(),
+
+        'program' => [
+            'id' => $call->program?->id,
+            'name' => $call->program?->typeOfProgram?->name,
+        ],
+
+        'organization' => [
+            'id' => $call->organization?->id,
+            'name' => $call->organization?->name,
+        ],
+
+        'call_type' => [
+            'id' => $call->callType?->id,
+            'name' => $call->callType?->name,
+        ],
+
+        'call_criteria' => collect($call->callCriteria)
+            ->map(fn ($criterion) => [
+                'id'   => $criterion->id,
+                'name' => $criterion->name,
+            ])
+            ->values(),
+    ]);
+}
 
     public function downloadPdf(int $id, PdfService $pdfService)
     {
