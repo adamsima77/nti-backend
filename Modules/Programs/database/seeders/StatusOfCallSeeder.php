@@ -12,7 +12,10 @@ class StatusOfCallSeeder extends Seeder
         $items = [
             ['name' => 'Draft'],
             ['name' => 'Publikované'],
-            ['name' => 'Zatvorené'],
+            ['name' => 'V párovaní'],
+            ['name' => 'Pridelené'],
+            ['name' => 'V realizácii'],
+            ['name' => 'Uzavreté'],
         ];
 
         foreach ($items as $item) {

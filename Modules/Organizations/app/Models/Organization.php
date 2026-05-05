@@ -6,8 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\IdentityAccess\Models\User;
+use Modules\Programs\Models\Call;
 use Propaganistas\LaravelPhone\Casts\E164PhoneNumberCast;
 
 class Organization extends Model
@@ -58,5 +60,10 @@ class Organization extends Model
             'organization_id',
             'sector_id'
         );
+    }
+
+    public function calls(): HasMany
+    {
+        return $this->hasMany(Call::class, 'organization_id');
     }
 }

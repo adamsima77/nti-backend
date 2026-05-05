@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Programs\Http\Controllers\CallController;
+use Modules\Programs\Http\Controllers\CallWorkflowController;
 use Modules\Programs\Http\Controllers\ProgramsController;
 use Modules\Reporting\Http\Controllers\ExportController;
 
@@ -14,6 +15,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('calls/export/{format?}', [ExportController::class, 'calls'])->name('calls.export');
 
     Route::prefix('v1')->group(function () {
-    Route::apiResource('programs', ProgramsController::class)->names('programs');
+        Route::apiResource('programs', ProgramsController::class)->names('programs');
+        Route::apiResource('calls', CallController::class)->except('index', 'show')->names('calls');
+
+        Route::get('calls/{call}/workflow', [CallWorkflowController::class, 'show']);
+        Route::patch('calls/{call}/workflow', [CallWorkflowController::class, 'transition']);
     });
 });

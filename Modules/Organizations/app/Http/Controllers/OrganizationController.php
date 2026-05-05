@@ -169,4 +169,24 @@ class OrganizationController extends Controller
             'message' => 'Organizácia bola úspešne odstránená.',
         ], Response::HTTP_OK);
     }
+
+    public function backlog(Organization $organization)
+    {
+        $this->authorize('view', $organization);
+
+        $backlog = $organization->calls()
+            ->with('statusHistory.status', 'callType')
+            ->whereHas('statusHistory', function ($query) {
+                $query->whereIn('status_of_call_id', function ($sub) {
+                    $sub->select('id')
+                        ->from('status_of_call')
+                        ->whereIn('name', ['published', 'matching', 'assigned', 'in_progress']);
+                })->latest()->limit(1);
+            })
+            ->get();
+
+        return response()->json([
+            'backlog' => $backlog,
+        ], Response::HTTP_OK);
+    }
 }
