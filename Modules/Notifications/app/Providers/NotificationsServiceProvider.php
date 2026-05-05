@@ -2,6 +2,9 @@
 
 namespace Modules\Notifications\Providers;
 
+use Illuminate\Support\Facades\Gate;
+use Modules\Notifications\Models\Notifications;
+use Modules\Notifications\Policies\NotificationsPolicy;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class NotificationsServiceProvider extends ModuleServiceProvider
@@ -19,5 +22,6 @@ class NotificationsServiceProvider extends ModuleServiceProvider
         parent::boot();
 
         $this->loadViewsFrom(module_path($this->name, '/Resources/views'), $this->nameLower);
+        Gate::policy(Notifications::class, NotificationsPolicy::class);
     }
 }
