@@ -19,7 +19,6 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        $this->authorize('viewAny', Category::class);
         $categories = Category::with('categoryTranslations')->orderByDesc('created_at')
             ->paginate(15);
         return response()->json($categories, Response::HTTP_OK);
@@ -33,8 +32,6 @@ class CategoryController extends Controller
                 'message' => 'Language not found!'
             ], Response::HTTP_NOT_FOUND);
         }
-
-        $this->authorize('fetchByLanguage', Category::class);
 
         $categories = Category::with([
             'categoryTranslations' => fn ($q) =>
@@ -77,7 +74,6 @@ class CategoryController extends Controller
     public function show($id)
     {
         $category = Category::with('categoryTranslations')->findOrFail($id);
-        $this->authorize('view', $category);
         return response()->json($category, Response::HTTP_OK);
     }
 

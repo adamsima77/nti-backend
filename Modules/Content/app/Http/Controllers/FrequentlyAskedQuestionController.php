@@ -87,7 +87,6 @@ class FrequentlyAskedQuestionController extends Controller
     public function show($id)
     {
         $faq = FrequentlyAskedQuestion::with(['frequentlyAskedQuestionTranslations'])->findOrFail($id);
-        $this->authorize('view', $faq);
         return response()->json($faq, Response::HTTP_OK);
     }
 

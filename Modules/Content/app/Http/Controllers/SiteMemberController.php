@@ -17,7 +17,6 @@ class SiteMemberController extends Controller
      */
     public function index()
     {
-        $this->authorize('viewAny', SiteMember::class);
         $siteMembers = SiteMember::with(['siteMemberTranslations'])->orderByDesc('created_at')
             ->get();
         return response()->json($siteMembers, Response::HTTP_OK);
@@ -73,7 +72,6 @@ class SiteMemberController extends Controller
     public function show($id)
     {
         $siteMember = SiteMember::with(['siteMemberTranslations'])->findOrFail($id);
-        $this->authorize('view', $siteMember);
         return response()->json($siteMember, Response::HTTP_OK);
     }
 

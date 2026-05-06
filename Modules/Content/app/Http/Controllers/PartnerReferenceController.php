@@ -19,7 +19,6 @@ class PartnerReferenceController extends Controller
      */
     public function index()
     {
-        $this->authorize('viewAny', PartnerReference::class);
         $references = PartnerReference::with('partnerReferenceTranslations')->orderByDesc('created_at')
             ->paginate(15);
         return response()->json($references, Response::HTTP_OK);
@@ -79,7 +78,6 @@ class PartnerReferenceController extends Controller
     public function show($id)
     {
        $reference = PartnerReference::with('partnerReferenceTranslations')->findOrFail($id);
-       $this->authorize('view', $reference);
        return response()->json($reference, Response::HTTP_OK);
     }
 

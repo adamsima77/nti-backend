@@ -44,7 +44,6 @@ class HeroBannerController extends Controller
                 'message' => 'Language not found!'
             ], Response::HTTP_NOT_FOUND);
         }
-        $this->authorize('fetchByLanguage', HeroBanner::class);
         $banners = HeroBanner::with([
             'page', 'heroBannerTranslations' => fn ($q) =>
             $q->where('language_id', $languageId)
@@ -90,7 +89,6 @@ class HeroBannerController extends Controller
     public function show($id)
     {
         $banner = HeroBanner::with(['page', 'heroBannerTranslations'])->findOrFail($id);
-        $this->authorize('view', $banner);
         return response()->json($banner, Response::HTTP_OK);
     }
 

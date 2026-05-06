@@ -30,8 +30,6 @@ class MetaTagController extends Controller
             ], Response::HTTP_NOT_FOUND);
         }
 
-        $this->authorize('fetchByLanguage', MetaTag::class);
-
         $metaTags = MetaTag::with([
             'metaTagTranslations' => fn ($q) =>
             $q->where('language_id', $languageId)

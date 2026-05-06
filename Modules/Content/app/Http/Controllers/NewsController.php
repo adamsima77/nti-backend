@@ -102,7 +102,6 @@ class NewsController extends Controller
     public function show($id)
     {
         $news = News::with(['category', 'user', 'newsTranslations'])->findOrFail($id);
-        $this->authorize('view', $news);
         return response()->json($news, Response::HTTP_OK);
     }
 
