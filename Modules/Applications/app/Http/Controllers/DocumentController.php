@@ -3,6 +3,7 @@
 namespace Modules\Applications\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,8 +15,12 @@ use Modules\Applications\Models\SecurityClassification;
 
 class DocumentController extends Controller
 {
+    use AuthorizesRequests;
+
     public function store(Request $request): JsonResponse
     {
+        $this->authorize('create', Document::class);
+
         $validated = $request->validate([
             'file' => ['required', 'file', 'mimes:pdf,docx'],
         ]);

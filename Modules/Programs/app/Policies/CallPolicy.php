@@ -44,4 +44,9 @@ class CallPolicy
     {
         return $user->isAdmin() || $user->isSuperAdmin();
     }
+
+    public function transition(User $user, Call $call): bool
+    {
+        return $user->isAdmin() || $user->isSuperAdmin();
+    }
 }

@@ -5,7 +5,9 @@ namespace Modules\Applications\Providers;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Support\Facades\Gate;
 use Modules\Applications\Models\Applications;
+use Modules\Applications\Models\Document;
 use Modules\Applications\Policies\ApplicationsPolicy;
+use Modules\Applications\Policies\DocumentPolicy;
 
 class ApplicationsServiceProvider extends ModuleServiceProvider
 {
@@ -31,7 +33,8 @@ class ApplicationsServiceProvider extends ModuleServiceProvider
     {
         parent::register();
 
-        // Register the policy
+        // Register the policies
         Gate::policy(Applications::class, ApplicationsPolicy::class);
+        Gate::policy(Document::class, DocumentPolicy::class);
     }
 }

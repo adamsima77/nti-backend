@@ -3,6 +3,7 @@
 namespace Modules\Programs\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Modules\Programs\Models\Call;
@@ -10,6 +11,8 @@ use Modules\Programs\StateMachine\CallStateMachine;
 
 class CallWorkflowController extends Controller
 {
+    use AuthorizesRequests;
+
     /**
      * Display a listing of the resource.
      */
@@ -64,6 +67,8 @@ class CallWorkflowController extends Controller
 
     public function transition(Request $request, Call $call)
     {
+        $this->authorize('transition', $call);
+
         $validated = $request->validate([
             'state' => ['required', 'string', 'exists:status_of_call,name'],
             'note'  => ['nullable', 'string'],
