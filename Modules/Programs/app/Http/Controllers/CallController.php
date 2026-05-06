@@ -3,6 +3,7 @@
 namespace Modules\Programs\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use App\Services\Pdf\PdfService;
@@ -14,6 +15,7 @@ use Illuminate\Http\Response;
 
 class CallController extends Controller
 {
+    use AuthorizesRequests;
     public function index(Request $request)
     {
         $calls = Call::query()
@@ -108,6 +110,8 @@ class CallController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', Call::class);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
@@ -148,6 +152,9 @@ class CallController extends Controller
 
     public function update(Request $request, int $id)
     {
+        $call = Call::findOrFail($id);
+        $this->authorize('update', $call);
+
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'description' => ['sometimes', 'string'],
