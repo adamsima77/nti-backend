@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use App\Services\Pdf\PdfService;
 use Modules\Applications\Http\Resources\ApplicationResource;
 use Modules\Applications\Models\Application;
+use Modules\Applications\Models\Applications;
 use Modules\Applications\Models\ApplicationStatusHistory;
 use Modules\Applications\Models\StatusOfApplication;
 use Modules\Applications\Models\TypeOfApplication;
@@ -18,8 +19,12 @@ use Modules\Programs\Models\Call;
 
 class ApplicationController extends Controller
 {
+    use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Applications::class);
+
         $applications = Application::query()
             ->with([
                 'call:id,name',
@@ -50,8 +55,9 @@ class ApplicationController extends Controller
                 'documents:id',
                 'statusHistory.status:id,name',
             ])
-            ->where('created_by', $request->user()->id)
             ->findOrFail($id);
+
+        $this->authorize('view', $application);
 
         return new ApplicationResource($application);
     }
@@ -65,8 +71,9 @@ class ApplicationController extends Controller
                 'documents:id',
                 'statusHistory.status:id,name',
             ])
-            ->where('created_by', $request->user()->id)
             ->findOrFail($id);
+
+        $this->authorize('view', $application);
 
         return $pdfService->download(
             'applications::pdf.application-details',
@@ -138,11 +145,9 @@ class ApplicationController extends Controller
 
     public function updateStatus(Request $request, int $id): ApplicationResource
     {
-        $user = $request->user();
+        $application = Application::findOrFail($id);
 
-        if (! $this->canManageStatuses($user)) {
-            abort(403, 'Nemate opravnenie menit stav prihlasky.');
-        }
+        $this->authorize('update', $application);
 
         $validated = $request->validate([
             'status_id' => ['nullable', 'integer', 'exists:status_of_application,id', 'required_without:status_name'],
@@ -150,8 +155,7 @@ class ApplicationController extends Controller
             'note' => ['nullable', 'string'],
         ]);
 
-        $application = DB::transaction(function () use ($validated, $id) {
-            $application = Application::query()->findOrFail($id);
+        $application = DB::transaction(function () use ($validated, $application) {
 
             $status = null;
             if (! empty($validated['status_id'])) {
@@ -186,8 +190,4 @@ class ApplicationController extends Controller
         return new ApplicationResource($application);
     }
 
-    private function canManageStatuses(User $user): bool
-    {
-        return $user->isEvaluator() || $user->isAdmin() || $user->isSuperAdmin();
-    }
 }

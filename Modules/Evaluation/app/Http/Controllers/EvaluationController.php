@@ -3,6 +3,7 @@
 namespace Modules\Evaluation\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -14,6 +15,8 @@ use Modules\Evaluation\Models\EvaluationScore;
 
 class EvaluationController extends Controller
 {
+    use AuthorizesRequests;
+
     public function pending(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -64,6 +67,8 @@ class EvaluationController extends Controller
 
     public function storeScore(Request $request, int $applicationId)
     {
+        $this->authorize('create', EvaluationScore::class);
+
         $validated = $request->validate([
             'decision_id'          => ['required', 'integer', 'exists:decision,id'],
             'scores'               => ['required', 'array', 'min:1'],

@@ -52,4 +52,13 @@ class UserPolicy
     {
         return false;
     }
+
+    /**
+     * Determine whether the user can onboard.
+     */
+    public function onboarding(User $user, User $model): bool
+    {
+        // Only the user can onboard themselves
+        return $user->id === $model->id && $model->status_id === \Modules\IdentityAccess\Enums\UserStatus::PENDING_ONBOARDING->value;
+    }
 }

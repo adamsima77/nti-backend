@@ -3,6 +3,7 @@
 namespace Modules\IdentityAccess\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,8 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    use AuthorizesRequests;
+
     public function register(Request $request)
     {
         $validated = $request->validate([
@@ -76,6 +79,8 @@ class AuthController extends Controller
     }
 
     public function organizationOnboarding(Request $request){
+        $this->authorize('onboarding', $request->user());
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'phone:SK,CZ,AUTO'],
@@ -88,12 +93,6 @@ class AuthController extends Controller
             'sector' => ['required', 'array'],
             'sector.*' => ['required', 'integer', 'exists:sector,id']
         ]);
-
-        if ($request->user()->status_id !== UserStatus::PENDING_ONBOARDING->value) {
-            return response()->json([
-                'message' => 'User is not eligible for onboarding.'
-            ], Response::HTTP_FORBIDDEN);
-        }
 
         try {
             DB::beginTransaction();
@@ -141,6 +140,8 @@ class AuthController extends Controller
     }
 
     public function studentOnboarding(Request $request){
+        $this->authorize('onboarding', $request->user());
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'surname' => ['required', 'string', 'max:255'],
@@ -151,10 +152,6 @@ class AuthController extends Controller
             'year_of_study' => ['required', 'integer', 'between:1,6'],
             'portfolio_url' => ['nullable', 'string', 'max:255']
         ]);
-
-        if ($request->user()->status_id !== UserStatus::PENDING_ONBOARDING->value) {
-            return response()->json(['message' => 'User is not eligible for onboarding.'], 403);
-        }
 
         try {
             DB::beginTransaction();

@@ -23,7 +23,7 @@ class ApplicationsPolicy
      */
     public function view(User $user, Applications $application): bool
     {
-        return $user->id === $application->user_id;
+        return $user->id === $application->created_by || $user->isAdmin() || $user->isSuperAdmin();
     }
 
     /**
@@ -39,7 +39,7 @@ class ApplicationsPolicy
      */
     public function update(User $user, Applications $application): bool
     {
-        return $user->id === $application->user_id;
+        return $user->id === $application->created_by || $user->isAdmin() || $user->isSuperAdmin();
     }
 
     /**
@@ -47,7 +47,7 @@ class ApplicationsPolicy
      */
     public function delete(User $user, Applications $application): bool
     {
-        return $user->id === $application->user_id;
+        return $user->id === $application->created_by || $user->isAdmin() || $user->isSuperAdmin();
     }
 
     /**
