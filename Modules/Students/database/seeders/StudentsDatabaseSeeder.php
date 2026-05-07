@@ -16,6 +16,7 @@ class StudentsDatabaseSeeder extends Seeder
             StudyFieldSeeder::class,
             UniversitySeeder::class,
             AcademicFlagSeeder::class,
+            StudyYearSeeder::class
         ]);
     }
 }

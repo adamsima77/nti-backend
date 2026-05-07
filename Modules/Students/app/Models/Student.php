@@ -24,7 +24,7 @@ class Student extends Model
         'study_field_id',
         'university_id',
         'cv_document_id',
-        'year_of_study',
+        'study_year_id',
         'portfolio_url',
     ];
 

@@ -18,7 +18,6 @@ return new class extends Migration
             $table->unsignedInteger('study_field_id');
             $table->unsignedInteger('university_id');
             $table->unsignedBigInteger('cv_document_id');
-            $table->integer('year_of_study');
             $table->string('portfolio_url', 255)->nullable();
             $table->timestamps();
 
