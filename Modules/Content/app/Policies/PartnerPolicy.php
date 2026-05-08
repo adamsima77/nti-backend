@@ -10,6 +10,15 @@ class PartnerPolicy
 {
     use HandlesAuthorization;
 
+    public function before(User $user): ?bool
+    {
+        if ($user->isAdmin() || $user->isSuperAdmin()) {
+            return true;
+        }
+
+        return null;
+    }
+
     public function viewAny(User $user): bool
     {
         return true;
@@ -26,17 +35,20 @@ class PartnerPolicy
 
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isSuperAdmin() || $user->isCMSEditor();
+        return $this->hasPermission($user, 'content.partner.create')
+            || $user->isCMSEditor();
     }
 
     public function update(User $user, Partner $partner): bool
     {
-        return $user->isAdmin() || $user->isSuperAdmin() || $user->isCMSEditor();
+        return $this->hasPermission($user, 'content.partner.edit')
+            || $user->isCMSEditor();
     }
 
     public function delete(User $user, Partner $partner): bool
     {
-        return $user->isAdmin() || $user->isSuperAdmin() || $user->isCMSEditor();
+        return $this->hasPermission($user, 'content.partner.delete')
+            || $user->isCMSEditor();
     }
 
     public function restore(User $user): bool
@@ -47,5 +59,14 @@ class PartnerPolicy
     public function forceDelete(User $user): bool
     {
         return false;
+    }
+
+    private function hasPermission(User $user, string $permission): bool
+    {
+        return $user->roles()
+            ->whereHas('permissions', function ($query) use ($permission): void {
+                $query->where('name', $permission);
+            })
+            ->exists();
     }
 }

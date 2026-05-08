@@ -20,11 +20,29 @@ class DocumentPolicy
 
     /**
      * Determine whether the user can view the document.
+     * 
+     * Access rules:
+     * - Owner can always view their own documents
+     * - Admin/SuperAdmin can view any document
+     * - For "Interné" (internal) documents attached to applications:
+     *   Users who are part of the application team can view them
      */
     public function view(User $user, Document $document): bool
     {
-        // Only owner or admin can view document
-        return $user->id === $document->owner_id || $user->isAdmin() || $user->isSuperAdmin();
+        // Owner or admin can always view
+        if ($user->id === $document->owner_id || $user->isAdmin() || $user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Check if document is internal and attached to an application where user is involved
+        if ($document->securityClassification && $document->securityClassification->name === 'Interné') {
+            // Check if document is attached to any application where user is the creator
+            return $document->applications()
+                ->where('created_by', $user->id)
+                ->exists();
+        }
+
+        return false;
     }
 
     /**

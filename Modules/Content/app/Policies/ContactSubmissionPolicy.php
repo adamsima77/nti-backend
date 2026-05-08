@@ -10,30 +10,38 @@ class ContactSubmissionPolicy
 {
     use HandlesAuthorization;
 
-    public function viewAny(User $user): bool
+    public function before(User $user): ?bool
     {
-        return $user->isAdmin() || $user->isSuperAdmin();
+        if ($user->isAdmin() || $user->isSuperAdmin()) {
+            return true;
+        }
+
+        return null;
     }
 
+    public function viewAny(User $user): bool
+    {
+        return $this->hasPermission($user, 'content.contact_submission.view');
+    }
 
     public function view(User $user, ContactSubmission $contactSubmission): bool
     {
-        return $user->isAdmin() || $user->isSuperAdmin();
+        return $this->hasPermission($user, 'content.contact_submission.view');
     }
 
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isSuperAdmin();
+        return $this->hasPermission($user, 'content.contact_submission.create');
     }
 
     public function update(User $user, ContactSubmission $contactSubmission): bool
     {
-        return $user->isAdmin() || $user->isSuperAdmin();
+        return $this->hasPermission($user, 'content.contact_submission.edit');
     }
 
     public function delete(User $user, ContactSubmission $contactSubmission): bool
     {
-        return $user->isAdmin() || $user->isSuperAdmin();
+        return $this->hasPermission($user, 'content.contact_submission.delete');
     }
 
     public function restore(User $user): bool
@@ -44,5 +52,14 @@ class ContactSubmissionPolicy
     public function forceDelete(User $user): bool
     {
         return false;
+    }
+
+    private function hasPermission(User $user, string $permission): bool
+    {
+        return $user->roles()
+            ->whereHas('permissions', function ($query) use ($permission): void {
+                $query->where('name', $permission);
+            })
+            ->exists();
     }
 }

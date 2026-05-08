@@ -10,6 +10,15 @@ class CategoryPolicy
 {
     use HandlesAuthorization;
 
+    public function before(User $user): ?bool
+    {
+        if ($user->isAdmin() || $user->isSuperAdmin()) {
+            return true;
+        }
+
+        return null;
+    }
+
     public function viewAny(User $user): bool
     {
         return true;
@@ -26,17 +35,17 @@ class CategoryPolicy
 
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isSuperAdmin();
+        return $this->hasPermission($user, 'content.category.create');
     }
 
     public function update(User $user, Category $category): bool
     {
-        return $user->isAdmin() || $user->isSuperAdmin();
+        return $this->hasPermission($user, 'content.category.edit');
     }
 
     public function delete(User $user, Category $category): bool
     {
-        return $user->isAdmin() || $user->isSuperAdmin();
+        return $this->hasPermission($user, 'content.category.delete');
     }
 
     public function restore(User $user): bool
@@ -47,5 +56,14 @@ class CategoryPolicy
     public function forceDelete(User $user): bool
     {
         return false;
+    }
+
+    private function hasPermission(User $user, string $permission): bool
+    {
+        return $user->roles()
+            ->whereHas('permissions', function ($query) use ($permission): void {
+                $query->where('name', $permission);
+            })
+            ->exists();
     }
 }

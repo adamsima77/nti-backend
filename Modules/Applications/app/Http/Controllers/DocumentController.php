@@ -59,4 +59,54 @@ class DocumentController extends Controller
             'document_id' => $document->id,
         ], 201);
     }
+
+    public function show(Request $request, Document $document)
+    {
+        $this->authorize('view', $document);
+
+        $latestVersion = $document->versions()->latest('id')->first();
+
+        if (!$latestVersion) {
+            return response()->json(['message' => 'No version found for this document'], 404);
+        }
+
+        if (!Storage::disk('local')->exists($latestVersion->file_path)) {
+            return response()->json(['message' => 'File not found in storage'], 404);
+        }
+
+        return response()->json([
+            'id' => $document->id,
+            'owner_id' => $document->owner_id,
+            'security_classification' => $document->securityClassification->name,
+            'current_version' => [
+                'file_name' => $latestVersion->file_name,
+                'file_path' => $latestVersion->file_path,
+                'created_at' => $latestVersion->created_at,
+            ],
+            'created_at' => $document->created_at,
+            'updated_at' => $document->updated_at,
+        ]);
+    }
+
+    public function download(Request $request, Document $document)
+    {
+        $this->authorize('view', $document);
+
+        $latestVersion = $document->versions()->latest('id')->first();
+
+        if (!$latestVersion) {
+            return response()->json(['message' => 'No version found for this document'], 404);
+        }
+
+        $filePath = $latestVersion->file_path;
+
+        if (!Storage::disk('local')->exists($filePath)) {
+            return response()->json(['message' => 'File not found in storage'], 404);
+        }
+
+        return Storage::disk('local')->download(
+            $filePath,
+            $latestVersion->file_name
+        );
+    }
 }
