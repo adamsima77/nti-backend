@@ -40,3 +40,5 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::apiResource('statuses', StatusController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::apiResource('user-consents', UserConsentController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
 });
+
+Route::get('fetch-mentors', [UserController::class, 'getMentors']);

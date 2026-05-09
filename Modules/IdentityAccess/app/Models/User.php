@@ -40,12 +40,14 @@ class User extends Authenticatable
           'email',
           'password',
           'status_id',
-          'avatar'
+          'avatar',
+          'job_position'
     ];
 
     protected $hidden = [
          'password',
-         'remember_token'
+         'remember_token',
+         'email_verified_at'
     ];
 
     protected $appends = [
