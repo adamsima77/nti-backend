@@ -120,7 +120,7 @@ class AuthController extends Controller
                 'organization_role' => $org_admin->id,
             ]);
 
-            $request->user()->setStatus(UserStatus::ACTIVE);
+            $request->user()->setStatus(UserStatus::PENDING_APPROVAL);
 
             DB::commit();
 

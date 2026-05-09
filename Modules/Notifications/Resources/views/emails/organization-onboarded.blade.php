@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Welcome Partner</title>
+    <title>Registration Received</title>
 </head>
 
 <body style="margin:0; padding:0; background-color:#f8fafc; font-family: Arial, Helvetica, sans-serif;">
@@ -27,46 +27,38 @@
                     <td style="padding:40px; color:#0a1628;">
 
                         <h1 style="margin:0 0 16px; font-size:24px;">
-                            Welcome aboard, {{ $organizationName }}! 🤝
+                            Thank you, {{ $organizationName }}! 🎉
                         </h1>
 
                         <p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
-                            Your organization has been successfully registered on the NTI platform. You're now part of a growing community of innovators, students, and industry leaders.
+                            Your organization has been successfully registered on the NTI platform.
+                            Our team will review your application and get back to you shortly.
                         </p>
 
-                        <!-- What you can do -->
+                        <!-- Status box -->
                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
                             <tr>
-                                <td style="background:#f1f5f9; border-radius:8px; padding:20px;">
-                                    <p style="margin:0 0 12px; font-size:14px; font-weight:600; color:#0a1628;">Here's what you can do now:</p>
-                                    <p style="margin:0; font-size:14px; color:#64748b; line-height:2;">
-                                        📢 Post projects and opportunities<br>
-                                        🎓 Connect with talented students<br>
-                                        👥 Build and manage your team<br>
-                                        🌐 Grow your presence in the NTI ecosystem
+                                <td style="background:#fef9c3; border-left:4px solid #eab308; border-radius:8px; padding:20px;">
+                                    <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:#0a1628;">
+                                        ⏳ Account pending approval
+                                    </p>
+                                    <p style="margin:0; font-size:14px; color:#64748b; line-height:1.6;">
+                                        Your account is currently under review. You will not be able to log in until our team verifies your organization. This typically takes 1-2 business days.
                                     </p>
                                 </td>
                             </tr>
                         </table>
 
-                        <!-- Button -->
-                        <table role="presentation" cellspacing="0" cellpadding="0">
+                        <!-- What happens next -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
                             <tr>
-                                <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-                                    <a href="{{ config('app.frontend_url') }}/firma"
-                                       target="_blank"
-                                       style="
-                                            display:inline-block;
-                                            padding:14px 28px;
-                                            font-size:15px;
-                                            color:#ffffff;
-                                            text-decoration:none;
-                                            font-weight:600;
-                                            border-radius:8px;
-                                            background-color:#0d5fbf;
-                                       ">
-                                        Go to Dashboard
-                                    </a>
+                                <td style="background:#f1f5f9; border-radius:8px; padding:20px;">
+                                    <p style="margin:0 0 12px; font-size:14px; font-weight:600; color:#0a1628;">What happens next:</p>
+                                    <p style="margin:0; font-size:14px; color:#64748b; line-height:2;">
+                                        🔍 NTI team reviews your organization details<br>
+                                        ✅ You receive an approval confirmation email<br>
+                                        🚀 You get full access to the platform
+                                    </p>
                                 </td>
                             </tr>
                         </table>

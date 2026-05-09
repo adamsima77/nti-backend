@@ -7,4 +7,5 @@ enum UserStatus: int {
     case ACTIVE = 3;
     case INACTIVE = 4;
     case BANNED = 5;
+    case PENDING_APPROVAL = 6;
 }
