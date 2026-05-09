@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use App\Services\Pdf\PdfService;
+use Modules\IdentityAccess\Models\Role;
 use Modules\IdentityAccess\Models\User;
 use Illuminate\Http\Response;
 class UserController extends Controller
@@ -25,6 +26,17 @@ class UserController extends Controller
         $users = User::with('status', 'roles')->orderByDesc('created_at')
                 ->paginate(15);
         return response()->json($users, Response::HTTP_OK);
+    }
+
+    public function getMentors()
+    {
+        $mentors = User::whereHas('roles', function ($query) {
+            $query->where('name', 'mentor');
+        })
+            ->orderByDesc('created_at')
+            ->paginate(15);
+
+        return response()->json($mentors, Response::HTTP_OK);
     }
 
     /**
