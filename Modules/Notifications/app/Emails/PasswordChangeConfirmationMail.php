@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use Modules\Notifications\Models\EmailTemplate;
 
 class PasswordChangeConfirmationMail extends Mailable
 {
@@ -24,8 +25,15 @@ class PasswordChangeConfirmationMail extends Mailable
      */
     public function build(): self
     {
-        return $this->view('notifications::emails.password-changed')->with([
-            'userEmail' => $this->email,
+        $template = EmailTemplate::findBySlug('password_changed');
+
+        return $this->subject($template?->subject ?? 'Security Alert')
+            ->view('notifications::emails.layout')
+            ->with([
+                'subject'   => $template?->subject ?? '',
+                'body_html' => $template?->render([
+                        'userEmail' => $this->email,
+                    ]) ?? '',
             ]);
     }
 }

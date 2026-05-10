@@ -7,6 +7,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Modules\IdentityAccess\Models\User;
+use Modules\Notifications\Models\EmailTemplate;
 use Modules\Organizations\Models\Organization;
 
 class OrganizationOnboardingEmail extends Mailable
@@ -28,9 +29,15 @@ class OrganizationOnboardingEmail extends Mailable
      */
     public function build(): self
     {
-        return $this->view('notifications::emails.organization-onboarded')
+        $template = EmailTemplate::findBySlug('organization_onboarded');
+
+        return $this->subject($template?->subject ?? 'Thank you for registering!')
+            ->view('notifications::emails.layout')
             ->with([
-                'organizationName' => $this->org->name
+                'subject'   => $template?->subject ?? '',
+                'body_html' => $template?->render([
+                        'organizationName' => $this->org->name,
+                    ]) ?? '',
             ]);
     }
 }

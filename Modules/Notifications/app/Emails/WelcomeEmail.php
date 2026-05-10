@@ -7,6 +7,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Modules\IdentityAccess\Models\User;
+use Modules\Notifications\Models\EmailTemplate;
 
 class WelcomeEmail extends Mailable
 {
@@ -20,8 +21,15 @@ class WelcomeEmail extends Mailable
 
     public function build(): self
     {
-        return $this->view('notifications::emails.welcome-email')->with([
-            'userName' => $this->user->name . ' ' . $this->user->surname,
-        ]);
+        $template = EmailTemplate::findBySlug('welcome_email');
+
+        return $this->subject($template?->subject ?? 'Welcome to NTI!')
+            ->view('notifications::emails.layout')
+            ->with([
+                'subject'   => $template?->subject ?? '',
+                'body_html' => $template?->render([
+                        'userName' => $this->user->name . ' ' . $this->user->surname,
+                    ]) ?? '',
+            ]);
     }
 }

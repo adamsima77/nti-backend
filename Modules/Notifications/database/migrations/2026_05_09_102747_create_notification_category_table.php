@@ -15,6 +15,8 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->string('slug', 60)->unique();
             $table->string('name', 120);
+            $table->string('icon', 60)->nullable();
+            $table->string('color', 60)->nullable();
             $table->timestamps();
         });
     }

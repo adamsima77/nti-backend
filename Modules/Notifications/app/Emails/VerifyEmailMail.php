@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Modules\Notifications\Models\EmailTemplate;
 
 class VerifyEmailMail extends Mailable
 {
@@ -19,13 +20,18 @@ class VerifyEmailMail extends Mailable
         public $user
     ) {}
 
-    public function build()
+    public function build(): self
     {
-        return $this->subject('Verify your email address')
-            ->view('notifications::emails.verify-email')
+        $template = EmailTemplate::findBySlug('verify_email');
+
+        return $this->subject($template?->subject ?? 'Verify your email address')
+            ->view('notifications::emails.layout')
             ->with([
-                'url' => $this->url,
-                'user' => $this->user,
+                'subject'   => $template?->subject ?? '',
+                'body_html' => $template?->render([
+                        'verificationUrl' => $this->verificationUrl,
+                        'user'            => $this->user,
+                    ]) ?? '',
             ]);
     }
 }

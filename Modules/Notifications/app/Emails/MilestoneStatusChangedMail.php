@@ -8,6 +8,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Modules\IdentityAccess\Models\User;
 use Modules\Mentorship\Models\Milestone;
+use Modules\Notifications\Models\EmailTemplate;
 
 class MilestoneStatusChangedMail extends Mailable
 {
@@ -22,13 +23,21 @@ class MilestoneStatusChangedMail extends Mailable
 
     public function build(): self
     {
-        return $this->subject('Zmena stavu míľnika')
-            ->view('notifications::emails.milestone-status-changed')
+        $template = EmailTemplate::findBySlug('milestone_status_changed');
+
+        return $this->subject($template?->subject ?? 'Zmena stavu míľnika')
+            ->view('notifications::emails.layout')
             ->with([
-                'milestone' => $this->milestone,
-                'oldStatus' => $this->oldStatus,
-                'newStatus' => $this->newStatus,
-                'user' => $this->user,
+                'subject'   => $template?->subject ?? '',
+                'body_html' => $template?->render([
+                        'userName'      => $this->user->name . ' ' . $this->user->surname,
+                        'milestoneName' => $this->milestone->name,
+                        'oldStatus'     => $this->oldStatus,
+                        'newStatus'     => $this->newStatus,
+                        'deadline'      => optional($this->milestone->deadline)->format('d.m.Y'),
+                        'actorName'     => $this->user->name . ' ' . $this->user->surname,
+                        'projectId'     => $this->milestone->application?->id,
+                    ]) ?? '',
             ]);
     }
 }

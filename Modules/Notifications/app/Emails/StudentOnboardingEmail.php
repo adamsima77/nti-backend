@@ -7,6 +7,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Modules\IdentityAccess\Models\User;
+use Modules\Notifications\Models\EmailTemplate;
 
 class StudentOnboardingEmail extends Mailable
 {
@@ -25,9 +26,15 @@ class StudentOnboardingEmail extends Mailable
      */
     public function build(): self
     {
-        return $this->view('notifications::emails.student-onboarded')
+        $template = EmailTemplate::findBySlug('student_onboarded');
+
+        return $this->subject($template?->subject ?? 'Welcome to NTI!')
+            ->view('notifications::emails.layout')
             ->with([
-                'userName' => $this->user->name . " " . $this->user->surname
+                'subject'   => $template?->subject ?? '',
+                'body_html' => $template?->render([
+                        'userName' => $this->user->name . ' ' . $this->user->surname,
+                    ]) ?? '',
             ]);
     }
 }

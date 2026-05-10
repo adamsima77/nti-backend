@@ -1,0 +1,222 @@
+<?php
+
+namespace Modules\Notifications\Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Modules\Notifications\Models\EmailTemplate;
+
+class EmailTemplateSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        $templates = [
+            [
+                'slug'    => 'organization_onboarded',
+                'subject' => 'Thank you, {{ $organizationName }}!',
+                'body_html' => '
+<h1 style="margin:0 0 16px; font-size:24px;">Thank you, {{ $organizationName }}! 🎉</h1>
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    Your organization has been successfully registered on the NTI platform.
+    Our team will review your application and get back to you shortly.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td style="background:#fef9c3; border-left:4px solid #eab308; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:#0a1628;">
+                ⏳ Account pending approval
+            </p>
+            <p style="margin:0; font-size:14px; color:#64748b; line-height:1.6;">
+                Your account is currently under review. You will not be able to log in until our team verifies your organization. This typically takes 1-2 business days.
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td style="background:#f1f5f9; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 12px; font-size:14px; font-weight:600; color:#0a1628;">What happens next:</p>
+            <p style="margin:0; font-size:14px; color:#64748b; line-height:2;">
+                🔍 NTI team reviews your organization details<br>
+                ✅ You receive an approval confirmation email<br>
+                🚀 You get full access to the platform
+            </p>
+        </td>
+    </tr>
+</table>
+
+<p style="margin-top:30px; font-size:12px; color:#94a3b8; line-height:1.5;">
+    If you have any questions, feel free to contact our support team anytime.
+</p>',
+            ],
+            [
+                'slug'    => 'student_onboarded',
+                'subject' => 'You\'re in, {{ $userName }}!',
+                'body_html' => '
+<h1 style="margin:0 0 16px; font-size:24px;">You\'re in, {{ $userName }}! 🎓</h1>
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    Your student profile has been successfully set up. You now have full access to the NTI platform and everything it has to offer.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td style="background:#f1f5f9; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 12px; font-size:14px; font-weight:600; color:#0a1628;">Here\'s what you can do now:</p>
+            <p style="margin:0; font-size:14px; color:#64748b; line-height:2;">
+                🚀 Browse and apply for projects<br>
+                🤝 Connect with mentors and partners<br>
+                📁 Showcase your portfolio<br>
+                🏆 Join teams and competitions
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+            <a href="{{ config(\'app.frontend_url\') }}/student" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Go to Dashboard</a>
+        </td>
+    </tr>
+</table>
+
+<p style="margin-top:30px; font-size:12px; color:#94a3b8; line-height:1.5;">
+    If you have any questions, feel free to contact our support team anytime.
+</p>',
+            ],
+            [
+                'slug'    => 'welcome_email',
+                'subject' => 'Welcome to NTI, {{ $userName }}!',
+                'body_html' => '
+<h1 style="margin:0 0 16px; font-size:24px;">Welcome to NTI, {{ $userName }} 👋</h1>
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    Your email has been verified successfully. You\'re almost there — just one more step before you can start exploring everything Nitriansky Technický Inkubátor has to offer.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td style="background:#f1f5f9; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 12px; font-size:14px; font-weight:600; color:#0a1628;">Complete your setup in 2 simple steps:</p>
+            <p style="margin:0; font-size:14px; color:#64748b; line-height:2;">
+                ✅ Step 1 — Verify your email<br>
+                🔲 Step 2 — Complete your onboarding profile
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+            <a href="{{ config(\'app.frontend_url\') }}/auth/onboarding" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Complete Onboarding</a>
+        </td>
+    </tr>
+</table>',
+            ],
+            [
+                'slug'    => 'verify_email',
+                'subject' => 'Verify your email address',
+                'body_html' => '
+<h1 style="margin:0 0 16px; font-size:24px;">Verify your email address</h1>
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    Thanks for joining Nitriansky Technický Inkubátor. Please confirm your email to activate your account.
+</p>
+
+<table role="presentation" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+            <a href="{{ $verificationUrl }}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Verify Email</a>
+        </td>
+    </tr>
+</table>
+
+<p style="margin-top:30px; font-size:12px; color:#94a3b8; line-height:1.5;">
+    If the button doesn\'t work, copy and paste this link:<br>
+    <a href="{{ $verificationUrl }}" style="color:#0d5fbf; word-break:break-all;">{{ $verificationUrl }}</a>
+</p>',
+            ],
+            [
+                'slug'    => 'reset_password',
+                'subject' => 'Reset your password',
+                'body_html' => '
+<h1 style="margin:0 0 16px; font-size:24px;">Reset your password</h1>
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    Hello {{ $user->name }},<br><br>
+    We received a request to reset your password. Click the button below to set a new one.
+</p>
+
+<table role="presentation" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+            <a href="{{ $url }}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Reset Password</a>
+        </td>
+    </tr>
+</table>
+
+<p style="margin-top:30px; font-size:12px; color:#94a3b8; line-height:1.5;">
+    If the button doesn\'t work, copy and paste this link:<br>
+    <a href="{{ $url }}" style="color:#0d5fbf; word-break:break-all;">{{ $url }}</a>
+</p>',
+            ],
+            [
+                'slug'    => 'password_changed',
+                'subject' => 'Security Alert — Password Changed',
+                'body_html' => '
+<h1 style="margin:0 0 16px; font-size:24px;">Security Alert</h1>
+<p style="margin:0 0 20px; font-size:15px; color:#64748b; line-height:1.6;">Your NTI account password has been successfully updated.</p>
+<p style="margin:0 0 16px; font-size:14px; color:#64748b;">Hello {{ $userEmail }},</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:24px;">
+    <tr>
+        <td style="background:#f8fafc; border:1px solid #e2e8f0; padding:14px; border-radius:10px;">
+            <div style="font-size:12px; color:#64748b;">Account</div>
+            <div style="font-weight:600; color:#0a1628;">{{ $userEmail }}</div>
+        </td>
+    </tr>
+</table>
+
+<p style="margin:0 0 12px; font-size:14px; color:#0a1628;">If you made this change, you can safely ignore this email.</p>
+<p style="margin:0; font-size:14px; color:#0a1628;">If you did NOT change your password, please reset it immediately or contact support.</p>',
+            ],
+            [
+                'slug'    => 'milestone_status_changed',
+                'subject' => 'Zmena stavu míľnika: {{ $milestoneName }}',
+                'body_html' => '
+<p style="margin:0 0 16px; font-size:15px; color:#0a1628; line-height:1.6;">Ahoj {{ $userName }},</p>
+<p style="margin:0 0 16px; font-size:15px; color:#64748b; line-height:1.6;">
+    Míľnik <strong>{{ $milestoneName }}</strong> prešiel z stavu <strong>{{ $oldStatus ?? \'-\' }}</strong> na <strong>{{ $newStatus ?? \'-\' }}</strong>.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:24px;">
+    <tr>
+        <td style="background:#f1f5f9; border-radius:8px; padding:16px;">
+            <p style="margin:0; font-size:14px; color:#64748b;">
+                Deadline: <strong>{{ $deadline }}</strong><br>
+                Akciu vykonal: <strong>{{ $actorName }}</strong>
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+            <a href="{{ config(\'app.frontend_url\') }}/projekt/{{ $projectId }}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Zobraziť projekt</a>
+        </td>
+    </tr>
+</table>',
+            ],
+        ];
+
+        foreach ($templates as $template) {
+            EmailTemplate::updateOrCreate(
+                ['slug' => $template['slug']],
+                $template
+            );
+        }
+    }
+}

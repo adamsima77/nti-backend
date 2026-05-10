@@ -15,6 +15,10 @@ class DatabaseSeeder extends Seeder
             \Modules\Evaluation\Database\Seeders\EvaluationDatabaseSeeder::class,
             \Modules\Applications\Database\Seeders\ApplicationsDatabaseSeeder::class,
             \Modules\Mentorship\Database\Seeders\MentorshipDatabaseSeeder::class,
+            \Modules\Organizations\Database\Seeders\OrganizationsDatabaseSeeder::class,
+            \Modules\Students\Database\Seeders\StudentsDatabaseSeeder::class,
+            \Modules\Teams\Database\Seeders\TeamsDatabaseSeeder::class,
+            \Modules\Notifications\Database\Seeders\NotificationsDatabaseSeeder::class,
         ]);
     }
 }

@@ -7,6 +7,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Modules\IdentityAccess\Models\User;
+use Modules\Notifications\Models\EmailTemplate;
 
 class ResetPasswordMail extends Mailable
 {
@@ -20,16 +21,21 @@ class ResetPasswordMail extends Mailable
         public User $user
     ) {}
 
-    public function build()
+    public function build(): self
     {
         $url = config('app.frontend_url') . '/auth/reset-password?token=' . $this->token
             . '&email=' . urlencode($this->user->email);
 
-        return $this->subject('Reset your password')
-            ->view('notifications::emails.reset-password')
+        $template = EmailTemplate::findBySlug('reset_password');
+
+        return $this->subject($template?->subject ?? 'Reset your password')
+            ->view('notifications::emails.layout')
             ->with([
-                'url' => $url,
-                'user' => $this->user,
+                'subject'   => $template?->subject ?? '',
+                'body_html' => $template?->render([
+                        'url'  => $url,
+                        'user' => $this->user,
+                    ]) ?? '',
             ]);
     }
 }
