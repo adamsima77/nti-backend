@@ -210,6 +210,278 @@ class EmailTemplateSeeder extends Seeder
     </tr>
 </table>',
             ],
+            [
+                'slug' => 'contact_message_received',
+                'subject' => 'We received your message',
+                'body_html' => '
+<h1 style="margin:0 0 16px; font-size:24px;">
+    Thank you, {{ $name }}!
+</h1>
+
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    We have received your message and our team will get back to you as soon as possible. We typically respond within 1–2 business days.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td style="background:#f1f5f9; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 12px; font-size:13px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">
+                Your message
+            </p>
+            <p style="margin:0; font-size:14px; color:#0a1628; line-height:1.7;">
+                {{ $description }}
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td style="background:#eff6ff; border-left:4px solid #0d5fbf; border-radius:0 8px 8px 0; padding:16px 20px;">
+            <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:#0a1628;">
+                What happens next?
+            </p>
+            <p style="margin:0; font-size:14px; color:#64748b; line-height:1.6;">
+                A member of our team will review your message and respond to
+                <strong>{{ $email }}</strong> within 1–2 business days.
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+            <a href="{{ config(\'app.frontend_url\') }}"
+               target="_blank"
+               style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">
+                Visit NTI Platform
+            </a>
+        </td>
+    </tr>
+</table>
+
+<p style="margin-top:30px; font-size:12px; color:#94a3b8; line-height:1.5;">
+    This is an automated confirmation — please do not reply to this email.<br>
+    For direct contact reach us at
+    <a href="mailto:info@nti.sk" style="color:#0d5fbf; text-decoration:none;">info@nti.sk</a>
+</p>
+',
+            ],
+            [
+                'slug' => 'admin_notification_organization_onboarded',
+                'subject' => 'New organization awaiting approval: {{ $organizationName }}',
+                'body_html' => '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>New organization awaiting approval</title>
+</head>
+
+<body style="margin:0; padding:0; background-color:#f8fafc; font-family: Arial, Helvetica, sans-serif;">
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8fafc; padding:40px 0;">
+    <tr>
+        <td align="center">
+
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.08);">
+
+                <!-- Header -->
+
+
+                <!-- Content -->
+                <tr>
+                    <td style="padding:40px; color:#0a1628;">
+
+                        <h1 style="margin:0 0 8px; font-size:24px;">
+                            New organization awaiting approval
+                        </h1>
+
+                        <p style="margin:0 0 28px; font-size:15px; color:#64748b; line-height:1.6;">
+                            A new organization has registered in the system and is waiting for administrative review.
+                        </p>
+
+                        <!-- Organization details -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+
+                            <tr>
+                                <td style="padding:16px 20px; background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+                                    <p style="margin:0; font-size:13px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">
+                                        Organization details
+                                    </p>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td style="padding:0 20px;">
+
+                                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+
+                                        <tr>
+                                            <td style="padding:14px 0; font-size:14px; color:#94a3b8; width:140px;">Name</td>
+                                            <td style="padding:14px 0; font-size:14px; color:#0a1628; font-weight:600;">{{ $organizationName }}</td>
+                                        </tr>
+
+                                        <tr>
+                                            <td style="padding:14px 0; font-size:14px; color:#94a3b8;">Company ID</td>
+                                            <td style="padding:14px 0; font-size:14px; color:#0a1628;">{{ $ico }}</td>
+                                        </tr>
+
+                                        <tr>
+                                            <td style="padding:14px 0; font-size:14px; color:#94a3b8;">Sector</td>
+                                            <td style="padding:14px 0; font-size:14px; color:#0a1628;">{{ $sector }}</td>
+                                        </tr>
+
+                                        <tr>
+                                            <td style="padding:14px 0; font-size:14px; color:#94a3b8;">Address</td>
+                                            <td style="padding:14px 0; font-size:14px; color:#0a1628;">{{ $address }}</td>
+                                        </tr>
+
+                                        <tr>
+                                            <td style="padding:14px 0; font-size:14px; color:#94a3b8;">Contact email</td>
+                                            <td style="padding:14px 0; font-size:14px; color:#0a1628;">{{ $contactEmail }}</td>
+                                        </tr>
+
+                                        <tr>
+                                            <td style="padding:14px 0; font-size:14px; color:#94a3b8;">Registered at</td>
+                                            <td style="padding:14px 0; font-size:14px; color:#0a1628;">{{ $registeredAt }}</td>
+                                        </tr>
+
+                                    </table>
+
+                                </td>
+                            </tr>
+
+                        </table>
+
+                        <!-- Button -->
+                        <table role="presentation" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+                                    <a href="{{ config(\'app.frontend_url\') }}/admin/organizations/{{ $organizationId }}"
+                                       target="_blank"
+                                       style="
+                                            display:inline-block;
+                                            padding:14px 28px;
+                                            font-size:15px;
+                                            color:#ffffff;
+                                            text-decoration:none;
+                                            font-weight:600;
+                                            border-radius:8px;
+                                            background-color:#0d5fbf;
+                                       ">
+                                        Review Organization
+                                    </a>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <p style="margin-top:30px; font-size:12px; color:#94a3b8; line-height:1.5;">
+                            This is an automated admin notification. Please log in to the admin panel to approve or reject this organization.
+                        </p>
+
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="padding:20px; text-align:center; font-size:12px; color:#94a3b8; background:#f1f5f9;">
+                        © {{ date(\'Y\') }} Nitriansky Technický Inkubátor
+                    </td>
+                </tr>
+
+            </table>
+
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>
+',
+            ],
+            [
+                'slug' => 'organization_account_approved',
+                'subject' => 'Welcome aboard, {{ $organizationName }}!',
+
+                'body_html' => '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Account Approved</title>
+</head>
+
+<body style="margin:0; padding:0; background-color:#f8fafc; font-family: Arial, Helvetica, sans-serif;">
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8fafc; padding:40px 0;">
+    <tr>
+        <td align="center">
+
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.08);">
+                <tr>
+                    <td style="padding:40px; color:#0a1628;">
+
+                        <h1 style="margin:0 0 16px; font-size:24px;">
+                            Welcome aboard, {{ $organizationName }}! 🎉
+                        </h1>
+
+                        <p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+                            Your organization has been approved by the NTI team. You now have full access to the platform.
+                        </p>
+
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+                            <tr>
+                                <td style="background:#f1f5f9; border-radius:8px; padding:20px;">
+                                    <p style="margin:0 0 12px; font-size:14px; font-weight:600; color:#0a1628;">
+                                        Here’s what you can do now:
+                                    </p>
+                                    <p style="margin:0; font-size:14px; color:#64748b; line-height:2;">
+                                        📢 Post projects and opportunities<br>
+                                        🎓 Connect with talented students<br>
+                                        👥 Build and manage your team<br>
+                                        🌐 Grow your presence in the NTI ecosystem
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <table role="presentation" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+                                    <a href="{{ config(\'app.frontend_url\') }}/firma"
+                                       target="_blank"
+                                       style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">
+                                        Go to Dashboard
+                                    </a>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <p style="margin-top:30px; font-size:12px; color:#94a3b8;">
+                            If you have any questions, contact our support team anytime.
+                        </p>
+
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="padding:20px; text-align:center; font-size:12px; color:#94a3b8; background:#f1f5f9;">
+                        © {{ date(\'Y\') }} Nitriansky Technický Inkubátor
+                    </td>
+                </tr>
+
+            </table>
+
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>
+',
+            ]
         ];
 
         foreach ($templates as $template) {

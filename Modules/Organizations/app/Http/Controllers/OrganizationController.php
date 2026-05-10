@@ -7,6 +7,9 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Modules\IdentityAccess\Enums\UserStatus;
+use Modules\IdentityAccess\Models\User;
+use Modules\Organizations\Events\OrganizationApproved;
 use Modules\Organizations\Models\Address;
 use Modules\Organizations\Models\Organization;
 use Modules\Organizations\Models\OrganizationRole;
@@ -25,6 +28,29 @@ class OrganizationController extends Controller
 
         return response()->json([
             'organizations' => $organizations,
+        ], Response::HTTP_OK);
+    }
+
+    public function activate(Organization $organization)
+    {
+        $this->authorize('activate', $organization);
+
+        $organization->load('users');
+
+        $orgAdmin = $organization->users->first();
+
+        if (!$orgAdmin) {
+            return response()->json([
+                'message' => 'No user found for this organization.'
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $orgAdmin->setStatus(UserStatus::ACTIVE);
+
+        event(new OrganizationApproved($organization));
+
+        return response()->json([
+            'message' => 'Organization has been approved successfully.'
         ], Response::HTTP_OK);
     }
 

@@ -26,32 +26,28 @@ use Modules\Teams\Models\TeamMember;
 
 class User extends Authenticatable
 {
-    use HasFactory, SoftDeletes,HasApiTokens,Notifiable;
-
-    /**
-     * The attributes that are mass assignable.
-     */
+    use HasFactory, SoftDeletes, HasApiTokens, Notifiable;
 
     protected $table = 'users';
 
     protected $fillable = [
-          'name',
-          'surname',
-          'email',
-          'password',
-          'status_id',
-          'avatar',
-          'job_position'
+        'name',
+        'surname',
+        'email',
+        'password',
+        'status_id',
+        'avatar',
+        'job_position',
     ];
 
     protected $hidden = [
-         'password',
-         'remember_token',
-         'email_verified_at'
+        'password',
+        'remember_token',
+        'email_verified_at',
     ];
 
     protected $appends = [
-        'avatar_url'
+        'avatar_url',
     ];
 
     public function getAvatarUrlAttribute(): ?string
@@ -67,17 +63,18 @@ class User extends Authenticatable
         return Storage::url($this->avatar);
     }
 
-
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'password'          => 'hashed',
         ];
     }
 
-    //Eloquent relations
-    public function status(): belongsTo{
+    // ---- Relations ----
+
+    public function status(): BelongsTo
+    {
         return $this->belongsTo(Status::class);
     }
 
@@ -91,7 +88,8 @@ class User extends Authenticatable
         return $this->hasMany(UserConsent::class);
     }
 
-    public function newsTranslations(): HasMany{
+    public function newsTranslations(): HasMany
+    {
         return $this->hasMany(NewsTranslation::class);
     }
 
@@ -119,50 +117,60 @@ class User extends Authenticatable
             ->withPivot('team_role_id');
     }
 
-    //Check roles
-    public function isGuest(): bool{
-        return $this->roles()->where('name', 'návštevník')->exists();
+    // ---- Role checks ----
+
+    public function isGuest(): bool
+    {
+        return $this->roles()->where('name', 'guest')->exists();
     }
 
-    public function isStudent(): bool{
-        return $this->roles()->where('name', 'študent')->exists();
+    public function isStudent(): bool
+    {
+        return $this->roles()->where('name', 'student')->exists();
     }
 
-    public function isTeamLeader(): bool{
-        return $this->roles()->where('name', 'vedúci tímu')->exists();
+    public function isTeamLeader(): bool
+    {
+        return $this->roles()->where('name', 'team_leader')->exists();
     }
 
-    public function isPartner(): bool{
+    public function isPartner(): bool
+    {
         return $this->roles()->where('name', 'partner')->exists();
     }
 
-    public function isMentor(): bool{
+    public function isMentor(): bool
+    {
         return $this->roles()->where('name', 'mentor')->exists();
     }
 
-    public function isEvaluator(): bool{
-        return $this->roles()->where('name', 'hodnotiteľ')->exists();
+    public function isEvaluator(): bool
+    {
+        return $this->roles()->where('name', 'evaluator')->exists();
     }
 
-    public function isCMSEditor(): bool{
-        return $this->roles()->where('name', 'editor obsahu')->exists();
+    public function isCMSEditor(): bool
+    {
+        return $this->roles()->where('name', 'cms_editor')->exists();
     }
 
-    public function isAdmin(): bool{
-        return $this->roles()->where('name', 'nti administrátor')->exists();
+    public function isAdmin(): bool
+    {
+        return $this->roles()->where('name', 'nti_admin')->exists();
     }
 
-    public function isSuperAdmin(): bool{
-        return $this->roles()->where('name', 'super administrátor')->exists();
+    public function isSuperAdmin(): bool
+    {
+        return $this->roles()->where('name', 'nti_superadmin')->exists();
     }
 
-    //Additional methods
+    // ---- Additional methods ----
+
     public function setStatus(UserStatus $status): void
     {
         $this->status_id = $status->value;
         $this->save();
     }
-
 
     public function sendEmailVerificationNotification(): void
     {

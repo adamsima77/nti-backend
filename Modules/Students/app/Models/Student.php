@@ -33,6 +33,11 @@ class Student extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function studyYear(): BelongsTo
+    {
+        return $this->belongsTo(StudyYear::class, 'study_year_id');
+    }
+
     public function studyProgram(): BelongsTo
     {
         return $this->belongsTo(StudyProgram::class, 'study_program_id');

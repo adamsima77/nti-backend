@@ -19,6 +19,11 @@ class OrganizationPolicy
         return null;
     }
 
+    public function activate(User $user, Organization $organization): bool
+    {
+        return $user->isAdmin() || $user->isSuperAdmin();
+    }
+
     public function viewAny(User $user): bool
     {
         return true;

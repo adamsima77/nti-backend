@@ -9,4 +9,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('organizations/{organization}/backlog', [OrganizationController::class, 'backlog']);
 });
 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/organizations/{organization}/activate', [OrganizationController::class, 'activate']);
+});
 Route::apiResource('sectors', SectorController::class)->only('index');

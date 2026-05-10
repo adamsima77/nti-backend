@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use App\Services\Pdf\PdfService;
+use Modules\IdentityAccess\Enums\UserStatus;
+use Modules\IdentityAccess\Events\OrganizationApproved;
 use Modules\IdentityAccess\Models\Role;
 use Modules\IdentityAccess\Models\User;
 use Illuminate\Http\Response;

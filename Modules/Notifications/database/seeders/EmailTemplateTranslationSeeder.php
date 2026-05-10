@@ -211,6 +211,290 @@ class EmailTemplateTranslationSeeder extends Seeder
     </tr>
 </table>',
             ],
+            [
+                'slug' => 'contact_message_received_sk',
+                'subject' => 'Dostali sme vašu správu',
+                'body_html' => '
+<h1 style="margin:0 0 16px; font-size:24px;">
+    Ďakujeme, {{ $name }}!
+</h1>
+
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    Vašu správu sme úspešne prijali a náš tím sa vám ozve čo najskôr. Zvyčajne odpovedáme do 1–2 pracovných dní.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td style="background:#f1f5f9; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 12px; font-size:13px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">
+                Vaša správa
+            </p>
+            <p style="margin:0; font-size:14px; color:#0a1628; line-height:1.7;">
+                {{ $description }}
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td style="background:#eff6ff; border-left:4px solid #0d5fbf; border-radius:0 8px 8px 0; padding:16px 20px;">
+            <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:#0a1628;">
+                Čo bude nasledovať?
+            </p>
+            <p style="margin:0; font-size:14px; color:#64748b; line-height:1.6;">
+                Člen nášho tímu skontroluje vašu správu a odpovie na
+                <strong>{{ $email }}</strong> do 1–2 pracovných dní.
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+             <a href="{{ config(\'app.frontend_url\') }}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">
+             Navštíviť NTI platformu</a>
+        </td>
+    </tr>
+</table>
+
+<p style="margin-top:30px; font-size:12px; color:#94a3b8; line-height:1.5;">
+    Toto je automatické potvrdenie — prosím neodpovedajte na tento email.<br>
+    Pre priamy kontakt nás môžete osloviť na
+    <a href="mailto:info@nti.sk" style="color:#0d5fbf; text-decoration:none;">info@nti.sk</a>
+</p>
+',
+            ],
+            [
+                'slug' => 'admin_notification_organization_onboarded',
+                'subject' => 'Nová organizácia čaká na schválenie: {{ $organizationName }}',
+                'body_html' => '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Nová organizácia čaká na schválenie</title>
+</head>
+
+<body style="margin:0; padding:0; background-color:#f8fafc; font-family: Arial, Helvetica, sans-serif;">
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8fafc; padding:40px 0;">
+    <tr>
+        <td align="center">
+
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.08);">
+
+                <!-- Header -->
+                <tr>
+                    <td style="padding:30px; text-align:center; background:#0a1628;">
+                        <img src="{{ $message->embed(public_path(\'emails/nti-logo.png\')) }}"
+                             alt="NTI Logo"
+                             style="height:50px;">
+                    </td>
+                </tr>
+
+                <!-- Content -->
+                <tr>
+                    <td style="padding:40px; color:#0a1628;">
+
+                        <h1 style="margin:0 0 8px; font-size:24px;">
+                            Nová organizácia čaká na schválenie
+                        </h1>
+
+                        <p style="margin:0 0 28px; font-size:15px; color:#64748b; line-height:1.6;">
+                            V systéme sa zaregistrovala nová organizácia a čaká na administrátorské overenie.
+                        </p>
+
+                        <!-- Organization details -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+
+                            <tr>
+                                <td style="padding:16px 20px; background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+                                    <p style="margin:0; font-size:13px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">
+                                        Detaily organizácie
+                                    </p>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td style="padding:0 20px;">
+
+                                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+
+                                        <tr>
+                                            <td style="padding:14px 0; font-size:14px; color:#94a3b8; width:140px;">Názov</td>
+                                            <td style="padding:14px 0; font-size:14px; color:#0a1628; font-weight:600;">{{ $organizationName }}</td>
+                                        </tr>
+
+                                        <tr>
+                                            <td style="padding:14px 0; font-size:14px; color:#94a3b8;">IČO</td>
+                                            <td style="padding:14px 0; font-size:14px; color:#0a1628;">{{ $ico }}</td>
+                                        </tr>
+
+                                        <tr>
+                                            <td style="padding:14px 0; font-size:14px; color:#94a3b8;">Sektor</td>
+                                            <td style="padding:14px 0; font-size:14px; color:#0a1628;">{{ $sector }}</td>
+                                        </tr>
+
+                                        <tr>
+                                            <td style="padding:14px 0; font-size:14px; color:#94a3b8;">Adresa</td>
+                                            <td style="padding:14px 0; font-size:14px; color:#0a1628;">{{ $address }}</td>
+                                        </tr>
+
+                                        <tr>
+                                            <td style="padding:14px 0; font-size:14px; color:#94a3b8;">Kontaktný email</td>
+                                            <td style="padding:14px 0; font-size:14px; color:#0a1628;">{{ $contactEmail }}</td>
+                                        </tr>
+
+                                        <tr>
+                                            <td style="padding:14px 0; font-size:14px; color:#94a3b8;">Dátum registrácie</td>
+                                            <td style="padding:14px 0; font-size:14px; color:#0a1628;">{{ $registeredAt }}</td>
+                                        </tr>
+
+                                    </table>
+
+                                </td>
+                            </tr>
+
+                        </table>
+
+                        <!-- Button -->
+                        <table role="presentation" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+                                    <a href="{{ config(\'app.frontend_url\') }}/admin/organizations/{{ $organizationId }}"
+                                       target="_blank"
+                                       style="
+                                            display:inline-block;
+                                            padding:14px 28px;
+                                            font-size:15px;
+                                            color:#ffffff;
+                                            text-decoration:none;
+                                            font-weight:600;
+                                            border-radius:8px;
+                                            background-color:#0d5fbf;
+                                       ">
+                                        Skontrolovať organizáciu
+                                    </a>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <p style="margin-top:30px; font-size:12px; color:#94a3b8; line-height:1.5;">
+                            Toto je automatické administrátorské upozornenie. Prosím prihláste sa do administrácie a vykonajte kontrolu.
+                        </p>
+
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="padding:20px; text-align:center; font-size:12px; color:#94a3b8; background:#f1f5f9;">
+                        © {{ date(\'Y\') }} Nitriansky Technický Inkubátor
+                    </td>
+                </tr>
+
+            </table>
+
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>
+',
+            ],
+            [
+                'slug' => 'organization_account_approved',
+                'subject' => 'Vitajte na palube, {{ $organizationName }}!',
+
+                'body_html' => '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Účet schválený</title>
+</head>
+
+<body style="margin:0; padding:0; background-color:#f8fafc; font-family: Arial, Helvetica, sans-serif;">
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8fafc; padding:40px 0;">
+    <tr>
+        <td align="center">
+
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.08);">
+
+                <tr>
+                    <td style="padding:30px; text-align:center; background:#0a1628;">
+                        <img src="{{ $message->embed(public_path(\'emails/nti-logo.png\')) }}"
+                             alt="NTI Logo"
+                             style="height:50px;">
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="padding:40px; color:#0a1628;">
+
+                        <h1 style="margin:0 0 16px; font-size:24px;">
+                            Vitajte na palube, {{ $organizationName }}! 🎉
+                        </h1>
+
+                        <p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+                            Vaša organizácia bola schválená tímom NTI. Teraz máte plný prístup do platformy.
+                        </p>
+
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+                            <tr>
+                                <td style="background:#f1f5f9; border-radius:8px; padding:20px;">
+                                    <p style="margin:0 0 12px; font-size:14px; font-weight:600; color:#0a1628;">
+                                        Čo môžete teraz robiť:
+                                    </p>
+                                    <p style="margin:0; font-size:14px; color:#64748b; line-height:2;">
+                                        📢 Zverejňovať projekty a príležitosti<br>
+                                        🎓 Prepájať sa so študentmi<br>
+                                        👥 Budovať a riadiť tím<br>
+                                        🌐 Rozvíjať svoju prítomnosť v NTI ekosystéme
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <table role="presentation" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+                                    <a href="{{ config(\'app.frontend_url\') }}/firma"
+                                       target="_blank"
+                                       style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">
+                                        Prejsť do dashboardu
+                                    </a>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <p style="margin-top:30px; font-size:12px; color:#94a3b8;">
+                            V prípade otázok kontaktujte náš support tím.
+                        </p>
+
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="padding:20px; text-align:center; font-size:12px; color:#94a3b8; background:#f1f5f9;">
+                        © {{ date(\'Y\') }} Nitriansky Technický Inkubátor
+                    </td>
+                </tr>
+
+            </table>
+
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>
+',
+            ]
         ];
 
         foreach ($translations as $slug => $data) {

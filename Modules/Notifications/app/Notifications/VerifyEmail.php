@@ -7,6 +7,7 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\URL;
+use Modules\Notifications\Models\EmailTemplate;
 
 class VerifyEmail extends Notification implements ShouldQueue
 {
@@ -34,6 +35,7 @@ class VerifyEmail extends Notification implements ShouldQueue
         $queryString = parse_url($signedUrl, PHP_URL_QUERY) ?? '';
         parse_str($queryString, $params);
 
+        $template = EmailTemplate::findBySlug('verify_email');
 
         $frontendUrl = rtrim(config('app.frontend_url'), '/')
             . '/auth/verify-email'
@@ -43,10 +45,13 @@ class VerifyEmail extends Notification implements ShouldQueue
             . '&signature=' . urlencode($params['signature'] ?? '');
 
         return (new MailMessage)
-            ->subject('Verify your email address')
-            ->view('notifications::emails.verify-email', [
-                'name'            => $notifiable->name ?? $notifiable->email,
-                'verificationUrl' => $frontendUrl,
+            ->subject($template?->subject ?? 'Verify your email address')
+            ->view('notifications::emails.layout', [
+                'subject' => $template?->subject ?? '',
+                'body_html' => $template?->render([
+                        'name' => $notifiable->name ?? $notifiable->email,
+                        'verificationUrl' => $frontendUrl,
+                    ]) ?? '',
             ]);
     }
 }

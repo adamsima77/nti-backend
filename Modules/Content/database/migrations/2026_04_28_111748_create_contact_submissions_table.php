@@ -13,11 +13,19 @@ return new class extends Migration
     {
         Schema::create('contact_submissions', function (Blueprint $table) {
             $table->id();
+
+            $table->foreignId('user_id')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
             $table->string('name', 255);
             $table->string('surname', 255);
             $table->string('email', 255);
             $table->longText('description');
+
             $table->boolean('is_solved')->default(false);
+
             $table->softDeletes();
             $table->timestamps();
         });

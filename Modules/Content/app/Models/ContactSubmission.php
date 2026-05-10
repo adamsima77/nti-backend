@@ -19,7 +19,8 @@ class ContactSubmission extends Model
         'surname',
         'email',
         'description',
-        'is_solved'
+        'is_solved',
+        'user_id'
     ];
 
     protected $casts = [

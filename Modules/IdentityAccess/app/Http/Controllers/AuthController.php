@@ -21,7 +21,6 @@ use Modules\IdentityAccess\Events\StudentOnboarded;
 use Modules\IdentityAccess\Events\UserRegistered;
 use Modules\IdentityAccess\Models\ConsentType;
 use Modules\IdentityAccess\Models\Role;
-use Modules\IdentityAccess\Models\Status;
 use Modules\IdentityAccess\Models\User;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\IdentityAccess\Models\UserConsent;
@@ -54,18 +53,23 @@ class AuthController extends Controller
             $role = Role::where('name', $validated['role'])->firstOrFail();
             $user->roles()->attach($role->id);
 
+            // Record privacy_policy and terms_of_service consents
+            $consentTypes = ConsentType::whereIn('name', [
+                'privacy_policy',
+                'terms_of_service',
+            ])->get()->keyBy('name');
 
-            $termsConsent = ConsentType::where('name', 'privacy_policy')->firstOrFail();
-
-            UserConsent::create([
-                'user_id'    => $user->id,
-                'consent_id' => $termsConsent->id,
-                'granted'    => true,
-                'granted_at' => now(),
-                'revoked_at' => null,
-                'ip'         => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ]);
+            foreach (['privacy_policy', 'terms_of_service'] as $consentName) {
+                UserConsent::create([
+                    'user_id'    => $user->id,
+                    'consent_id' => $consentTypes[$consentName]->id,
+                    'granted'    => true,
+                    'granted_at' => now(),
+                    'revoked_at' => null,
+                    'ip'         => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+            }
 
             $user->sendEmailVerificationNotification();
 
@@ -78,38 +82,39 @@ class AuthController extends Controller
         }
     }
 
-    public function organizationOnboarding(Request $request){
+    public function organizationOnboarding(Request $request)
+    {
         $this->authorize('onboarding', $request->user());
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'phone:SK,CZ,AUTO'],
-            'ico' => ['required', 'digits:8'],
-            'web_url' => ['nullable', 'url', 'max:255'],
-            'city' => ['required', 'string', 'max:255'],
-            'street' => ['required', 'string', 'max:255'],
+            'name'        => ['required', 'string', 'max:255'],
+            'phone'       => ['required', 'phone:SK,CZ,AUTO'],
+            'ico'         => ['required', 'digits:8'],
+            'web_url'     => ['nullable', 'url', 'max:255'],
+            'city'        => ['required', 'string', 'max:255'],
+            'street'      => ['required', 'string', 'max:255'],
             'postal_code' => ['required', 'digits:5'],
-            'country' => ['required', 'string', 'max:255'],
-            'sector' => ['required', 'array'],
-            'sector.*' => ['required', 'integer', 'exists:sector,id']
+            'country'     => ['required', 'string', 'max:255'],
+            'sector'      => ['required', 'array'],
+            'sector.*'    => ['required', 'integer', 'exists:sector,id'],
         ]);
 
         try {
             DB::beginTransaction();
 
             $address = Address::create([
-                'city' => $validated['city'],
-                'street' => $validated['street'],
+                'city'        => $validated['city'],
+                'street'      => $validated['street'],
                 'postal_code' => $validated['postal_code'],
-                'country' => $validated['country']
+                'country'     => $validated['country'],
             ]);
 
             $organization = Organization::create([
-                'name' => $validated['name'],
-                'phone' => $validated['phone'],
-                'ico' => $validated['ico'],
-                'web_url' => $validated['web_url'] ?? null,
-                'address_id' => $address->id
+                'name'       => $validated['name'],
+                'phone'      => $validated['phone'],
+                'ico'        => $validated['ico'],
+                'web_url'    => $validated['web_url'] ?? null,
+                'address_id' => $address->id,
             ]);
 
             $org_admin = OrganizationRole::where('name', 'org_admin')->firstOrFail();
@@ -120,6 +125,19 @@ class AuthController extends Controller
                 'organization_role' => $org_admin->id,
             ]);
 
+            // Record company_data_processing consent
+            $consent = ConsentType::where('name', 'company_data_processing')->firstOrFail();
+
+            UserConsent::create([
+                'user_id'    => $request->user()->id,
+                'consent_id' => $consent->id,
+                'granted'    => true,
+                'granted_at' => now(),
+                'revoked_at' => null,
+                'ip'         => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
             $request->user()->setStatus(UserStatus::PENDING_APPROVAL);
 
             DB::commit();
@@ -127,67 +145,85 @@ class AuthController extends Controller
             event(new OrganizationOnboarded($organization, $request->user()->email));
 
             return response()->json([
-                'message' => 'Onboarding was successful'
+                'message' => 'Onboarding was successful',
             ], Response::HTTP_OK);
 
         } catch (\Throwable $e) {
             DB::rollBack();
 
             return response()->json([
-                'message' => 'Organization could not be onboarded !'
+                'message' => 'Organization could not be onboarded!',
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
-    public function studentOnboarding(Request $request){
+    public function studentOnboarding(Request $request)
+    {
         $this->authorize('onboarding', $request->user());
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'surname' => ['required', 'string', 'max:255'],
+            'name'          => ['required', 'string', 'max:255'],
+            'surname'       => ['required', 'string', 'max:255'],
             'study_program' => ['required', 'integer', 'exists:study_program,id'],
-            'study_field' => ['required', 'integer', 'exists:study_field,id'],
-            'university' => ['required', 'integer', 'exists:university,id'],
-            'cv' => ['required', 'file', 'mimes:pdf,docx'],
-            'year_of_study' => ['required', 'integer', 'between:1,6'],
-            'portfolio_url' => ['nullable', 'string', 'max:255']
+            'study_field'   => ['required', 'integer', 'exists:study_field,id'],
+            'university'    => ['required', 'integer', 'exists:university,id'],
+            'cv'            => ['required', 'file', 'mimes:pdf,docx'],
+            'year_of_study' => ['required', 'integer', 'exists:study_years,id'],
+            'portfolio_url' => ['nullable', 'string', 'max:255'],
         ]);
 
         try {
             DB::beginTransaction();
 
             $request->user()->update([
-                'name' => $validated['name'],
-                'surname' => $validated['surname']
+                'name'    => $validated['name'],
+                'surname' => $validated['surname'],
             ]);
 
             $securityClassification = SecurityClassification::where('name', 'internal')->firstOrFail();
 
-            $uploadedFile = $validated['cv'];
-            $fileName = $uploadedFile->getClientOriginalName();
-            $storedFileName = Str::uuid(). '_' . $fileName;
-            $filePath = Storage::disk('local')->putFileAs('documents', $uploadedFile, $storedFileName);
+            $uploadedFile   = $validated['cv'];
+            $fileName       = $uploadedFile->getClientOriginalName();
+            $storedFileName = Str::uuid() . '_' . $fileName;
+            $filePath       = Storage::disk('local')->putFileAs('documents', $uploadedFile, $storedFileName);
 
             $document = Document::create([
-                'owner_id' => $request->user()->id,
+                'owner_id'                  => $request->user()->id,
                 'security_classification_id' => $securityClassification->id,
             ]);
 
             DocumentVersion::create([
                 'document_id' => $document->id,
-                'file_name' => $fileName,
-                'file_path' => $filePath,
+                'file_name'   => $fileName,
+                'file_path'   => $filePath,
             ]);
 
             Student::create([
-                'user_id' => $request->user()->id,
+                'user_id'          => $request->user()->id,
                 'study_program_id' => $validated['study_program'],
-                'study_field_id' => $validated['study_field'],
-                'university_id' => $validated['university'],
-                'year_of_study' => $validated['year_of_study'],
-                'portfolio_url' => $validated['portfolio_url'] ?? null,
-                'cv_document_id' => $document->id
+                'study_field_id'   => $validated['study_field'],
+                'university_id'    => $validated['university'],
+                'study_year_id'    => $validated['year_of_study'],
+                'portfolio_url'    => $validated['portfolio_url'] ?? null,
+                'cv_document_id'   => $document->id,
             ]);
+
+            $consentTypes = ConsentType::whereIn('name', [
+                'cv_processing',
+                'profile_data_processing',
+            ])->get()->keyBy('name');
+
+            foreach (['cv_processing', 'profile_data_processing'] as $consentName) {
+                UserConsent::create([
+                    'user_id'    => $request->user()->id,
+                    'consent_id' => $consentTypes[$consentName]->id,
+                    'granted'    => true,
+                    'granted_at' => now(),
+                    'revoked_at' => null,
+                    'ip'         => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+            }
 
             $request->user()->setStatus(UserStatus::ACTIVE);
 
@@ -195,7 +231,7 @@ class AuthController extends Controller
 
             event(new StudentOnboarded($request->user()));
 
-            return response()->json(['message' => 'Onboarding was successful'], 200);
+            return response()->json(['message' => 'Onboarding was successful'], Response::HTTP_OK);
 
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -205,7 +241,7 @@ class AuthController extends Controller
             }
 
             return response()->json([
-                'message' => $th->getMessage()
+                'message' => 'Student onboarding was not successful!',
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -234,9 +270,7 @@ class AuthController extends Controller
         $user->setStatus(UserStatus::PENDING_ONBOARDING);
         event(new UserRegistered($user));
 
-        $token = $user->createToken(
-            name: 'web-token',
-        )->plainTextToken;
+        $token = $user->createToken(name: 'web-token')->plainTextToken;
 
         return response()->json([
             'user'  => $user,
@@ -263,10 +297,10 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        $user = $request->user()->load('roles', 'organizations');
+        $user     = $request->user()->load('roles.permissions', 'organizations');
         $userData = $user->toArray();
         $userData['organization_name'] = $user->organizations->first()?->name;
-        return response()->json($userData);
+        return response()->json($userData, Response::HTTP_OK);
     }
 
     public function login(Request $request)
@@ -280,31 +314,31 @@ class AuthController extends Controller
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             return response()->json([
-                'message' => 'The provided credentials are incorrect.'
+                'message' => 'The provided credentials are incorrect.',
             ], Response::HTTP_UNAUTHORIZED);
         }
 
         if (!$user->hasVerifiedEmail()) {
             return response()->json([
-                'message' => 'Please verify your email before logging in.'
+                'message' => 'Please verify your email before logging in.',
             ], Response::HTTP_FORBIDDEN);
         }
 
         if ($user->status_id === UserStatus::PENDING_EMAIL->value) {
             return response()->json([
-                'message' => 'Your account is pending email approval.'
+                'message' => 'Your account is pending email approval.',
             ], Response::HTTP_FORBIDDEN);
         }
 
         if ($user->status_id === UserStatus::INACTIVE->value) {
             return response()->json([
-                'message' => 'Your account has been deactivated.'
+                'message' => 'Your account has been deactivated.',
             ], Response::HTTP_FORBIDDEN);
         }
 
         if ($user->status_id === UserStatus::BANNED->value) {
             return response()->json([
-                'message' => 'Your account has been blocked. Contact support.'
+                'message' => 'Your account has been blocked. Contact support.',
             ], Response::HTTP_FORBIDDEN);
         }
 
@@ -340,28 +374,28 @@ class AuthController extends Controller
         event(new PasswordResetRequested($user));
 
         return response()->json([
-            'message' => 'Reset link has been sent to your email address.'
+            'message' => 'Reset link has been sent to your email address.',
         ]);
     }
 
     public function resetPassword(Request $request)
     {
         $validated = $request->validate([
-            'token' => ['required'],
-            'email' => ['required', 'email'],
+            'token'    => ['required'],
+            'email'    => ['required', 'email'],
             'password' => [
                 'required',
                 'string',
                 'confirmed',
-                PasswordRule::min(8)->mixedCase()->numbers()->symbols()
+                PasswordRule::min(8)->mixedCase()->numbers()->symbols(),
             ],
         ]);
 
         $status = PasswordBroker::reset(
             [
-                'email' => $validated['email'],
+                'email'    => $validated['email'],
                 'password' => $validated['password'],
-                'token' => $validated['token'],
+                'token'    => $validated['token'],
             ],
             function (User $user, string $password) {
                 $user->forceFill([
@@ -379,7 +413,7 @@ class AuthController extends Controller
         if ($status !== PasswordBroker::PASSWORD_RESET) {
             return response()->json([
                 'message' => 'Invalid or expired reset token.',
-                'status' => $status,
+                'status'  => $status,
             ], 422);
         }
 

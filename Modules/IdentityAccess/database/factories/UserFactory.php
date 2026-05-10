@@ -34,7 +34,12 @@ class UserFactory extends Factory
     {
         return $this->afterCreating(function (User $user) {
 
-            $role = Role::inRandomOrder()->first();
+            $role = Role::whereNotIn('name', [
+                'nti_admin',
+                'nti_superadmin',
+                'cms_editor',
+                'evaluator'
+            ])->inRandomOrder()->first();
 
             if ($role) {
                 $user->roles()->attach($role->id);

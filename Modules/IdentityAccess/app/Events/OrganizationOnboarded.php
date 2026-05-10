@@ -19,7 +19,7 @@ class OrganizationOnboarded
     /**
      * Create a new event instance.
      */
-    public function __construct(public Organization $org, public String $email) {}
+    public function __construct(public Organization $organization, public String $email) {}
 
     /**
      * Get the channels the event should be broadcast on.

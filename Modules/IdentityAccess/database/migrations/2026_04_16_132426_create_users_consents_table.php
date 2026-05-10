@@ -16,9 +16,9 @@ return new class extends Migration
             $table->boolean('granted')->default(false);
             $table->timestamp('granted_at');
             $table->timestamp('revoked_at')->nullable();
-            $table->string('ip', 255);
-            $table->string('user_agent', 255);
-            $table->foreignId('user_id')->constrained('users');
+            $table->string('ip', 45);
+            $table->text('user_agent');
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('consent_id')->constrained('consent_types')->restrictOnDelete();
             $table->softDeletes();
             $table->timestamps();

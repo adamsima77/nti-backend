@@ -7,6 +7,7 @@ use Modules\IdentityAccess\Http\Controllers\StatusController;
 use Modules\IdentityAccess\Http\Controllers\UserConsentController;
 use Modules\IdentityAccess\Http\Controllers\UserController;
 use Modules\IdentityAccess\Http\Controllers\AuthController;
+use Modules\Organizations\Http\Controllers\OrganizationController;
 use Modules\Reporting\Http\Controllers\ExportController;
 
 Route::prefix('auth')->group(function () {
@@ -39,6 +40,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::apiResource('roles', RoleController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::apiResource('statuses', StatusController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::apiResource('user-consents', UserConsentController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
+});
+
+Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+    Route::post('/users/{user}/activate', [UserController::class, 'activate']);
 });
 
 Route::get('fetch-mentors', [UserController::class, 'getMentors']);
