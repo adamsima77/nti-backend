@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Organizations\Models\SectorTranslation;
 use Modules\Programs\Models\CallTranslation;
 
 // use Modules\Content\Database\Factories\LanguageFactory;
@@ -47,6 +48,10 @@ class Language extends Model
     public function partnerReferenceTranslations(): HasMany
     {
         return $this->hasMany(PartnerReferenceTranslation::class);
+    }
+
+    public function sectorTranslations(): HasMany{
+        return $this->hasMany(SectorTranslation::class);
     }
 
     // protected static function newFactory(): LanguageFactory

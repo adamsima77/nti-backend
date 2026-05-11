@@ -11,8 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('sector', function (Blueprint $table) {
-            $table->bigIncrements('id');
+        Schema::create('sector_translations', function (Blueprint $table) {
+            $table->id();
+            $table->string('name', 255);
+            $table->foreignId('sector_id')->constrained('sector')->onDelete('cascade');
+            $table->foreignId('language_id')->constrained('languages')->onDelete('cascade');
             $table->timestamps();
         });
     }
@@ -22,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('sectors');
+        Schema::dropIfExists('sector_translations');
     }
 };

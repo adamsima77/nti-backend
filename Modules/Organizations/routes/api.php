@@ -13,3 +13,4 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/organizations/{organization}/activate', [OrganizationController::class, 'activate']);
 });
 Route::apiResource('sectors', SectorController::class)->only('index');
+Route::get('/sectors/lang/{lang}', [SectorController::class, 'getSectorByLang']);

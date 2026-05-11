@@ -5,6 +5,7 @@ namespace Modules\Organizations\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Modules\Content\Models\Language;
 use Modules\Organizations\Models\Sector;
 
 class SectorController extends Controller
@@ -14,7 +15,24 @@ class SectorController extends Controller
      */
     public function index()
     {
-        $sectors = Sector::orderByDesc('created_at')->get();
+        $sectors = Sector::with(['sectorTranslations'])->orderByDesc('created_at')->get();
+        return response()->json($sectors, Response::HTTP_OK);
+    }
+
+    public function getSectorByLang(string $lang){
+        $languageId = Language::where('name', $lang)->value('id');
+
+        if (!$languageId) {
+            return response()->json([
+                'message' => 'Language not found!'
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $sectors = Sector::with([
+            'sectorTranslations' => fn ($q) =>
+            $q->where('language_id', $languageId)
+        ])->get();
+
         return response()->json($sectors, Response::HTTP_OK);
     }
 

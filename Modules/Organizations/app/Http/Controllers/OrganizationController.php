@@ -7,12 +7,14 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Modules\Content\Models\Language;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\IdentityAccess\Models\User;
 use Modules\Organizations\Events\OrganizationApproved;
 use Modules\Organizations\Models\Address;
 use Modules\Organizations\Models\Organization;
 use Modules\Organizations\Models\OrganizationRole;
+use Modules\Organizations\Models\Sector;
 
 class OrganizationController extends Controller
 {
@@ -24,7 +26,7 @@ class OrganizationController extends Controller
     {
         $this->authorize('viewAny', Organization::class);
 
-        $organizations = Organization::with('address', 'sectors')->get();
+        $organizations = Organization::with('address','sectors.sectorTranslations')->get();
 
         return response()->json([
             'organizations' => $organizations,
@@ -122,7 +124,7 @@ class OrganizationController extends Controller
         $this->authorize('view', $organization);
 
         return response()->json([
-            'organization' => $organization->load('address', 'sectors', 'users'),
+            'organization' => $organization->load('address','sectors.sectorTranslations', 'users'),
         ], Response::HTTP_OK);
     }
 

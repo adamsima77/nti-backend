@@ -5,6 +5,7 @@ namespace Modules\Organizations\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 // use Modules\Organizations\Database\Factories\SectorFactory;
 
@@ -18,7 +19,6 @@ class Sector extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
-        'name',
     ];
 
     public function organizations(): BelongsToMany
@@ -29,5 +29,9 @@ class Sector extends Model
             'sector_id',
             'organization_id'
         );
+    }
+
+    public function sectorTranslations(): HasMany{
+        return $this->hasMany(SectorTranslation::class);
     }
 }
