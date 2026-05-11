@@ -10,6 +10,7 @@ use Modules\Content\Events\ContactMessageSubmitted;
 use Modules\Content\Models\ContactSubmission;
 use Modules\IdentityAccess\Models\ConsentType;
 use Modules\IdentityAccess\Models\UserConsent;
+use Modules\IdentityAccess\Rules\TurnstileRule;
 
 class ContactSubmissionController extends Controller
 {
@@ -27,11 +28,12 @@ class ContactSubmissionController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
-            'surname'     => ['required', 'string', 'max:255'],
-            'email'       => ['required', 'string', 'email', 'max:255'],
-            'description' => ['required', 'string', 'max:2500'],
-            'consent'     => ['required', 'accepted'],
+            'name'                  => ['required', 'string', 'max:255'],
+            'surname'               => ['required', 'string', 'max:255'],
+            'email'                 => ['required', 'string', 'email', 'max:255'],
+            'description'           => ['required', 'string', 'max:2500'],
+            'consent'               => ['required', 'accepted'],
+            'cf_turnstile_response' => ['required', new TurnstileRule()],
         ]);
 
         $submission = ContactSubmission::create([
@@ -39,7 +41,7 @@ class ContactSubmissionController extends Controller
             'surname'     => $validated['surname'],
             'email'       => $validated['email'],
             'description' => $validated['description'],
-            'user_id'     => $request->user()?->id
+            'user_id'     => $request->user()?->id,
         ]);
 
         if ($request->user()) {

@@ -24,6 +24,7 @@ use Modules\IdentityAccess\Models\Role;
 use Modules\IdentityAccess\Models\User;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\IdentityAccess\Models\UserConsent;
+use Modules\IdentityAccess\Rules\TurnstileRule;
 use Modules\Organizations\Models\Address;
 use Modules\Organizations\Models\Organization;
 use Modules\Organizations\Models\OrganizationRole;
@@ -40,6 +41,7 @@ class AuthController extends Controller
             'email'    => ['required', 'string', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', 'max:255', PasswordRule::min(8)->mixedCase()->numbers()->symbols()],
             'role'     => ['required', 'string', 'in:student,partner'],
+            'cf_turnstile_response'  => ['required', new TurnstileRule()]
         ]);
 
         DB::beginTransaction();
@@ -306,8 +308,9 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validated = $request->validate([
-            'email'    => ['required', 'email', 'max:255'],
-            'password' => ['required', 'string', 'max:255'],
+            'email'                 => ['required', 'email', 'max:255'],
+            'password'              => ['required', 'string', 'max:255'],
+            'cf_turnstile_response' => ['required', new TurnstileRule()],
         ]);
 
         $user = User::where('email', $validated['email'])->first();
@@ -363,6 +366,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => ['required', 'email'],
+            'cf_turnstile_response' => ['required', new TurnstileRule()]
         ]);
 
         $user = User::where('email', $request->email)->first();
