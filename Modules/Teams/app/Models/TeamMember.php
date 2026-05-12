@@ -2,13 +2,13 @@
 
 namespace Modules\Teams\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\IdentityAccess\Models\User;
 use Modules\Teams\Database\Factories\TeamMemberFactory;
 
-class TeamMember extends Model
+class TeamMember extends Pivot
 {
     use HasFactory;
 

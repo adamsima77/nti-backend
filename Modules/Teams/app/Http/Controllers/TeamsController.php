@@ -7,6 +7,7 @@ use App\Services\Pdf\PdfService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Modules\IdentityAccess\Models\User;
 use Modules\Teams\Models\Team;
@@ -17,16 +18,52 @@ class TeamsController extends Controller
     use AuthorizesRequests;
 
     /**
+     * Shape returned to the student portal (matches frontend store / TEAMS_FEATURE.md).
+     *
+     * @return array<string, mixed>
+     */
+    private function formatTeamForStudent(Team $team, Collection $roleMap, int $userId): array
+    {
+        $team->loadMissing('members');
+
+        $members = $team->members->map(function (User $user) use ($roleMap) {
+            $roleName = $roleMap->get((int) $user->pivot->team_role_id, 'Člen tímu');
+
+            return [
+                'id'    => $user->id,
+                'name'  => trim($user->name.' '.($user->surname ?? '')),
+                'email' => $user->email,
+                'role'  => $roleName,
+            ];
+        })->values()->all();
+
+        $me = $team->members->firstWhere('id', $userId);
+        $myRole = $me ? $roleMap->get((int) $me->pivot->team_role_id, 'Člen tímu') : 'Člen tímu';
+
+        return [
+            'id'           => $team->id,
+            'name'         => $team->name,
+            'description'  => null,
+            'myRole'       => $myRole,
+            'createdAt'    => $team->created_at?->format('Y-m-d') ?? '',
+            'members'      => $members,
+            'applications' => [],
+        ];
+    }
+
+    /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize('viewAny', Team::class);
 
-        $teams = Team::with('members')->get();
+        $roleMap = TeamRole::query()->pluck('name', 'id');
+        $teams    = Team::with('members')->get();
+        $userId   = (int) $request->user()->id;
 
         return response()->json([
-            'teams' => $teams,
+            'teams' => $teams->map(fn (Team $t) => $this->formatTeamForStudent($t, $roleMap, $userId))->values(),
         ], Response::HTTP_OK);
     }
 
@@ -63,21 +100,27 @@ class TeamsController extends Controller
             return $team;
         });
 
+        $team->load('members');
+        $roleMap = TeamRole::query()->pluck('name', 'id');
+
         return response()->json([
             'message' => 'Tím bol úspešne vytvorený.',
-            'team'    => $team->load('members'),
+            'team'    => $this->formatTeamForStudent($team, $roleMap, (int) $request->user()->id),
         ], Response::HTTP_CREATED);
     }
 
     /**
      * Show the specified resource.
      */
-    public function show(Team $team)
+    public function show(Request $request, Team $team)
     {
         $this->authorize('view', $team);
 
+        $team->load('members');
+        $roleMap = TeamRole::query()->pluck('name', 'id');
+
         return response()->json([
-            'team' => $team->load('members'),
+            'team' => $this->formatTeamForStudent($team, $roleMap, (int) $request->user()->id),
         ], Response::HTTP_OK);
     }
 
@@ -115,9 +158,13 @@ class TeamsController extends Controller
 
         $team->update($validated);
 
+        $updated = $team->fresh();
+        $updated->load('members');
+        $roleMap = TeamRole::query()->pluck('name', 'id');
+
         return response()->json([
             'message' => 'Tím bol úspešne aktualizovaný.',
-            'team'    => $team->fresh()->load('members'),
+            'team'    => $this->formatTeamForStudent($updated, $roleMap, (int) $request->user()->id),
         ], Response::HTTP_OK);
     }
 
@@ -159,9 +206,12 @@ class TeamsController extends Controller
             'team_role_id' => $validated['team_role_id'],
         ]);
 
+        $team->load('members');
+        $roleMap = TeamRole::query()->pluck('name', 'id');
+
         return response()->json([
             'message' => 'Používateľ bol úspešne pridaný do tímu.',
-            'team'    => $team->load('members'),
+            'team'    => $this->formatTeamForStudent($team, $roleMap, (int) $request->user()->id),
         ], Response::HTTP_CREATED);
     }
 

@@ -4,6 +4,7 @@ namespace Modules\Applications\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,7 @@ use Modules\Programs\Models\Call;
 
 class ApplicationController extends Controller
 {
-    use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+    use AuthorizesRequests;
 
     public function index(Request $request)
     {
