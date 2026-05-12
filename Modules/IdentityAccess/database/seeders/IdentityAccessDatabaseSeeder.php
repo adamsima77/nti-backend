@@ -14,7 +14,7 @@ class IdentityAccessDatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-         $this->call([
+        $this->call([
              RoleSeeder::class,
              PermissionSeeder::class,
              StatusSeeder::class,
@@ -22,5 +22,10 @@ class IdentityAccessDatabaseSeeder extends Seeder
          ]);
         User::factory()->count(10)->create();
         UserConsent::factory()->count(20)->create();
+
+        // Predvídateľný študentský účet na testovanie (e-mail zodpovedá menu).
+        $this->call([
+            DemoStudentUserSeeder::class,
+        ]);
     }
 }

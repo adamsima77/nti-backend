@@ -14,6 +14,34 @@ class StudentsController extends Controller
     use AuthorizesRequests;
 
     /**
+     * Študentský záznam prihláseného používateľa (ak existuje).
+     */
+    public function showMe(Request $request)
+    {
+        $student = Student::query()
+            ->where('user_id', $request->user()->id)
+            ->with([
+                'user',
+                'studyProgram',
+                'studyField',
+                'university',
+                'academicFlags',
+                'studyYear',
+            ])
+            ->first();
+
+        if ($student === null) {
+            return response()->json(['student' => null], Response::HTTP_OK);
+        }
+
+        $this->authorize('view', $student);
+
+        return response()->json([
+            'student' => $student,
+        ], Response::HTTP_OK);
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index()

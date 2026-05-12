@@ -12,6 +12,7 @@ use Modules\IdentityAccess\Models\User;
 use Modules\Programs\Models\Call;
 use Modules\Reporting\Models\ProjectKpi;
 use Modules\Reporting\Models\ProjectOutput;
+use Modules\Teams\Models\Team;
 
 class Application extends Model
 {
@@ -43,6 +44,11 @@ class Application extends Model
     public function call(): BelongsTo
     {
         return $this->belongsTo(Call::class, 'call_id');
+    }
+
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(Team::class, 'team_id');
     }
 
     public function creator(): BelongsTo

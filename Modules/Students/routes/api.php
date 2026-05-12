@@ -9,6 +9,7 @@ use Modules\Students\Http\Controllers\StudyYearController;
 use Modules\Students\Http\Controllers\UniversityController;
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('students/me', [StudentsController::class, 'showMe']);
     Route::apiResource('students', StudentsController::class);
     Route::apiResource('university', UniversityController::class)->except(['index']);
     Route::apiResource('academic-flag', AcademicFlagController::class)->except(['index']);

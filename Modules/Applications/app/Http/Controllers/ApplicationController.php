@@ -30,6 +30,7 @@ class ApplicationController extends Controller
             ->with([
                 'call:id,name',
                 'status:id,name',
+                'team:id,name',
                 'documents:id',
             ])
             ->where('created_by', $request->user()->id)
@@ -53,8 +54,11 @@ class ApplicationController extends Controller
             ->with([
                 'call:id,name',
                 'status:id,name',
+                'team:id,name',
                 'documents:id',
+                'documents.versions',
                 'statusHistory.status:id,name',
+                'milestones',
             ])
             ->findOrFail($id);
 
@@ -135,7 +139,9 @@ class ApplicationController extends Controller
             return $application->load([
                 'call:id,name',
                 'status:id,name',
+                'team:id,name',
                 'documents:id',
+                'documents.versions',
             ]);
         });
 
