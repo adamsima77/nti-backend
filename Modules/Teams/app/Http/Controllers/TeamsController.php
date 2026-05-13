@@ -9,13 +9,41 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Modules\IdentityAccess\Models\User;
+use Modules\Students\Models\Student;
 use Modules\Teams\Models\Team;
 use Modules\Teams\Models\TeamRole;
 
 class TeamsController extends Controller
 {
     use AuthorizesRequests;
+
+    private function resolveMemberRoleId(?string $roleName, ?int $roleId = null): int
+    {
+        if ($roleId !== null) {
+            $role = TeamRole::query()->findOrFail($roleId);
+        } else {
+            $normalized = strtolower(trim((string) $roleName));
+            $isLeaderRole = in_array($normalized, ['team lead', 'team_lead', 'vedúci tímu', 'veduci timu'], true);
+
+            if ($isLeaderRole) {
+                throw ValidationException::withMessages([
+                    'role' => ['Rolu vedúceho tímu nie je možné priradiť pri pozývaní.'],
+                ]);
+            }
+
+            $role = TeamRole::query()->where('name', 'Člen tímu')->firstOrFail();
+        }
+
+        if ($role->name === 'Vedúci tímu') {
+            throw ValidationException::withMessages([
+                'team_role_id' => ['Rolu vedúceho tímu nie je možné priradiť pri pozývaní.'],
+            ]);
+        }
+
+        return (int) $role->id;
+    }
 
     /**
      * Shape returned to the student portal (matches frontend store / TEAMS_FEATURE.md).
@@ -84,9 +112,38 @@ class TeamsController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:120'],
+            'members' => ['sometimes', 'array'],
+            'members.*' => ['email', 'distinct'],
         ]);
 
-        $team = DB::transaction(function () use ($validated, $request) {
+        $memberEmails = collect($validated['members'] ?? [])
+            ->map(fn ($email) => mb_strtolower(trim((string) $email)))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $invitedUsers = collect();
+
+        if ($memberEmails->isNotEmpty()) {
+            $invitedUsers = User::query()
+                ->whereIn('email', $memberEmails)
+                ->whereHas('roles', fn ($q) => $q->where('name', 'student'))
+                ->whereIn('id', Student::query()->select('user_id'))
+                ->get(['id', 'email']);
+
+            $missingEmails = $memberEmails->diff(
+                $invitedUsers->pluck('email')->map(fn ($email) => mb_strtolower((string) $email))
+            )->values();
+
+            if ($missingEmails->isNotEmpty()) {
+                return response()->json([
+                    'message' => 'Do tímu je možné pridať iba študentov registrovaných v NTI.',
+                    'invalid_members' => $missingEmails,
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+        }
+
+        $team = DB::transaction(function () use ($validated, $request, $invitedUsers) {
             $team = Team::create([
                 'name' => $validated['name'],
             ]);
@@ -96,6 +153,21 @@ class TeamsController extends Controller
             $request->user()->teams()->attach($team->id, [
                 'team_role_id' => $teamleader->id,
             ]);
+
+            if ($invitedUsers->isNotEmpty()) {
+                $memberRole = TeamRole::query()->where('name', 'Člen tímu')->firstOrFail();
+                $creatorId = (int) $request->user()->id;
+
+                foreach ($invitedUsers as $invitedUser) {
+                    if ((int) $invitedUser->id === $creatorId) {
+                        continue;
+                    }
+
+                    $team->members()->syncWithoutDetaching([
+                        (int) $invitedUser->id => ['team_role_id' => $memberRole->id],
+                    ]);
+                }
+            }
 
             return $team;
         });
@@ -191,10 +263,20 @@ class TeamsController extends Controller
 
         $validated = $request->validate([
             'email'        => ['required', 'email', 'exists:users,email'],
-            'team_role_id' => ['required', 'integer', 'exists:team_role,id'],
+            'team_role_id' => ['nullable', 'integer', 'exists:team_role,id'],
+            'role'         => ['nullable', 'string', 'max:80'],
         ]);
 
         $user = User::where('email', $validated['email'])->firstOrFail();
+
+        $isRegisteredStudent = $user->roles()->where('name', 'student')->exists()
+            && Student::query()->where('user_id', $user->id)->exists();
+
+        if (!$isRegisteredStudent) {
+            return response()->json([
+                'message' => 'Do tímu je možné pridať iba študentov registrovaných v NTI.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         if ($team->members()->where('user_id', $user->id)->exists()) {
             return response()->json([
@@ -202,8 +284,13 @@ class TeamsController extends Controller
             ], Response::HTTP_CONFLICT);
         }
 
+        $teamRoleId = $this->resolveMemberRoleId(
+            $validated['role'] ?? null,
+            isset($validated['team_role_id']) ? (int) $validated['team_role_id'] : null
+        );
+
         $team->members()->attach($user->id, [
-            'team_role_id' => $validated['team_role_id'],
+            'team_role_id' => $teamRoleId,
         ]);
 
         $team->load('members');
