@@ -35,6 +35,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('users/{user}/pdf', [ExportController::class, 'userPdf'])->name('users.pdf');
     Route::get('users/export/{format?}', [ExportController::class, 'users'])->name('users.export');
+    // POST: multipart súborov — PUT s FormData v PHP často nevyplní $_FILES; profilová fotka ide cez túto cestu.
+    Route::post('users/{user}/avatar', [UserController::class, 'uploadAvatar']);
     Route::apiResource('users', UserController::class)->only(['index', 'show', 'update', 'destroy']);
     Route::apiResource('consent-types', ConsentTypeController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::apiResource('roles', RoleController::class)->only(['index', 'show', 'store', 'update', 'destroy']);

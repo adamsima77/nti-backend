@@ -171,6 +171,48 @@ class UserController extends Controller
 }
 
     /**
+     * Nahratie profilovej fotky (POST + multipart — spoľahlivé oproti PUT s prílohou v PHP).
+     */
+    public function uploadAvatar(Request $request, User $user)
+    {
+        $this->authorize('update', $user);
+
+        $request->validate([
+            'avatar' => ['required', 'image', 'mimes:jpeg,jpg,png', 'max:4096'],
+        ]);
+
+        if (!$request->hasFile('avatar')) {
+            return response()->json(['message' => 'No file uploaded.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $oldAvatar = $user->avatar;
+        $path = $request->file('avatar')->store('avatars', 'public');
+
+        try {
+            DB::beginTransaction();
+            $user->update(['avatar' => $path]);
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Storage::disk('public')->delete($path);
+
+            return response()->json(['message' => 'User could not be updated!'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        if ($oldAvatar) {
+            Storage::disk('public')->delete($oldAvatar);
+        }
+
+        $user->refresh();
+
+        return response()->json([
+            'message' => 'Avatar was successfully updated.',
+            'avatar_url' => $user->avatar_url,
+            'avatar' => $user->avatar,
+        ], Response::HTTP_OK);
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy($id)

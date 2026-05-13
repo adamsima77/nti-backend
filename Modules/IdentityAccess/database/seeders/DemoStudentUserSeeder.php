@@ -6,6 +6,13 @@ use Illuminate\Database\Seeder;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\IdentityAccess\Models\Role;
 use Modules\IdentityAccess\Models\User;
+use Modules\Students\Models\Student;
+use Modules\Students\Models\StudyProgram;
+use Modules\Students\Models\StudyField;
+use Modules\Students\Models\University;
+use Modules\Students\Models\StudyYear;
+use Modules\Applications\Models\Document;
+use Modules\Applications\Models\SecurityClassification;
 
 /**
  * Deterministický študentský účet na lokálne testovanie (login, /auth/me, tímy, prihlášky).
@@ -37,8 +44,8 @@ class DemoStudentUserSeeder extends Seeder
         $user = User::query()->updateOrCreate(
             ['email' => self::EMAIL],
             [
-                'name'          => 'jozko',
-                'surname'       => 'mrkvicka',
+                'name'          => 'Ján',
+                'surname'       => 'Novák',
                 'password'      => self::PASSWORD,
                 'status_id'     => UserStatus::ACTIVE->value,
                 'job_position'  => 'Študent (demo)',
@@ -49,6 +56,35 @@ class DemoStudentUserSeeder extends Seeder
 
         $user->roles()->sync([$role->id]);
 
+        // Ensure student-related reference data exists and pick sensible defaults
+        $studyProgram = StudyProgram::first() ?? StudyProgram::create(['name' => 'Informatika']);
+        $studyField = StudyField::first() ?? StudyField::create(['name' => 'Softvérové inžinierstvo']);
+        $university = University::first() ?? University::create(['name' => 'Univerzita testovacia']);
+        $studyYear = StudyYear::first() ?? StudyYear::create(['name' => '1. ročník (Bc.)']);
+
+        // Create a minimal CV document so cv_document_id satisfies DB constraints
+        $securityClassification = SecurityClassification::where('name', 'internal')->first()
+            ?? SecurityClassification::first()
+            ?? SecurityClassification::create(['name' => 'internal']);
+
+        $cv = Document::query()->firstOrCreate(
+            ['owner_id' => $user->id],
+            ['security_classification_id' => $securityClassification->id]
+        );
+
+        // Create or update student profile with as many fields filled as possible
+        $student = Student::query()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'study_program_id' => $studyProgram->id,
+                'study_field_id'   => $studyField->id,
+                'university_id'    => $university->id,
+                'study_year_id'    => $studyYear->id,
+                'cv_document_id'   => $cv->id,
+                'portfolio_url'    => 'https://portfolio.example/jan-novak',
+            ]
+        );
+
         $this->command?->newLine();
         $this->command?->info('Demo študent vytvorený / aktualizovaný:');
         $this->command?->table(
@@ -57,6 +93,11 @@ class DemoStudentUserSeeder extends Seeder
                 ['E-mail', self::EMAIL],
                 ['Heslo', self::PASSWORD],
                 ['Meno', 'Ján Novák'],
+                ['Škola', $university->name],
+                ['Ročník', $studyYear->name],
+                ['Program', $studyProgram->name],
+                ['Odbor', $studyField->name],
+                ['Portfolio', 'https://portfolio.example/jan-novak'],
                 ['Status', 'active (verified email)'],
                 ['Rola', 'student'],
             ]
