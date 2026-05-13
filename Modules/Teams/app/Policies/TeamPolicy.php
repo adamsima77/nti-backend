@@ -50,6 +50,11 @@ class TeamPolicy
         return $this->isTeamLeader($user, $team);
     }
 
+    public function inviteMember(User $user, Team $team): bool
+    {
+        return $this->isTeamLeader($user, $team);
+    }
+
     public function removeMember(User $user, Team $team): bool
     {
         return $this->isTeamLeader($user, $team);

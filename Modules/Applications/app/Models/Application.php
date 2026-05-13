@@ -29,11 +29,13 @@ class Application extends Model
         'team_id',
         'created_by',
         'active_status',
+        'form_data',
     ];
 
     protected $casts = [
         'submitted_at' => 'datetime',
         'last_update' => 'datetime',
+        'form_data' => 'array',
     ];
 
     public function status(): BelongsTo

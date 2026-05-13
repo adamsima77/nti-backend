@@ -481,7 +481,30 @@ class EmailTemplateSeeder extends Seeder
 </body>
 </html>
 ',
-            ]
+            ],
+            [
+                'slug' => 'team_invite',
+                'subject' => 'Team invitation: {{ $teamName }}',
+                'body_html' => '
+<h1 style="margin:0 0 16px; font-size:24px;">Team invitation</h1>
+<p style="margin:0 0 16px; font-size:15px; color:#64748b; line-height:1.6;">
+    <strong>{{ $inviterName }}</strong> invited you to join <strong>{{ $teamName }}</strong> on the NTI platform.
+</p>
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    Sign in with <strong>{{ $inviteeEmail }}</strong> and accept the invitation using the button below.
+</p>
+<table role="presentation" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+            <a href="{{ $joinUrl }}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Accept invitation</a>
+        </td>
+    </tr>
+</table>
+<p style="margin-top:24px; font-size:12px; color:#94a3b8; line-height:1.5;">
+    If the button does not work, copy this link:<br>
+    <a href="{{ $joinUrl }}" style="color:#0d5fbf; word-break:break-all;">{{ $joinUrl }}</a>
+</p>',
+            ],
         ];
 
         foreach ($templates as $template) {

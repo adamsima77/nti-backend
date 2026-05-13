@@ -9,10 +9,14 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Modules\IdentityAccess\Models\User;
+use Modules\Notifications\Emails\TeamInviteMail;
 use Modules\Students\Models\Student;
 use Modules\Teams\Models\Team;
+use Modules\Teams\Models\TeamInvitation;
 use Modules\Teams\Models\TeamRole;
 
 class TeamsController extends Controller
@@ -306,6 +310,12 @@ class TeamsController extends Controller
     {
         $this->authorize('removeMember', $team);
 
+        if ($team->members()->count() <= 3) {
+            return response()->json([
+                'message' => 'Tím musí mať aspoň 3 členov. Pred odstránením člena pozvite ďalších účastníkov.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         if (!$team->members()->where('user_id', $user->id)->exists()) {
             return response()->json([
                 'message' => 'Používateľ nie je členom tímu.',
@@ -316,6 +326,143 @@ class TeamsController extends Controller
 
         return response()->json([
             'message' => 'Používateľ bol úspešne odstránený z tímu.',
+        ], Response::HTTP_OK);
+    }
+
+    public function invite(Request $request, Team $team)
+    {
+        $this->authorize('inviteMember', $team);
+
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'exists:users,email'],
+            'team_role_id' => ['nullable', 'integer', 'exists:team_role,id'],
+            'role' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        $lang = (string) ($request->header('X-Locale') ?? $request->query('lang', 'sk'));
+        if (! in_array($lang, ['sk', 'en'], true)) {
+            $lang = 'sk';
+        }
+
+        $email = mb_strtolower(trim($validated['email']));
+
+        $user = User::query()->where('email', $email)->firstOrFail();
+
+        $isRegisteredStudent = $user->roles()->where('name', 'student')->exists()
+            && Student::query()->where('user_id', $user->id)->exists();
+
+        if (! $isRegisteredStudent) {
+            return response()->json([
+                'message' => 'Pozvánku je možné poslať iba študentovi registrovanému v NTI.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if ($team->members()->where('user_id', $user->id)->exists()) {
+            return response()->json([
+                'message' => 'Používateľ je už členom tímu.',
+            ], Response::HTTP_CONFLICT);
+        }
+
+        $teamRoleId = $this->resolveMemberRoleId(
+            $validated['role'] ?? null,
+            isset($validated['team_role_id']) ? (int) $validated['team_role_id'] : null
+        );
+
+        TeamInvitation::query()
+            ->where('team_id', $team->id)
+            ->where('email', $email)
+            ->whereNull('accepted_at')
+            ->delete();
+
+        $token = Str::random(64);
+
+        $invitation = TeamInvitation::query()->create([
+            'team_id' => $team->id,
+            'email' => $email,
+            'token' => $token,
+            'team_role_id' => $teamRoleId,
+            'invited_by' => (int) $request->user()->id,
+            'expires_at' => now()->addDays(14),
+        ]);
+
+        $inviterName = trim($request->user()->name.' '.($request->user()->surname ?? ''));
+
+        Mail::to($email)->send(new TeamInviteMail(
+            $team,
+            $inviterName !== '' ? $inviterName : (string) $request->user()->email,
+            $email,
+            $token,
+            $lang,
+        ));
+
+        return response()->json([
+            'message' => 'Pozvánka bola odoslaná.',
+            'invitation' => [
+                'id' => $invitation->id,
+                'email' => $invitation->email,
+                'expires_at' => $invitation->expires_at->format('Y-m-d H:i:s'),
+            ],
+        ], Response::HTTP_CREATED);
+    }
+
+    public function acceptInvitation(Request $request)
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string', 'max:128'],
+        ]);
+
+        $invitation = TeamInvitation::query()
+            ->where('token', $validated['token'])
+            ->with('team')
+            ->first();
+
+        if ($invitation === null || $invitation->accepted_at !== null || $invitation->expires_at->isPast()) {
+            return response()->json([
+                'message' => 'Pozvánka je neplatná alebo expirovaná.',
+            ], Response::HTTP_GONE);
+        }
+
+        $authUser = $request->user();
+        if (mb_strtolower((string) $authUser->email) !== mb_strtolower($invitation->email)) {
+            return response()->json([
+                'message' => 'Túto pozvánku môžete prijať iba prihlásený ako adresát pozvánky.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $isRegisteredStudent = $authUser->roles()->where('name', 'student')->exists()
+            && Student::query()->where('user_id', $authUser->id)->exists();
+
+        if (! $isRegisteredStudent) {
+            return response()->json([
+                'message' => 'Do tímu sa môžu pridať iba študenti s dokončenou registráciou v NTI.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $team = $invitation->team;
+        $team->load('members');
+        $roleMap = TeamRole::query()->pluck('name', 'id');
+
+        if ($team->members()->where('user_id', $authUser->id)->exists()) {
+            $invitation->forceFill(['accepted_at' => now()])->save();
+
+            return response()->json([
+                'message' => 'Už ste členom tohto tímu.',
+                'team' => $this->formatTeamForStudent($team, $roleMap, (int) $authUser->id),
+            ], Response::HTTP_OK);
+        }
+
+        DB::transaction(function () use ($team, $authUser, $invitation) {
+            $team->members()->attach($authUser->id, [
+                'team_role_id' => $invitation->team_role_id,
+            ]);
+            $invitation->forceFill(['accepted_at' => now()])->save();
+        });
+
+        $team->load('members');
+
+        return response()->json([
+            'message' => 'Úspešne ste sa pripojili k tímu.',
+            'team' => $this->formatTeamForStudent($team, $roleMap, (int) $authUser->id),
         ], Response::HTTP_OK);
     }
 }

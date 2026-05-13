@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use App\Services\Pdf\PdfService;
 use Modules\Applications\Http\Resources\ApplicationResource;
 use Modules\Applications\Models\Application;
@@ -17,6 +18,7 @@ use Modules\Applications\Models\StatusOfApplication;
 use Modules\Applications\Models\TypeOfApplication;
 use Modules\IdentityAccess\Models\User;
 use Modules\Programs\Models\Call;
+use Modules\Teams\Models\Team;
 
 class ApplicationController extends Controller
 {
@@ -91,21 +93,56 @@ class ApplicationController extends Controller
     {
         $validated = $request->validate([
             'call_id' => ['required', 'integer', 'exists:call,id'],
-            'team_id' => ['required', 'integer'],
+            'team_id' => ['required', 'integer', 'exists:team,id'],
             'document_ids' => ['required', 'array', 'min:1'],
             'document_ids.*' => ['integer', 'distinct', 'exists:document,id'],
+            'form_data' => ['nullable', 'array'],
+            'form_data.*' => ['nullable', 'string', 'max:20000'],
         ]);
 
         $application = DB::transaction(function () use ($validated, $request) {
             $call = Call::query()
+                ->with('callCriteria')
                 ->whereKey($validated['call_id'])
-                ->whereHas('status', function ($query) {
+                ->whereHas('currentStatusHistory.status', function ($query) {
                     $query->where('name', 'Publikované');
                 })
                 ->first();
 
             if ($call === null) {
                 abort(422, 'Vybrana vyzva nie je publikovana.');
+            }
+
+            $team = Team::query()
+                ->withCount('members')
+                ->findOrFail((int) $validated['team_id']);
+
+            if ($team->members_count < 3) {
+                throw ValidationException::withMessages([
+                    'team_id' => ['Tím musí mať aspoň 3 členov, aby bolo možné podať prihlášku.'],
+                ]);
+            }
+
+            if (! $team->members()->where('user_id', $request->user()->id)->exists()) {
+                throw ValidationException::withMessages([
+                    'team_id' => ['Do prihlášky môžete použiť iba tím, ktorého ste členom.'],
+                ]);
+            }
+
+            $formDataInput = $validated['form_data'] ?? [];
+            $storedFormData = [];
+
+            foreach ($call->callCriteria as $criterion) {
+                $key = 'criterion_'.$criterion->id;
+                $value = isset($formDataInput[$key]) ? trim((string) $formDataInput[$key]) : '';
+
+                if ($value === '') {
+                    throw ValidationException::withMessages([
+                        'form_data.'.$key => ['Vyplňte pole pre toto kritérium.'],
+                    ]);
+                }
+
+                $storedFormData[$key] = $value;
             }
 
             $status = StatusOfApplication::query()->firstOrCreate([
@@ -123,6 +160,7 @@ class ApplicationController extends Controller
                 'team_id' => $validated['team_id'],
                 'created_by' => $request->user()->id,
                 'active_status' => $status->id,
+                'form_data' => $storedFormData === [] ? null : $storedFormData,
             ]);
 
             $application->documents()->syncWithPivotValues(

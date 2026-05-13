@@ -4,36 +4,64 @@ namespace Modules\Programs\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Content\Models\Language;
+use Modules\Programs\Support\CallFormSchema;
 
 class CallResource extends JsonResource
 {
-    private function getTranslation(Request $request)
+    private function resolveLocaleCode(Request $request): string
     {
         $locale = $request->header('X-Locale')
             ?? $request->query('lang')
             ?? app()->getLocale();
 
+        return in_array($locale, ['sk', 'en'], true) ? $locale : 'sk';
+    }
+
+    private function getTranslation(Request $request)
+    {
+        $locale = $this->resolveLocaleCode($request);
+
         return $this->callTranslations
-            ?->firstWhere('language.code', $locale);
+            ?->firstWhere('language.name', $locale);
     }
 
     public function toArray(Request $request): array
     {
         $currentStatus = $this->currentStatusHistory?->status;
         $translation = $this->getTranslation($request);
+        $localeCode = $this->resolveLocaleCode($request);
+        $language = Language::query()->where('name', $localeCode)->first();
+
+        $criteria = collect($this->callCriteria)->map(function ($criterion) use ($language) {
+            $name = $criterion->name;
+            if ($language) {
+                $tr = $criterion->criterionTranslations
+                    ?->firstWhere('language_id', $language->id);
+                $name = $tr?->name ?? $criterion->name;
+            }
+
+            return [
+                'id' => $criterion->id,
+                'name' => $name,
+            ];
+        })->values();
+
+        $formSchema = $language
+            ? CallFormSchema::build($this->resource, $language, $localeCode)
+            : ['title' => '', 'fields' => []];
 
         return [
             'id' => $this->id,
 
-            // multilingual fields
             'name' => $translation?->name ?? $this->name,
             'description' => $translation?->description ?? $this->description,
 
-            'application_start'    => $this->application_start,
+            'application_start' => $this->application_start,
             'application_deadline' => $this->application_deadline,
 
             'project_start' => $this->project_start,
-            'project_end'   => $this->project_end,
+            'project_end' => $this->project_end,
 
             'is_open' => $this->application_deadline
                 ? now()->lt($this->application_deadline)
@@ -42,26 +70,23 @@ class CallResource extends JsonResource
             'applicants_count' => $this->applications_count ?? 0,
 
             'status' => [
-                'id'   => $currentStatus?->id,
+                'id' => $currentStatus?->id,
                 'name' => $currentStatus?->name,
             ],
 
             'program' => [
-                'id'   => $this->program?->id,
+                'id' => $this->program?->id,
                 'name' => $this->program?->typeOfProgram?->name,
             ],
 
             'organization' => [
-                'id'   => $this->organization?->id,
+                'id' => $this->organization?->id,
                 'name' => $this->organization?->name,
             ],
 
-            'call_criteria' => collect($this->callCriteria)
-                ->map(fn ($criterion) => [
-                    'id'   => $criterion->id,
-                    'name' => $criterion->name,
-                ])
-                ->values(),
+            'call_criteria' => $criteria,
+
+            'form_schema' => $formSchema,
         ];
     }
 }
