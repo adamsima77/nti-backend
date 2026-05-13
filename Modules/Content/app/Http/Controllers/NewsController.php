@@ -25,20 +25,32 @@ class NewsController extends Controller
 
     public function fetchBySlug($slug, $lang)
     {
-        $lang_id = Language::where('name', $lang)->firstOrFail()->id;
+        $langId = Language::where('name', $lang)->value('id');
+
+        if (!$langId) {
+            abort(404, 'Language not found');
+        }
+
         $news = News::with([
-            'category',
+            'category.categoryTranslations' => function ($q) use ($langId) {
+                $q->where('language_id', $langId)
+                    ->select('id', 'name', 'category_id', 'language_id');
+            },
             'user',
-            'newsTranslations' => fn($q) => $q->where('language_id', $lang_id)
+            'newsTranslations' => function ($q) use ($langId) {
+                $q->where('language_id', $langId)
+                    ->select('id', 'title', 'description', 'news_id', 'language_id');
+            }
         ])
             ->where('slug', $slug)
             ->firstOrFail();
 
-        return response()->json($news, Response::HTTP_OK);
+        return response()->json($news, 200);
     }
-
-    public function fetchByLang(string $lang){
+    public function fetchByLang(string $lang)
+    {
         $languageId = Language::where('name', $lang)->value('id');
+
         if (!$languageId) {
             return response()->json([
                 'message' => 'Language not found!'
@@ -46,8 +58,14 @@ class NewsController extends Controller
         }
 
         $news = News::with([
-            'category', 'user', 'newsTranslations' => fn ($q) =>
-            $q->where('language_id', $languageId)
+            'category.categoryTranslations' => function ($q) use ($languageId) {
+                $q->where('language_id', $languageId)
+                    ->select('id', 'name', 'category_id', 'language_id');
+            },
+            'user',
+            'newsTranslations' => function ($q) use ($languageId) {
+                $q->where('language_id', $languageId);
+            }
         ])->paginate(15);
 
         return response()->json($news, Response::HTTP_OK);

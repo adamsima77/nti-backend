@@ -62,7 +62,7 @@ class CallController extends Controller
                 'organization:id,name',
                 'callType:id,name',
                 'callTranslations.language:id,name',
-                'callCriteria:id,name',  
+                'callCriteria.criterionTranslations:id,criterion_id,language_id,name',
             ])
             ->paginate(15);
 
@@ -97,10 +97,11 @@ class CallController extends Controller
                 ],
 
                 'call_criteria' => collect($call->callCriteria)
-                ->map(fn ($criterion) => [
-                    'id'   => $criterion->id,
-                    'name' => $criterion->name,
-                ])
+                    ->map(fn ($criterion) => [
+                        'id' => $criterion->id,
+                        'name' => $criterion->criterionTranslations
+                            ->firstWhere('language_id', $language->id)?->name,
+                    ])
                     ->values(),
             ];
         });
@@ -235,8 +236,7 @@ class CallController extends Controller
             'program.typeOfProgram:id,name',
             'organization:id,name',
             'callType:id,name',
-            'callTranslations.language:id,name',
-            'callCriteria:id,name',
+            'callCriteria.criterionTranslations:id,criterion_id,language_id,name',
         ])
         ->whereHas('currentStatusHistory.status', function ($query) {
             $query->where('name', 'Publikované');
@@ -278,10 +278,16 @@ class CallController extends Controller
         ],
 
         'call_criteria' => collect($call->callCriteria)
-            ->map(fn ($criterion) => [
-                'id'   => $criterion->id,
-                'name' => $criterion->name,
-            ])
+            ->map(function ($criterion) use ($language) {
+
+                $translation = $criterion->criterionTranslations
+                    ->firstWhere('language_id', $language->id);
+
+                return [
+                    'id' => $criterion->id,
+                    'name' => $translation?->name,
+                ];
+            })
             ->values(),
     ]);
 }

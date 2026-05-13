@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Organizations\Models\SectorTranslation;
 use Modules\Programs\Models\CallTranslation;
+use Modules\Programs\Models\CriterionTranslation;
 
 // use Modules\Content\Database\Factories\LanguageFactory;
 
@@ -52,6 +53,10 @@ class Language extends Model
 
     public function sectorTranslations(): HasMany{
         return $this->hasMany(SectorTranslation::class);
+    }
+
+    public function criterionTranslations(): HasMany{
+        return $this->hasMany(CriterionTranslation::class);
     }
 
     // protected static function newFactory(): LanguageFactory
