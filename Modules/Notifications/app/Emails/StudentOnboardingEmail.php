@@ -26,7 +26,10 @@ class StudentOnboardingEmail extends Mailable
      */
     public function build(): self
     {
-        $template = EmailTemplate::findBySlug('student_onboarded');
+        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
+
+        $template = EmailTemplate::findBySlug('student_onboarded')
+            ?->forLanguage($languageId);;
 
         return $this->subject($template?->subject ?? 'Welcome to NTI!')
             ->view('notifications::emails.layout')

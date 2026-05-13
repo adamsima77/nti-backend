@@ -25,7 +25,10 @@ class PasswordChangeConfirmationMail extends Mailable
      */
     public function build(): self
     {
-        $template = EmailTemplate::findBySlug('password_changed');
+        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
+
+        $template = EmailTemplate::findBySlug('password_changed')
+            ?->forLanguage($languageId);;
 
         return $this->subject($template?->subject ?? 'Security Alert')
             ->view('notifications::emails.layout')

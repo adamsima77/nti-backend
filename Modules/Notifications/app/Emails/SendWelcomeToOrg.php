@@ -19,7 +19,10 @@ class SendWelcomeToOrg extends Mailable
 
     public function build(): self
     {
-        $template = EmailTemplate::findBySlug('organization_account_approved');
+        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
+
+        $template = EmailTemplate::findBySlug('organization_account_approved')
+            ?->forLanguage($languageId);;
 
         return $this->subject(
             $template?->subject ?? ('Your organization has been approved — ' . $this->organization->name)

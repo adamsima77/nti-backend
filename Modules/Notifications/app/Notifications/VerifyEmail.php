@@ -31,11 +31,8 @@ class VerifyEmail extends Notification implements ShouldQueue
             ]
         );
 
-
         $queryString = parse_url($signedUrl, PHP_URL_QUERY) ?? '';
         parse_str($queryString, $params);
-
-        $template = EmailTemplate::findBySlug('verify_email');
 
         $frontendUrl = rtrim(config('app.frontend_url'), '/')
             . '/auth/verify-email'
@@ -43,6 +40,11 @@ class VerifyEmail extends Notification implements ShouldQueue
             . '/' . $hash
             . '?expires='   . ($params['expires'] ?? '')
             . '&signature=' . urlencode($params['signature'] ?? '');
+
+        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
+
+        $template = EmailTemplate::findBySlug('verify_email')
+            ?->forLanguage($languageId);;
 
         return (new MailMessage)
             ->subject($template?->subject ?? 'Verify your email address')

@@ -23,7 +23,10 @@ class MilestoneStatusChangedMail extends Mailable
 
     public function build(): self
     {
-        $template = EmailTemplate::findBySlug('milestone_status_changed');
+        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
+
+        $template = EmailTemplate::findBySlug('milestone_status_changed')
+            ?->forLanguage($languageId);;
 
         return $this->subject($template?->subject ?? 'Zmena stavu míľnika')
             ->view('notifications::emails.layout')

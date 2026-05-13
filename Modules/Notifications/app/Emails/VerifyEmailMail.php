@@ -22,7 +22,10 @@ class VerifyEmailMail extends Mailable
 
     public function build(): self
     {
-        $template = EmailTemplate::findBySlug('verify_email');
+        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
+
+        $template = EmailTemplate::findBySlug('verify_email')
+            ?->forLanguage($languageId);;
 
         return $this->subject($template?->subject ?? 'Verify your email address')
             ->view('notifications::emails.layout')

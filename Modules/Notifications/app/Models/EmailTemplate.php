@@ -50,14 +50,12 @@ class EmailTemplate extends Model
 
     public function forLanguage(?int $languageId): self
     {
-        if ($languageId) {
-            $translation = $this->translations
-                ->firstWhere('language_id', $languageId);
+        $translation = $this->translations
+            ->firstWhere('language_id', $languageId);
 
-            if ($translation) {
-                $this->subject   = $translation->subject;
-                $this->body_html = $translation->body_html;
-            }
+        if ($translation) {
+            $this->subject   = $translation->subject;
+            $this->body_html = $translation->body_html;
         }
 
         return $this;

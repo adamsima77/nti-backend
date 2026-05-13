@@ -20,7 +20,10 @@ class NotifyAdminOrgOnboard extends Mailable
 
     public function build(): self
     {
-        $template = EmailTemplate::findBySlug('admin_notification_organization_onboarded');
+        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
+
+        $template = EmailTemplate::findBySlug('admin_notification_organization_onboarded')
+            ?->forLanguage($languageId);;
 
         return $this->subject(
             $template?->subject ?? ('New organization pending approval — ' . $this->org->name)

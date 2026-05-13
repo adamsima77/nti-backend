@@ -21,7 +21,10 @@ class WelcomeEmail extends Mailable
 
     public function build(): self
     {
-        $template = EmailTemplate::findBySlug('welcome_email');
+        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
+
+        $template = EmailTemplate::findBySlug('welcome_email')
+            ?->forLanguage($languageId);;
 
         return $this->subject($template?->subject ?? 'Welcome to NTI!')
             ->view('notifications::emails.layout')

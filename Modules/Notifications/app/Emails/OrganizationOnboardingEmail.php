@@ -29,7 +29,10 @@ class OrganizationOnboardingEmail extends Mailable
      */
     public function build(): self
     {
-        $template = EmailTemplate::findBySlug('organization_onboarded');
+        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
+
+        $template = EmailTemplate::findBySlug('organization_onboarded')
+            ?->forLanguage($languageId);;
 
         return $this->subject($template?->subject ?? 'Thank you for registering!')
             ->view('notifications::emails.layout')

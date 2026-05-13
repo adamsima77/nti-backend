@@ -26,7 +26,10 @@ class ResetPasswordMail extends Mailable
         $url = config('app.frontend_url') . '/auth/reset-password?token=' . $this->token
             . '&email=' . urlencode($this->user->email);
 
-        $template = EmailTemplate::findBySlug('reset_password');
+        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
+
+        $template = EmailTemplate::findBySlug('reset_password')
+            ?->forLanguage($languageId);;
 
         return $this->subject($template?->subject ?? 'Reset your password')
             ->view('notifications::emails.layout')
