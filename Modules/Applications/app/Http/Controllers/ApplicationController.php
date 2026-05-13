@@ -16,8 +16,10 @@ use Modules\Applications\Models\Applications;
 use Modules\Applications\Models\ApplicationStatusHistory;
 use Modules\Applications\Models\StatusOfApplication;
 use Modules\Applications\Models\TypeOfApplication;
+use Modules\Content\Models\Language;
 use Modules\IdentityAccess\Models\User;
 use Modules\Programs\Models\Call;
+use Modules\Programs\Support\CallFormSchema;
 use Modules\Teams\Models\Team;
 
 class ApplicationController extends Controller
@@ -131,20 +133,41 @@ class ApplicationController extends Controller
                 ]);
             }
 
+            $langHeader = strtolower((string) $request->header('X-Locale', 'sk'));
+            if (! in_array($langHeader, ['sk', 'en'], true)) {
+                $langHeader = 'sk';
+            }
+
+            $language = Language::query()->where('name', $langHeader)->first()
+                ?? Language::query()->where('name', 'sk')->firstOrFail();
+
+            $call->loadMissing([
+                'callCriteria.criterionTranslations:id,criterion_id,language_id,name',
+            ]);
+
             $formDataInput = $validated['form_data'] ?? [];
-            $storedFormData = [];
 
-            foreach ($call->callCriteria as $criterion) {
-                $key = 'criterion_'.$criterion->id;
-                $value = isset($formDataInput[$key]) ? trim((string) $formDataInput[$key]) : '';
+            $storedFormData = CallFormSchema::normalizeStoredFormAnswers(
+                $call,
+                $language,
+                $langHeader,
+                $formDataInput
+            );
 
-                if ($value === '') {
-                    throw ValidationException::withMessages([
-                        'form_data.'.$key => ['Vyplňte pole pre toto kritérium.'],
-                    ]);
-                }
+            $unionIds = CallFormSchema::collectDocumentIdsFromStoredAnswers(
+                $storedFormData,
+                $call,
+                $language,
+                $langHeader
+            );
 
-                $storedFormData[$key] = $value;
+            $requestIds = array_values(array_unique(array_map('intval', $validated['document_ids'])));
+            sort($requestIds);
+
+            if ($unionIds !== $requestIds) {
+                throw ValidationException::withMessages([
+                    'document_ids' => ['Zoznam príloh musí presne zodpovedať súborom priradeným v poliach formulára.'],
+                ]);
             }
 
             $status = StatusOfApplication::query()->firstOrCreate([

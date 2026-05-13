@@ -20,10 +20,15 @@ class Call extends Model
         'project_start',
         'project_end',
         'description',
+        'application_form_schema',
         'program_id',
         'organization_id',
         'call_type_id',
         'application_start'
+    ];
+
+    protected $casts = [
+        'application_form_schema' => 'array',
     ];
 
     public function program(): BelongsTo

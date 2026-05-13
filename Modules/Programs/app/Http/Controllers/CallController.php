@@ -140,6 +140,8 @@ class CallController extends Controller
             'organization_id' => ['required', 'integer', 'exists:organization,id'],
             'call_type_id' => ['required', 'integer', 'exists:call_type,id'],
 
+            'application_form_schema' => ['nullable', 'array'],
+
             'translations' => ['sometimes', 'array'],
             'translations.*.language_id' => ['required', 'integer', 'exists:languages,id'],
             'translations.*.name' => ['required', 'string', 'max:255'],
@@ -182,6 +184,8 @@ class CallController extends Controller
             'program_id' => ['sometimes', 'integer', 'exists:program,id'],
             'organization_id' => ['sometimes', 'integer', 'exists:organization,id'],
             'call_type_id' => ['sometimes', 'integer', 'exists:call_type,id'],
+
+            'application_form_schema' => ['nullable', 'array'],
 
             'translations' => ['sometimes', 'array'],
             'translations.*.language_id' => ['required_with:translations', 'integer', 'exists:languages,id'],
