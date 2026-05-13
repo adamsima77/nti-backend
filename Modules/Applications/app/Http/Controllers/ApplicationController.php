@@ -12,13 +12,14 @@ use Illuminate\Validation\ValidationException;
 use App\Services\Pdf\PdfService;
 use Modules\Applications\Http\Resources\ApplicationResource;
 use Modules\Applications\Models\Application;
+use Modules\Applications\Models\ApplicationAnswer;
 use Modules\Applications\Models\Applications;
 use Modules\Applications\Models\ApplicationStatusHistory;
 use Modules\Applications\Models\StatusOfApplication;
 use Modules\Applications\Models\TypeOfApplication;
 use Modules\Content\Models\Language;
-use Modules\IdentityAccess\Models\User;
 use Modules\Programs\Models\Call;
+use Modules\Programs\Models\FormSchema;
 use Modules\Programs\Support\CallFormSchema;
 use Modules\Teams\Models\Team;
 
@@ -178,6 +179,8 @@ class ApplicationController extends Controller
                 'name' => 'Príloha prihlášky',
             ]);
 
+            $publishedSchema = FormSchema::publishedLatestForCall((int) $call->id);
+
             $application = Application::query()->create([
                 'submitted_at' => now(),
                 'last_update' => now(),
@@ -186,7 +189,22 @@ class ApplicationController extends Controller
                 'created_by' => $request->user()->id,
                 'active_status' => $status->id,
                 'form_data' => $storedFormData === [] ? null : $storedFormData,
+                'form_schema_id' => $publishedSchema?->id,
             ]);
+
+            if ($publishedSchema !== null) {
+                foreach ($publishedSchema->formFields as $formField) {
+                    $key = $formField->name;
+                    if (! array_key_exists($key, $storedFormData)) {
+                        continue;
+                    }
+                    ApplicationAnswer::query()->create([
+                        'application_id' => $application->id,
+                        'form_field_id' => $formField->id,
+                        'value' => $storedFormData[$key],
+                    ]);
+                }
+            }
 
             $application->documents()->syncWithPivotValues(
                 $validated['document_ids'],

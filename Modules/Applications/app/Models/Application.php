@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Mentorship\Models\Milestone;
 use Modules\IdentityAccess\Models\User;
 use Modules\Programs\Models\Call;
+use Modules\Programs\Models\FormSchema;
 use Modules\Reporting\Models\ProjectKpi;
 use Modules\Reporting\Models\ProjectOutput;
 use Modules\Teams\Models\Team;
@@ -30,6 +31,7 @@ class Application extends Model
         'created_by',
         'active_status',
         'form_data',
+        'form_schema_id',
     ];
 
     protected $casts = [
@@ -46,6 +48,16 @@ class Application extends Model
     public function call(): BelongsTo
     {
         return $this->belongsTo(Call::class, 'call_id');
+    }
+
+    public function formSchema(): BelongsTo
+    {
+        return $this->belongsTo(FormSchema::class, 'form_schema_id');
+    }
+
+    public function answers(): HasMany
+    {
+        return $this->hasMany(ApplicationAnswer::class, 'application_id');
     }
 
     public function team(): BelongsTo

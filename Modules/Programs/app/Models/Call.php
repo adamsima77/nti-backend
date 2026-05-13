@@ -74,4 +74,9 @@ class Call extends Model
     {
         return $this->hasMany(Application::class, 'call_id');
     }
+
+    public function formSchemas(): HasMany
+    {
+        return $this->hasMany(FormSchema::class, 'call_id');
+    }
 }

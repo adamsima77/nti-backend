@@ -45,6 +45,12 @@ class ProgramsServiceProvider extends ModuleServiceProvider
         parent::boot();
 
         $this->loadViewsFrom(module_path($this->name, '/resources/views'), $this->nameLower);
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \Modules\Programs\Console\MaterializeCallFormSchemasCommand::class,
+            ]);
+        }
     }
 
     public function register(): void

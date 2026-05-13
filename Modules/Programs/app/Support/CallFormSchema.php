@@ -5,6 +5,7 @@ namespace Modules\Programs\Support;
 use Illuminate\Validation\ValidationException;
 use Modules\Content\Models\Language;
 use Modules\Programs\Models\Call;
+use Modules\Programs\Models\FormSchema;
 
 class CallFormSchema
 {
@@ -12,6 +13,26 @@ class CallFormSchema
      * @return array{title: string, description?: string|null, fields: array<int, array<string, mixed>>, sections?: array<int, array<string, mixed>>|null}
      */
     public static function build(Call $call, Language $language, string $localeCode): array
+    {
+        $call->loadMissing([
+            'callCriteria.criterionTranslations:id,criterion_id,language_id,name',
+        ]);
+
+        $published = FormSchema::publishedLatestForCall((int) $call->id);
+
+        if ($published !== null && $published->formFields->isNotEmpty()) {
+            return self::buildFromPublishedSchema($published, $call, $language, $localeCode);
+        }
+
+        return self::buildLegacy($call, $language, $localeCode);
+    }
+
+    /**
+     * Legacy assembly: JSON overlay on call + criteria + document field (used when no published DB schema exists).
+     *
+     * @return array{title: string, description?: string|null, fields: array<int, array<string, mixed>>, sections?: array<int, array<string, mixed>>|null}
+     */
+    public static function buildLegacy(Call $call, Language $language, string $localeCode): array
     {
         $overlay = $call->application_form_schema;
         $hasOverlay = is_array($overlay) && $overlay !== [];
@@ -57,6 +78,63 @@ class CallFormSchema
             array_merge($criteriaFields, [$documentField]),
             null
         );
+    }
+
+    /**
+     * @return array{title: string, description?: string|null, fields: array<int, array<string, mixed>>, sections?: array<int, array<string, mixed>>|null}
+     */
+    private static function buildFromPublishedSchema(FormSchema $schema, Call $call, Language $language, string $localeCode): array
+    {
+        $fields = [];
+
+        foreach ($schema->formFields as $ff) {
+            $cfg = is_array($ff->config) ? $ff->config : [];
+            $field = array_merge([
+                'name' => $ff->name,
+                'type' => $ff->type,
+            ], $cfg);
+            $field['name'] = $ff->name;
+            $field['type'] = $ff->type;
+            $fields[] = self::localizeStoredField($field, $call, $language, $localeCode);
+        }
+
+        $title = $schema->resolveTitle($localeCode);
+        $description = $schema->resolveDescription($localeCode);
+        $sections = $schema->sections;
+        $sections = is_array($sections) && $sections !== [] ? $sections : null;
+
+        return self::wrap($title, $description, $fields, $sections);
+    }
+
+    /**
+     * @param  array<string, mixed>  $field
+     * @return array<string, mixed>
+     */
+    private static function localizeStoredField(array $field, Call $call, Language $language, string $localeCode): array
+    {
+        $name = (string) ($field['name'] ?? '');
+
+        if (preg_match('/^criterion_(\d+)$/', $name, $m)) {
+            $criterionId = (int) $m[1];
+            $criterion = $call->callCriteria->firstWhere('id', $criterionId);
+            if ($criterion !== null) {
+                $translation = $criterion->criterionTranslations
+                    ->firstWhere('language_id', $language->id);
+                $label = $translation?->name ?? $criterion->name ?? ($field['label'] ?? $name);
+                $field['label'] = $label;
+                if (! isset($field['placeholder'])) {
+                    $field['placeholder'] = $localeCode === 'en'
+                        ? 'Describe how your project meets this criterion…'
+                        : 'Popíšte, ako váš projekt spĺňa toto kritérium…';
+                }
+            }
+        }
+
+        if ($name === 'document_ids') {
+            return array_merge($field, self::documentField($localeCode));
+        }
+
+        return $field;
     }
 
     /**
