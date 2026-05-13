@@ -70,13 +70,13 @@ class TeamsController extends Controller
         })->values()->all();
 
         $me = $team->members->firstWhere('id', $userId);
-        $myRole = $me ? $roleMap->get((int) $me->pivot->team_role_id, 'Člen tímu') : 'Člen tímu';
+        $myRole = $me ? $roleMap->get((int) $me->pivot->team_role_id, 'Člen tímu') : null;
 
         return [
             'id'           => $team->id,
             'name'         => $team->name,
             'description'  => null,
-            'myRole'       => $myRole,
+            'myRole'       => $myRole ?? '',
             'createdAt'    => $team->created_at?->format('Y-m-d') ?? '',
             'members'      => $members,
             'applications' => [],
@@ -91,8 +91,16 @@ class TeamsController extends Controller
         $this->authorize('viewAny', Team::class);
 
         $roleMap = TeamRole::query()->pluck('name', 'id');
-        $teams    = Team::with('members')->get();
-        $userId   = (int) $request->user()->id;
+        $userId = (int) $request->user()->id;
+
+        if ($request->user()->isAdmin() || $request->user()->isSuperAdmin()) {
+            $teams = Team::query()->with('members')->get();
+        } else {
+            $teams = Team::query()
+                ->with('members')
+                ->whereHas('members', fn ($q) => $q->where('user_id', $userId))
+                ->get();
+        }
 
         return response()->json([
             'teams' => $teams->map(fn (Team $t) => $this->formatTeamForStudent($t, $roleMap, $userId))->values(),
@@ -309,12 +317,6 @@ class TeamsController extends Controller
     public function removeMember(Request $request, Team $team, User $user)
     {
         $this->authorize('removeMember', $team);
-
-        if ($team->members()->count() <= 3) {
-            return response()->json([
-                'message' => 'Tím musí mať aspoň 3 členov. Pred odstránením člena pozvite ďalších účastníkov.',
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
 
         if (!$team->members()->where('user_id', $user->id)->exists()) {
             return response()->json([

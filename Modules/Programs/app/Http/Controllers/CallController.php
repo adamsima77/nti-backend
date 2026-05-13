@@ -59,6 +59,7 @@ class CallController extends Controller
         }
 
         $calls = Call::query()
+            ->withCount('applications')
             ->with([
                 'program.typeOfProgram:id,name',
                 'organization:id,name',
@@ -85,6 +86,12 @@ class CallController extends Controller
                 'application_deadline' => $call->application_deadline,
                 'project_start' => $call->project_start,
                 'project_end' => $call->project_end,
+
+                'is_open' => $call->application_deadline
+                    ? now()->lt($call->application_deadline)
+                    : false,
+
+                'applicants_count' => $call->applications_count ?? 0,
 
                 'program' => [
                     'id' => $call->program?->id,

@@ -27,7 +27,7 @@ class TeamPolicy
 
     public function view(User $user, Team $team): bool
     {
-        return true;
+        return $this->isTeamMember($user, $team);
     }
 
     public function create(User $user): bool

@@ -28,6 +28,8 @@ class ApplicationController extends Controller
     {
         $this->authorize('viewAny', Applications::class);
 
+        $perPage = min(max((int) $request->query('per_page', 50), 1), 100);
+
         $applications = Application::query()
             ->with([
                 'call:id,name',
@@ -45,7 +47,7 @@ class ApplicationController extends Controller
                 fn (Builder $query) => $query->where('active_status', (int) $request->query('status_id'))
             )
             ->latest('id')
-            ->paginate(15);
+            ->paginate($perPage);
 
         return ApplicationResource::collection($applications);
     }

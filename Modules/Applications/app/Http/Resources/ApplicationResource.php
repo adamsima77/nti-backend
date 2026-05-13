@@ -38,6 +38,7 @@ class ApplicationResource extends JsonResource
                 'id'   => $this->call?->id,
                 'name' => $this->call?->name,
             ],
+            'call_id'        => $this->call_id,
             'team_id'        => $this->team_id,
             'team'           => $this->whenLoaded('team', function () {
                 return [
