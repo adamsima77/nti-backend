@@ -16,6 +16,7 @@ class OrganizationApproved
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public function __construct(
-        public readonly Organization $organization
+        public readonly Organization $organization,
+        public readonly int $languageId
     ) {}
 }

@@ -22,6 +22,7 @@ class SendMilestoneStatusChangedNotification implements ShouldQueue
             $event->oldStatus,
             $event->newStatus,
             $event->changedBy,
+            $event->languageId
         ));
     }
 }

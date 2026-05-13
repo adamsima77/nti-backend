@@ -19,6 +19,6 @@ class SendWelcomeAfterStudentOnboarding implements ShouldQueue
      */
     public function handle($event): void {
         $user = $event->user;
-        Mail::to($user->email)->send(new StudentOnboardingEmail($user));
+        Mail::to($user->email)->send(new StudentOnboardingEmail($user, $event->languageId));
     }
 }

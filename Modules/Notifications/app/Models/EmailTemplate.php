@@ -61,11 +61,22 @@ class EmailTemplate extends Model
         return $this;
     }
 
+    public function renderSubject(array $data = []): string
+    {
+        if (!$this->subject) {
+            return '';
+        }
+
+        return Blade::render($this->subject, $data);
+    }
+
     public function render(array $data = []): string
     {
-        $rendered = Blade::render($this->body_html, $data);
+        if (!$this->body_html) {
+            return '';
+        }
 
-        return $rendered;
+        return Blade::render($this->body_html, $data);
     }
 
     public static function findBySlug(string $slug): ?self

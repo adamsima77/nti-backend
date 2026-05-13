@@ -19,28 +19,32 @@ class MilestoneStatusChangedMail extends Mailable
         public ?string $oldStatus,
         public ?string $newStatus,
         public User $user,
+        public int $languageId
     ) {}
 
     public function build(): self
     {
-        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
-
         $template = EmailTemplate::findBySlug('milestone_status_changed')
-            ?->forLanguage($languageId);;
+            ?->forLanguage($this->languageId);
 
-        return $this->subject($template?->subject ?? 'Zmena stavu míľnika')
+        $data = [
+            'userName'      => $this->user->name . ' ' . $this->user->surname,
+            'milestoneName' => $this->milestone->name,
+            'oldStatus'     => $this->oldStatus,
+            'newStatus'     => $this->newStatus,
+            'deadline'      => optional($this->milestone->deadline)->format('d.m.Y'),
+            'actorName'     => $this->user->name . ' ' . $this->user->surname,
+            'projectId'     => $this->milestone->application?->id,
+        ];
+
+        $renderedSubject = $template ? $template->renderSubject($data) : 'Zmena stavu míľnika';
+        $renderedBody    = $template ? $template->render($data) : '';
+
+        return $this->subject($renderedSubject)
             ->view('notifications::emails.layout')
             ->with([
-                'subject'   => $template?->subject ?? '',
-                'body_html' => $template?->render([
-                        'userName'      => $this->user->name . ' ' . $this->user->surname,
-                        'milestoneName' => $this->milestone->name,
-                        'oldStatus'     => $this->oldStatus,
-                        'newStatus'     => $this->newStatus,
-                        'deadline'      => optional($this->milestone->deadline)->format('d.m.Y'),
-                        'actorName'     => $this->user->name . ' ' . $this->user->surname,
-                        'projectId'     => $this->milestone->application?->id,
-                    ]) ?? '',
+                'subject'   => $renderedSubject,
+                'body_html' => $renderedBody,
             ]);
     }
 }

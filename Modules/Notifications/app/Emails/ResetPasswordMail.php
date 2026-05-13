@@ -18,7 +18,8 @@ class ResetPasswordMail extends Mailable
      */
     public function __construct(
         public string $token,
-        public User $user
+        public User $user,
+        public int $languageId
     ) {}
 
     public function build(): self
@@ -26,10 +27,8 @@ class ResetPasswordMail extends Mailable
         $url = config('app.frontend_url') . '/auth/reset-password?token=' . $this->token
             . '&email=' . urlencode($this->user->email);
 
-        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
-
         $template = EmailTemplate::findBySlug('reset_password')
-            ?->forLanguage($languageId);;
+            ?->forLanguage($this->languageId);
 
         return $this->subject($template?->subject ?? 'Reset your password')
             ->view('notifications::emails.layout')

@@ -35,6 +35,11 @@ class AuthController extends Controller
 {
     use AuthorizesRequests;
 
+    private function getLanguageId(Request $request): int
+    {
+        return $request->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
+    }
+
     public function register(Request $request)
     {
         $validated = $request->validate([
@@ -87,6 +92,8 @@ class AuthController extends Controller
     public function organizationOnboarding(Request $request)
     {
         $this->authorize('onboarding', $request->user());
+
+        $langId = $this->getLanguageId($request);
 
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
@@ -144,7 +151,7 @@ class AuthController extends Controller
 
             DB::commit();
 
-            event(new OrganizationOnboarded($organization, $request->user()->email));
+            event(new OrganizationOnboarded($organization, $request->user()->email, $langId));
 
             return response()->json([
                 'message' => 'Onboarding was successful',
@@ -162,6 +169,8 @@ class AuthController extends Controller
     public function studentOnboarding(Request $request)
     {
         $this->authorize('onboarding', $request->user());
+
+        $langId = $this->getLanguageId($request);
 
         $validated = $request->validate([
             'name'          => ['required', 'string', 'max:255'],
@@ -231,7 +240,7 @@ class AuthController extends Controller
 
             DB::commit();
 
-            event(new StudentOnboarded($request->user()));
+            event(new StudentOnboarded($request->user(), $langId));
 
             return response()->json(['message' => 'Onboarding was successful'], Response::HTTP_OK);
 
@@ -268,9 +277,10 @@ class AuthController extends Controller
             return response()->json(['message' => 'Email already verified.'], Response::HTTP_OK);
         }
 
+        $langId = $this->getLanguageId($request);
         $user->markEmailAsVerified();
         $user->setStatus(UserStatus::PENDING_ONBOARDING);
-        event(new UserRegistered($user));
+        event(new UserRegistered($user, $langId));
 
         $token = $user->createToken(name: 'web-token')->plainTextToken;
 
@@ -378,7 +388,9 @@ class AuthController extends Controller
             return response()->json(['message' => 'User not found.'], Response::HTTP_NOT_FOUND);
         }
 
-        event(new PasswordResetRequested($user));
+        $langId = $this->getLanguageId($request);
+
+        event(new PasswordResetRequested($user, $langId));
 
         return response()->json([
             'message' => 'Reset link has been sent to your email address.',
@@ -398,13 +410,15 @@ class AuthController extends Controller
             ],
         ]);
 
+        $langId = $this->getLanguageId($request);
+
         $status = PasswordBroker::reset(
             [
                 'email'    => $validated['email'],
                 'password' => $validated['password'],
                 'token'    => $validated['token'],
             ],
-            function (User $user, string $password) {
+            function (User $user, string $password) use ($langId) {
                 $user->forceFill([
                     'password' => Hash::make($password),
                 ])->save();
@@ -413,7 +427,7 @@ class AuthController extends Controller
                     $user->tokens()->delete();
                 }
 
-                event(new PasswordChanged($user));
+                event(new PasswordChanged($user, $langId));
             }
         );
 

@@ -18,7 +18,10 @@ class StudentOnboarded
     /**
      * Create a new event instance.
      */
-    public function __construct(public User $user) {}
+    public function __construct(
+        public User $user,
+        public int $languageId
+    ) {}
 
     /**
      * Get the channels the event should be broadcast on.

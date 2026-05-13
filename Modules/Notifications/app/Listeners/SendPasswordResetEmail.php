@@ -18,6 +18,6 @@ class SendPasswordResetEmail implements ShouldQueue
         $token = Password::createToken($user);
 
         Mail::to($user->email)
-            ->send(new ResetPasswordMail($token, $user));
+            ->send(new ResetPasswordMail($token, $user, $event->languageId));
     }
 }

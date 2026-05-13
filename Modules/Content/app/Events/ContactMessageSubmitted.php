@@ -16,6 +16,7 @@ class ContactMessageSubmitted
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public function __construct(
-        public readonly ContactSubmission $submission
+        public readonly ContactSubmission $submission,
+        public int $languageId
     ) {}
 }

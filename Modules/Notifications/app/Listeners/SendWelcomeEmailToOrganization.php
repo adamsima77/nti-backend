@@ -22,7 +22,7 @@ class SendWelcomeEmailToOrganization implements ShouldQueue
         if (!$orgAdmin) return;
 
         Mail::to($orgAdmin->email)->queue(
-            new SendWelcomeToOrg($organization)
+            new SendWelcomeToOrg($organization, $event->languageId)
         );
     }
 }

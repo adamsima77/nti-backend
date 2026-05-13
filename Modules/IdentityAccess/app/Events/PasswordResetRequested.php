@@ -13,5 +13,8 @@ use Modules\IdentityAccess\Models\User;
 
 class PasswordResetRequested
 {
-    public function __construct(public User $user) {}
+    public function __construct(
+        public User $user,
+        public int $languageId
+    ) {}
 }

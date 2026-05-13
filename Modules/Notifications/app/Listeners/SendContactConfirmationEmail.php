@@ -21,7 +21,7 @@ class SendContactConfirmationEmail implements ShouldQueue
     public function handle(ContactMessageSubmitted $event): void
     {
         Mail::to($event->submission->email)->send(
-            new ContactSubmissionMail($event->submission)
+            new ContactSubmissionMail($event->submission, $event->languageId)
         );
     }
 }

@@ -19,7 +19,7 @@ class OrganizationOnboardingEmail extends Mailable
      */
     public Organization $org;
     public String $email;
-    public function __construct(Organization $org, String $email) {
+    public function __construct(Organization $org, String $email, public int $languageId) {
         $this->org = $org;
         $this->email = $email;
     }
@@ -29,18 +29,27 @@ class OrganizationOnboardingEmail extends Mailable
      */
     public function build(): self
     {
-        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
-
         $template = EmailTemplate::findBySlug('organization_onboarded')
-            ?->forLanguage($languageId);;
+            ?->forLanguage($this->languageId);
 
-        return $this->subject($template?->subject ?? 'Thank you for registering!')
+        if (!$template) {
+            return $this->subject('Thank you for registering!')
+                ->view('notifications::emails.layout')
+                ->with(['body_html' => '']);
+        }
+
+        $data = [
+            'organizationName' => $this->org->name,
+        ];
+
+        $renderedSubject = $template->renderSubject($data);
+        $renderedBody    = $template->render($data);
+
+        return $this->subject($renderedSubject)
             ->view('notifications::emails.layout')
             ->with([
-                'subject'   => $template?->subject ?? '',
-                'body_html' => $template?->render([
-                        'organizationName' => $this->org->name,
-                    ]) ?? '',
+                'subject'   => $renderedSubject,
+                'body_html' => $renderedBody,
             ]);
     }
 }

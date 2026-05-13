@@ -13,6 +13,10 @@ class VerifyEmail extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    public function __construct(
+        public int $languageId
+    ) {}
+
     public function via($notifiable): array
     {
         return ['mail'];
@@ -41,19 +45,22 @@ class VerifyEmail extends Notification implements ShouldQueue
             . '?expires='   . ($params['expires'] ?? '')
             . '&signature=' . urlencode($params['signature'] ?? '');
 
-        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
-
         $template = EmailTemplate::findBySlug('verify_email')
-            ?->forLanguage($languageId);;
+            ?->forLanguage($this->languageId);;
+
+        $data = [
+            'name'            => $notifiable->name ?? $notifiable->email,
+            'verificationUrl' => $frontendUrl,
+        ];
+
+        $renderedSubject = $template ? $template->renderSubject($data) : 'Verify your email address';
+        $renderedBody    = $template ? $template->render($data) : '';
 
         return (new MailMessage)
-            ->subject($template?->subject ?? 'Verify your email address')
+            ->subject($renderedSubject)
             ->view('notifications::emails.layout', [
-                'subject' => $template?->subject ?? '',
-                'body_html' => $template?->render([
-                        'name' => $notifiable->name ?? $notifiable->email,
-                        'verificationUrl' => $frontendUrl,
-                    ]) ?? '',
+                'subject'   => $renderedSubject,
+                'body_html' => $renderedBody,
             ]);
     }
 }

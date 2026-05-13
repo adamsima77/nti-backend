@@ -18,7 +18,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Modules\IdentityAccess\Database\Factories\UserFactory;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\Notifications\Emails\VerifyEmailMail;
-use Modules\Notifications\Notifications\VerifyEmail;
+use Modules\Notifications\Notifications\VerifyEmail as VerifyEmailNotification;
 use Modules\Organizations\Models\Organization;
 use Modules\Organizations\Models\UserOrganization;
 use Modules\Teams\Models\Team;
@@ -174,7 +174,8 @@ class User extends Authenticatable
 
     public function sendEmailVerificationNotification(): void
     {
-        $this->notify(new VerifyEmail());
+        $langId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
+        $this->notify(new VerifyEmailNotification($langId));
     }
 
     protected static function newFactory()

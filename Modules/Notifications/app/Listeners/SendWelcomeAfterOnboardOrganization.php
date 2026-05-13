@@ -21,6 +21,6 @@ class SendWelcomeAfterOnboardOrganization implements ShouldQueue
     public function handle($event): void {
         $org = $event->organization;
         $email = $event->email;
-        Mail::to($email)->send(new OrganizationOnboardingEmail($org, $email));
+        Mail::to($email)->send(new OrganizationOnboardingEmail($org, $email, $event->languageId));
     }
 }

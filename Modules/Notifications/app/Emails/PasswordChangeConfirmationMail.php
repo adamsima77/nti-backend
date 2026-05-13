@@ -16,7 +16,7 @@ class PasswordChangeConfirmationMail extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct(string $email) {
+    public function __construct(string $email, public int $languageId) {
         $this->email = $email;
     }
 
@@ -25,18 +25,21 @@ class PasswordChangeConfirmationMail extends Mailable
      */
     public function build(): self
     {
-        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
-
         $template = EmailTemplate::findBySlug('password_changed')
-            ?->forLanguage($languageId);;
+            ?->forLanguage($this->languageId);
 
-        return $this->subject($template?->subject ?? 'Security Alert')
+        $data = [
+            'userEmail' => $this->email,
+        ];
+
+        $renderedSubject = $template ? $template->renderSubject($data) : 'Security Alert';
+        $renderedBody    = $template ? $template->render($data) : '';
+
+        return $this->subject($renderedSubject)
             ->view('notifications::emails.layout')
             ->with([
-                'subject'   => $template?->subject ?? '',
-                'body_html' => $template?->render([
-                        'userEmail' => $this->email,
-                    ]) ?? '',
+                'subject'   => $renderedSubject,
+                'body_html' => $renderedBody,
             ]);
     }
 }

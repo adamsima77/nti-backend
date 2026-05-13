@@ -17,5 +17,6 @@ class MilestoneStatusChanged
         public ?string $oldStatus,
         public ?string $newStatus,
         public User $changedBy,
+        public int $languageId
     ) {}
 }

@@ -15,32 +15,33 @@ class NotifyAdminOrgOnboard extends Mailable
 
     public function __construct(
         public readonly Organization $org,
-        public readonly string $email
+        public readonly string $email,
+        public int $languageId
     ) {}
 
     public function build(): self
     {
-        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
-
         $template = EmailTemplate::findBySlug('admin_notification_organization_onboarded')
-            ?->forLanguage($languageId);;
+            ?->forLanguage($this->languageId);
 
-        return $this->subject(
-            $template?->subject ?? ('New organization pending approval — ' . $this->org->name)
-        )
+        $data = [
+            'organizationName' => $this->org->name,
+            'ico'              => $this->org->ico,
+            'sector'           => $this->org->sectors?->pluck('name')->join(', ') ?? '',
+            'address'          => $this->formatAddress(),
+            'contactEmail'     => $this->email,
+            'registeredAt'     => now()->format('d.m.Y H:i'),
+            'organizationId'   => $this->org->id,
+        ];
+
+        $renderedSubject = $template ? $template->renderSubject($data) : ('New organization pending approval — ' . $this->org->name);
+        $renderedBody    = $template ? $template->render($data) : '';
+
+        return $this->subject($renderedSubject)
             ->view('notifications::emails.layout')
             ->with([
-                'subject' => $template?->subject ?? '',
-
-                'body_html' => $template?->render([
-                        'organizationName' => $this->org->name,
-                        'ico'              => $this->org->ico,
-                        'sector'           => $this->org->sectors?->pluck('name')->join(', ') ?? '',
-                        'address'          => $this->formatAddress(),
-                        'contactEmail'     => $this->email,
-                        'registeredAt'     => now()->format('d.m.Y H:i'),
-                        'organizationId'   => $this->org->id,
-                    ]) ?? '',
+                'subject'   => $renderedSubject,
+                'body_html' => $renderedBody,
             ]);
     }
 

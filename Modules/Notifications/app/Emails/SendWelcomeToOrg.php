@@ -14,26 +14,30 @@ class SendWelcomeToOrg extends Mailable
     use Queueable, SerializesModels;
 
     public function __construct(
-        public readonly Organization $organization
+        public readonly Organization $organization,
+        public int $languageId
     ) {}
 
     public function build(): self
     {
-        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
-
         $template = EmailTemplate::findBySlug('organization_account_approved')
-            ?->forLanguage($languageId);;
+            ?->forLanguage($this->languageId);;
 
-        return $this->subject(
-            $template?->subject ?? ('Your organization has been approved — ' . $this->organization->name)
-        )
+        $data = [
+            'organizationName' => $this->organization->name,
+        ];
+
+        $renderedSubject = $template
+            ? $template->renderSubject($data)
+            : ('Your organization has been approved — ' . $this->organization->name);
+
+        $renderedBody = $template ? $template->render($data) : '';
+
+        return $this->subject($renderedSubject)
             ->view('notifications::emails.layout')
             ->with([
-                'subject' => $template?->subject ?? '',
-
-                'body_html' => $template?->render([
-                        'organizationName' => $this->organization->name,
-                    ]) ?? '',
+                'subject'   => $renderedSubject,
+                'body_html' => $renderedBody,
             ]);
     }
 }

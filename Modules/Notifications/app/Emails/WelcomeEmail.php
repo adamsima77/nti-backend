@@ -15,24 +15,25 @@ class WelcomeEmail extends Mailable
 
     public User $user;
 
-    public function __construct(User $user) {
+    public function __construct(User $user, public int $languageId) {
         $this->user = $user;
     }
 
     public function build(): self
     {
-        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
-
         $template = EmailTemplate::findBySlug('welcome_email')
-            ?->forLanguage($languageId);;
+            ?->forLanguage($this->languageId);
 
-        return $this->subject($template?->subject ?? 'Welcome to NTI!')
+        $data = ['userName' => $this->user->name . ' ' . $this->user->surname];
+
+        $renderedSubject = $template ? $template->renderSubject($data) : 'Welcome to NTI!';
+        $renderedBody    = $template ? $template->render($data) : '';
+
+        return $this->subject($renderedSubject)
             ->view('notifications::emails.layout')
             ->with([
-                'subject'   => $template?->subject ?? '',
-                'body_html' => $template?->render([
-                        'userName' => $this->user->name . ' ' . $this->user->surname,
-                    ]) ?? '',
+                'subject'   => $renderedSubject,
+                'body_html' => $renderedBody,
             ]);
     }
 }

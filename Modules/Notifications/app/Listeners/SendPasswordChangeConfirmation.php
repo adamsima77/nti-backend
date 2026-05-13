@@ -10,6 +10,6 @@ class SendPasswordChangeConfirmation implements ShouldQueue
     public function handle($event): void
     {
         Mail::to($event->user->email)
-            ->send(new PasswordChangeConfirmationMail($event->user->email));
+            ->send(new PasswordChangeConfirmationMail($event->user->email, $event->languageId));
     }
 }

@@ -29,7 +29,7 @@ class SendEmailToAdminWhenOrganizationOnboarded implements ShouldQueue
 
         foreach ($admins as $admin) {
             Mail::to($admin->email)->queue(
-                new NotifyAdminOrgOnboard($organization, $admin->email)
+                new NotifyAdminOrgOnboard($organization, $admin->email, $event->languageId)
             );
         }
     }

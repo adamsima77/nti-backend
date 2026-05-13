@@ -18,25 +18,29 @@ class ContactSubmissionMail extends Mailable
      * Create a new message instance.
      */
     public function __construct(
-        public readonly ContactSubmission $submission
+        public readonly ContactSubmission $submission,
+        public int $languageId
     ) {}
 
     public function build(): self
     {
-        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en' ? 2 : 1;
-
         $template = EmailTemplate::findBySlug('contact_message_received')
-            ?->forLanguage($languageId);;
+            ?->forLanguage($this->languageId);
 
-        return $this->subject($template?->subject ?? 'We received your message')
+        $data = [
+            'name'        => $this->submission->name,
+            'description' => $this->submission->description,
+            'email'       => $this->submission->email,
+        ];
+
+        $renderedSubject = $template ? $template->renderSubject($data) : 'We received your message';
+        $renderedBody    = $template ? $template->render($data) : '';
+
+        return $this->subject($renderedSubject)
             ->view('notifications::emails.layout')
             ->with([
-                'subject' => $template?->subject ?? '',
-                'body_html' => $template?->render([
-                        'name' => $this->submission->name,
-                        'description' => $this->submission->description,
-                        'email' => $this->submission->email,
-                    ]) ?? '',
+                'subject'   => $renderedSubject,
+                'body_html' => $renderedBody,
             ]);
     }
 }
