@@ -211,6 +211,28 @@ class EmailTemplateTranslationSeeder extends Seeder
     </tr>
 </table>',
             ],
+            'team_invite' => [
+                'subject'   => 'Pozvánka do tímu: {{ $teamName }}',
+                'body_html' => '
+<h1 style="margin:0 0 16px; font-size:24px;">Pozvánka do tímu</h1>
+<p style="margin:0 0 16px; font-size:15px; color:#64748b; line-height:1.6;">
+    <strong>{{ $inviterName }}</strong> vás pozval/a do tímu <strong>{{ $teamName }}</strong> na platforme NTI.
+</p>
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    Prihláste sa pod účtom <strong>{{ $inviteeEmail }}</strong> a potvrďte pripojenie kliknutím na tlačidlo nižšie.
+</p>
+<table role="presentation" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+            <a href="{{ $joinUrl }}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Prijať pozvánku</a>
+        </td>
+    </tr>
+</table>
+<p style="margin-top:24px; font-size:12px; color:#94a3b8; line-height:1.5;">
+    Ak tlačidlo nefunguje, skopírujte odkaz:<br>
+    <a href="{{ $joinUrl }}" style="color:#0d5fbf; word-break:break-all;">{{ $joinUrl }}</a>
+</p>',
+            ],
             [
                 'slug' => 'contact_message_received_sk',
                 'subject' => 'Dostali sme vašu správu',

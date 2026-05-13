@@ -46,6 +46,7 @@ class ApplicationResource extends JsonResource
                 ];
             }),
             'created_by'     => $this->created_by,
+            'form_data'      => $this->form_data,
             'status'         => [
                 'id'   => $this->status?->id,
                 'name' => $this->status?->name,

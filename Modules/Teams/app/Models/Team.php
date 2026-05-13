@@ -5,6 +5,7 @@ namespace Modules\Teams\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\IdentityAccess\Models\User;
 use Modules\Teams\database\factories\TeamFactory;
 
@@ -31,6 +32,11 @@ class Team extends Model
         )
             ->using(TeamMember::class)
             ->withPivot('team_role_id');
+    }
+
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(TeamInvitation::class, 'team_id');
     }
 
     protected static function newFactory(): TeamFactory
