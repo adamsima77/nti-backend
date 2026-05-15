@@ -2,7 +2,7 @@
 
 namespace Modules\Programs\Models;
 
-use Illuminate\Database\Eloquent\Builder;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -38,13 +38,14 @@ class FormSchema extends Model
         return $this->hasMany(FormField::class, 'form_schema_id')->orderBy('sort_order');
     }
 
+
     public static function publishedLatestForCall(int $callId): ?self
     {
         return static::query()
             ->where('call_id', $callId)
             ->where('status', 'published')
             ->orderByDesc('version')
-            ->with(['formFields' => static function (Builder $q): void {
+            ->with(['formFields' => function ($q) {
                 $q->orderBy('sort_order');
             }])
             ->first();
