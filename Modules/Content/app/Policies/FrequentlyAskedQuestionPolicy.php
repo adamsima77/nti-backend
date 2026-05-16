@@ -35,19 +35,19 @@ class FrequentlyAskedQuestionPolicy
 
     public function create(User $user): bool
     {
-        return $this->hasPermission($user, 'content.faq.create')
+        return $this->hasPermission($user, 'content.create')
             || $user->isCMSEditor();
     }
 
     public function update(User $user, FrequentlyAskedQuestion $faq): bool
     {
-        return $this->hasPermission($user, 'content.faq.edit')
+        return $this->hasPermission($user, 'content.edit_any')
             || $user->isCMSEditor();
     }
 
     public function delete(User $user, FrequentlyAskedQuestion $faq): bool
     {
-        return $this->hasPermission($user, 'content.faq.delete')
+        return $this->hasPermission($user, 'content.delete_any')
             || $user->isCMSEditor();
     }
 

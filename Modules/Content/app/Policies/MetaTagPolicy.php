@@ -35,17 +35,17 @@ class MetaTagPolicy
 
     public function create(User $user): bool
     {
-        return $this->hasPermission($user, 'content.meta_tag.create');
+        return $this->hasPermission($user, 'content.create');
     }
 
     public function update(User $user, MetaTag $metaTag): bool
     {
-        return $this->hasPermission($user, 'content.meta_tag.edit');
+        return $this->hasPermission($user, 'content.edit_any');
     }
 
     public function delete(User $user, MetaTag $metaTag): bool
     {
-        return $this->hasPermission($user, 'content.meta_tag.delete');
+        return $this->hasPermission($user, 'content.delete_any');
     }
 
     public function restore(User $user): bool

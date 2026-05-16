@@ -21,6 +21,10 @@ class HeroBanner extends Model
         'page_id'
     ];
 
+    public function cmsStatus(): BelongsTo{
+        return $this->belongsTo(CmsStatus::class);
+    }
+
     public function page(): BelongsTo
     {
         return $this->belongsTo(Page::class);

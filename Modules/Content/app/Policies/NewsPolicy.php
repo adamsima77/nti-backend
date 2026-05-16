@@ -31,19 +31,20 @@ class NewsPolicy
 
     public function create(User $user): bool
     {
-        return $this->hasPermission($user, 'content.news.create')
+        return $this->hasPermission($user, 'content.create')
             || $user->isCMSEditor();
     }
 
+
     public function update(User $user, News $news): bool
     {
-        return $this->hasPermission($user, 'content.news.edit')
+        return $this->hasPermission($user, 'content.edit_any')
             || $user->isCMSEditor();
     }
 
     public function delete(User $user, News $news): bool
     {
-        return $this->hasPermission($user, 'content.news.delete')
+        return $this->hasPermission($user, 'content.delete_any')
             || $user->isCMSEditor();
     }
 

@@ -16,6 +16,7 @@ class ContentDatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            CmsStatusSeeder::class,
             PageSeeder::class,
             LanguageSeeder::class,
             CategorySeeder::class,

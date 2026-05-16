@@ -14,7 +14,8 @@ class News extends Model
         'slug',
         'category_id',
         'user_id',
-        'image'
+        'image',
+        'status_id'
     ];
 
     protected $appends = ['image_url'];
@@ -30,6 +31,10 @@ class News extends Model
         }
 
         return Storage::url($this->image);
+    }
+
+    public function cmsStatus(): BelongsTo{
+        return $this->belongsTo(CmsStatus::class);
     }
 
     public function user(): BelongsTo

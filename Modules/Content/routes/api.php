@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Content\Http\Controllers\CategoryController;
+use Modules\Content\Http\Controllers\CmsStatsController;
+use Modules\Content\Http\Controllers\CmsStatusController;
 use Modules\Content\Http\Controllers\ContactSubmissionController;
 use Modules\Content\Http\Controllers\FrequentlyAskedQuestionController;
 use Modules\Content\Http\Controllers\HeroBannerController;
@@ -11,7 +13,9 @@ use Modules\Content\Http\Controllers\NewsController;
 use Modules\Content\Http\Controllers\PartnerController;
 use Modules\Content\Http\Controllers\PartnerReferenceController;
 use Modules\Content\Http\Controllers\SiteMemberController;
+use Modules\Content\Models\CmsStatus;
 
+Route::get('/public/news/lang/{lang}', [NewsController::class, 'fetchByLangPublic']);
 Route::get('/pages/{page}/meta-tags/{lang}', [MetaTagController::class, 'getByPageAndLang']);
 Route::get('partners/fetch-images', [PartnerController::class, 'fetchImages']);
 Route::get('/categories/lang/{lang}', [CategoryController::class, 'fetchByLang']);
@@ -25,7 +29,7 @@ Route::get('/pages/{page}/hero-banner/{lang}', [HeroBannerController::class, 'ge
 Route::get('/pages/{page}/faq/{lang}', [FrequentlyAskedQuestionController::class, 'getByPageAndLang']);
 Route::get('/site-members/lang/{lang}', [SiteMemberController::class, 'fetchByLang']);
 Route::get('/news/slug/{slug}/lang/{lang}', [NewsController::class, 'fetchBySlug']);
-
+Route::get('/news/cms/{id}', [NewsController::class, 'showCms']);
 Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
 Route::apiResource('news', NewsController::class)->only(['index', 'show']);
 Route::apiResource('hero-banners', HeroBannerController::class)->only(['index', 'show']);
@@ -39,8 +43,15 @@ Route::apiResource('contact', ContactSubmissionController::class)
     ->only(['store'])
     ->middleware(['throttle:contact']);
 
+Route::get('/cms-statuses', fn() => response()->json(
+    CmsStatus::select('id', 'name')->get()
+));
 
 Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/publicated-articles', [CmsStatsController::class, 'publicatedArticles']);
+    Route::get('/partner-count', [CmsStatsController::class, 'partnerCount']);
+    Route::get('/faq-count', [CmsStatsController::class, 'faqCount']);
+    Route::get('/concept-count', [CmsStatsController::class, 'conceptCount']);
     Route::apiResource('languages', LanguageController::class);
 
     Route::apiResource('contact', ContactSubmissionController::class)

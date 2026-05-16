@@ -4,6 +4,7 @@ namespace Modules\Content\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -41,9 +42,12 @@ class Partner extends Model
         return $this->hasMany(PartnerTranslation::class);
     }
 
+    public function cmsStatus(): BelongsTo{
+        return $this->belongsTo(CmsStatus::class);
+    }
+
     protected static function newFactory(): PartnersFactory
     {
         return PartnersFactory::new();
     }
 }
-

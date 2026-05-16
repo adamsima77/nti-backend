@@ -4,6 +4,7 @@ namespace Modules\Content\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 // use Modules\Content\Database\Factories\MetaTagFactory;
@@ -16,6 +17,10 @@ class MetaTag extends Model
     protected $fillable = [
         'page_id'
     ];
+
+    public function cmsStatus(): BelongsTo{
+        return $this->belongsTo(CmsStatus::class);
+    }
 
     public function metaTagTranslations(): HasMany{
         return $this->hasMany(MetaTagTranslation::class);

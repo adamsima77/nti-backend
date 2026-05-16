@@ -17,6 +17,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-1',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -24,6 +25,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-2',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -31,6 +33,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-3',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -38,6 +41,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-4',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -45,6 +49,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-5',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -52,6 +57,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-6',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -59,6 +65,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-7',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -66,6 +73,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-8',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -73,6 +81,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-9',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -80,6 +89,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-10',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -87,6 +97,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-11',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -94,6 +105,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-12',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -101,6 +113,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-13',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -108,6 +121,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-14',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -115,13 +129,14 @@ class NewsSeeder extends Seeder
             'slug' => 'news-15',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
         $news16 = News::create([
             'slug' => 'news-16',
             'category_id' => 1,
-            'user_id' => 1,
+            'user_id' => 1,'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -129,13 +144,14 @@ class NewsSeeder extends Seeder
             'slug' => 'news-17',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
         $news18 = News::create([
             'slug' => 'news-18',
             'category_id' => 1,
-            'user_id' => 1,
+            'user_id' => 1,'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -143,6 +159,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-19',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 1,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 
@@ -150,6 +167,7 @@ class NewsSeeder extends Seeder
             'slug' => 'news-20',
             'category_id' => 1,
             'user_id' => 1,
+            'status_id' => 2,
             'image' => 'https://img.freepik.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
         ]);
 

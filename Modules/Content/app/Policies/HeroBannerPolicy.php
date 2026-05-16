@@ -35,19 +35,19 @@ class HeroBannerPolicy
 
     public function create(User $user): bool
     {
-        return $this->hasPermission($user, 'content.hero_banner.create')
+        return $this->hasPermission($user, 'content.create')
             || $user->isCMSEditor();
     }
 
     public function update(User $user, HeroBanner $heroBanner): bool
     {
-        return $this->hasPermission($user, 'content.hero_banner.edit')
+        return $this->hasPermission($user, 'content.edit_any')
             || $user->isCMSEditor();
     }
 
     public function delete(User $user, HeroBanner $heroBanner): bool
     {
-        return $this->hasPermission($user, 'content.hero_banner.delete')
+        return $this->hasPermission($user, 'content.delete_any')
             || $user->isCMSEditor();
     }
 

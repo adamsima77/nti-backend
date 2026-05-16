@@ -22,4 +22,8 @@ class Page extends Model
     {
         return $this->hasMany(HeroBanner::class);
     }
+
+    public function faqs(): HasMany{
+        return $this->hasMany(FrequentlyAskedQuestion::class);
+    }
 }

@@ -44,7 +44,7 @@ class FrequentlyAskedQuestionController extends Controller
             ], Response::HTTP_NOT_FOUND);
         }
 
-        $faq = FrequentlyAskedQuestion::with([
+        $faq = FrequentlyAskedQuestion::with(['page', // FIX LOADING
             'frequentlyAskedQuestionTranslations' => fn ($q) =>
             $q->where('language_id', $languageId)
         ])->get();

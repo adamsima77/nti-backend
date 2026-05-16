@@ -35,19 +35,19 @@ class PartnerPolicy
 
     public function create(User $user): bool
     {
-        return $this->hasPermission($user, 'content.partner.create')
+        return $this->hasPermission($user, 'content.create')
             || $user->isCMSEditor();
     }
 
     public function update(User $user, Partner $partner): bool
     {
-        return $this->hasPermission($user, 'content.partner.edit')
+        return $this->hasPermission($user, 'content.edit_any')
             || $user->isCMSEditor();
     }
 
     public function delete(User $user, Partner $partner): bool
     {
-        return $this->hasPermission($user, 'content.partner.delete')
+        return $this->hasPermission($user, 'content.delete_any')
             || $user->isCMSEditor();
     }
 

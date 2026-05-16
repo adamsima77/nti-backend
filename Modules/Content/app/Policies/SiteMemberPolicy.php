@@ -24,7 +24,8 @@ class SiteMemberPolicy
         return true;
     }
 
-    public function fetchByLanguage(User $user): bool{
+    public function fetchByLanguage(User $user): bool
+    {
         return true;
     }
 
@@ -35,17 +36,17 @@ class SiteMemberPolicy
 
     public function create(User $user): bool
     {
-        return $this->hasPermission($user, 'content.site_member.create');
+        return $this->hasPermission($user, 'content.create');
     }
 
     public function update(User $user, SiteMember $member): bool
     {
-        return $this->hasPermission($user, 'content.site_member.edit');
+        return $this->hasPermission($user, 'content.edit_any');
     }
 
     public function delete(User $user, SiteMember $member): bool
     {
-        return $this->hasPermission($user, 'content.site_member.delete');
+        return $this->hasPermission($user, 'content.delete_any');
     }
 
     public function restore(User $user): bool

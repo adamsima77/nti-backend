@@ -35,19 +35,19 @@ class PartnerReferencePolicy
 
     public function create(User $user): bool
     {
-        return $this->hasPermission($user, 'content.partner_reference.create')
+        return $this->hasPermission($user, 'content.create')
             || $user->isCMSEditor();
     }
 
     public function update(User $user, PartnerReference $partnerReference): bool
     {
-        return $this->hasPermission($user, 'content.partner_reference.edit')
+        return $this->hasPermission($user, 'content.edit_any')
             || $user->isCMSEditor();
     }
 
     public function delete(User $user, PartnerReference $partnerReference): bool
     {
-        return $this->hasPermission($user, 'content.partner_reference.delete')
+        return $this->hasPermission($user, 'content.delete_any')
             || $user->isCMSEditor();
     }
 
