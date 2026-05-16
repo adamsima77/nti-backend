@@ -23,38 +23,54 @@ class StudyProgramController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $this->authorize('create', StudyProgram::class);
 
-        return response()->json([]);
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'unique:study_program,name'],
+        ]);
+
+        $record = StudyProgram::create($validated);
+
+        return response()->json($record, Response::HTTP_CREATED);
     }
 
     /**
      * Show the specified resource.
      */
-    public function show($id)
+    public function show(StudyProgram $record)
     {
-        //
+        $this->authorize('view', $record);
 
-        return response()->json([]);
+        return response()->json($record, Response::HTTP_OK);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, StudyProgram $record)
     {
-        //
+        $this->authorize('update', $record);
 
-        return response()->json([]);
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'unique:study_program,name,' . $record->id],
+        ]);
+
+        $record->update($validated);
+
+        return response()->json($record, Response::HTTP_OK);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id)
+    public function destroy(StudyProgram $record)
     {
-        //
+        $this->authorize('delete', $record);
 
-        return response()->json([]);
+        $record->delete();
+
+        return response()->json([
+            'message' => 'Záznam bol úspešne odstránený.',
+        ], Response::HTTP_OK);
     }
 }

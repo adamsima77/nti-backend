@@ -3,8 +3,13 @@
 namespace Modules\Students\Providers;
 
 use Illuminate\Support\Facades\Gate;
+use Modules\Students\Models\AcademicFlag;
 use Modules\Students\Models\Student;
+use Modules\Students\Models\StudyField;
+use Modules\Students\Models\StudyProgram;
+use Modules\Students\Models\University;
 use Modules\Students\Policies\StudentPolicy;
+use Modules\Students\Policies\StudentProfilePolicy;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
 
@@ -42,5 +47,10 @@ class StudentsServiceProvider extends ModuleServiceProvider
         parent::boot();
 
         Gate::policy(Student::class, StudentPolicy::class);
+
+        Gate::policy(StudyField::class, StudentProfilePolicy::class);
+        Gate::policy(StudyProgram::class, StudentProfilePolicy::class);
+        Gate::policy(University::class, StudentProfilePolicy::class);
+        Gate::policy(AcademicFlag::class, StudentProfilePolicy::class);
     }
 }

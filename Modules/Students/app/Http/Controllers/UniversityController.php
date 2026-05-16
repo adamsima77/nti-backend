@@ -22,38 +22,54 @@ class UniversityController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $this->authorize('create', University::class);
 
-        return response()->json([]);
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'unique:university,name'],
+        ]);
+
+        $record = University::create($validated);
+
+        return response()->json($record, Response::HTTP_CREATED);
     }
 
     /**
      * Show the specified resource.
      */
-    public function show($id)
+    public function show(University $record)
     {
-        //
+        $this->authorize('view', $record);
 
-        return response()->json([]);
+        return response()->json($record, Response::HTTP_OK);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, University $record)
     {
-        //
+        $this->authorize('update', $record);
 
-        return response()->json([]);
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'unique:university,name,' . $record->id],
+        ]);
+
+        $record->update($validated);
+
+        return response()->json($record, Response::HTTP_OK);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id)
+    public function destroy(University $record)
     {
-        //
+        $this->authorize('delete', $record);
 
-        return response()->json([]);
+        $record->delete();
+
+        return response()->json([
+            'message' => 'Záznam bol úspešne odstránený.',
+        ], Response::HTTP_OK);
     }
 }
