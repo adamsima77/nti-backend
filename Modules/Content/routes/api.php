@@ -56,13 +56,13 @@ Route::apiResource('contact', ContactSubmissionController::class)
 Route::get('/cms-statuses', fn() => response()->json(
     CmsStatus::select('id', 'name')->get()
 ));
-
+Route::get('/content-overview', [CmsStatsController::class, 'contentOverview']);
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/publicated-articles', [CmsStatsController::class, 'publicatedArticles']);
     Route::get('/partner-count', [CmsStatsController::class, 'partnerCount']);
     Route::get('/faq-count', [CmsStatsController::class, 'faqCount']);
     Route::get('/concept-count', [CmsStatsController::class, 'conceptCount']);
-    Route::get('/content-overview', [CmsStatsController::class, 'contentOverview']);
+
     Route::apiResource('languages', LanguageController::class);
     Route::get('/last-updated', [CmsStatsController::class, 'lastUpdated']);
 

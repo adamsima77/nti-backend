@@ -55,27 +55,27 @@ class CmsStatsController extends Controller
     {
         $publishedArticles = News::where('status_id', 1)->count();
         $articlesConcept = News::where('status_id', 2)->count();
-        $lastUpdatedArticle = News::orderByDesc('updated_at')->first();
+        $lastUpdatedArticle = News::with(['newsTranslations'])->orderByDesc('updated_at')->first();
 
         $faqPublished = FrequentlyAskedQuestion::where('status_id', 1)->count();
         $faqConcepts = FrequentlyAskedQuestion::where('status_id', 2)->count();
-        $faqLastUpdated = FrequentlyAskedQuestion::orderByDesc('updated_at')->first();
+        $faqLastUpdated = FrequentlyAskedQuestion::with(['frequentlyAskedQuestionTranslations'])->orderByDesc('updated_at')->first();
 
         $heroBannersPublished = HeroBanner::where('status_id', 1)->count();
         $heroBannerConcepts = HeroBanner::where('status_id', 2)->count();
-        $heroBannerLastUpdated = HeroBanner::orderByDesc('updated_at')->first();
+        $heroBannerLastUpdated = HeroBanner::with(['heroBannerTranslations'])->orderByDesc('updated_at')->first();
 
         $metaTagPublished = MetaTag::where('status_id', 1)->count();
         $metaTagConcepts = MetaTag::where('status_id', 2)->count();
-        $metaTagLastUpdated = MetaTag::orderByDesc('updated_at')->first();
+        $metaTagLastUpdated = MetaTag::with(['metaTagTranslations'])->orderByDesc('updated_at')->first();
 
         $partnersPublished = Partner::where('status_id', 1)->count();
         $partnersConcept = Partner::where('status_id', 2)->count();
-        $partnersLastUpdated = Partner::orderByDesc('updated_at')->first();
+        $partnersLastUpdated = Partner::with(['partnerTranslations'])->orderByDesc('updated_at')->first();
 
         $partnerReferencePublished = PartnerReference::where('status_id', 1)->count();
         $partnerReferenceConcepts = PartnerReference::where('status_id', 2)->count();
-        $partnerReferenceLastUpdated = PartnerReference::orderByDesc('updated_at')->first();
+        $partnerReferenceLastUpdated = PartnerReference::with(['partnerReferenceTranslations'])->orderByDesc('updated_at')->first();
 
         return response()->json([
             'news' => [
