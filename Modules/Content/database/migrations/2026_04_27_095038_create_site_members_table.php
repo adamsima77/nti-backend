@@ -13,8 +13,9 @@ return new class extends Migration
     {
         Schema::create('site_members', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('img_url')->nullable();
+            $table->string('name', 255);
+            $table->string('job_position', 255);
+            $table->string('image')->nullable();
             $table->timestamps();
         });
     }

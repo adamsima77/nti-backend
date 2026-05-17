@@ -5,124 +5,220 @@ namespace Modules\Content\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Modules\Content\Models\Language;
-use Modules\Content\Models\SiteMember;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Modules\Content\Models\SiteMember;
+
 class SiteMemberController extends Controller
 {
     use AuthorizesRequests;
+
     /**
-     * Display a listing of the resource.
+     * CMS listing
      */
     public function index()
     {
-        $siteMembers = SiteMember::with(['siteMemberTranslations'])->orderByDesc('created_at')
+        $siteMembers = SiteMember::with('cmsStatus')
+            ->orderByDesc('created_at')
             ->get();
+
         return response()->json($siteMembers, Response::HTTP_OK);
     }
 
-    public function fetchByLang(string $lang){
-        $languageId = Language::where('name', $lang)->value('id');
+    /**
+     * Public listing
+     */
+    public function fetchByLang()
+    {
+        $siteMembers = SiteMember::orderByDesc('created_at')
+            ->paginate(15);
+        return response()->json($siteMembers, Response::HTTP_OK);
+    }
 
-        if (!$languageId) {
+    public function fetchByLangPublic()
+    {
+        $siteMembers = SiteMember::where('status_id', 1)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json($siteMembers, Response::HTTP_OK);
+    }
+
+
+
+    /**
+     * CMS single item
+     */
+    public function showCms(int $id)
+    {
+        $siteMember = SiteMember::with('cmsStatus')
+            ->find($id);
+
+        if (!$siteMember) {
             return response()->json([
-                'message' => 'Language not found!'
+                'message' => 'Site member not found!'
             ], Response::HTTP_NOT_FOUND);
         }
 
-        $siteMembers = SiteMember::with([
-            'siteMemberTranslations' => fn ($q) =>
-            $q->where('language_id', $languageId)
-        ])->get();
-
-        return response()->json($siteMembers, Response::HTTP_OK);
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        $this->authorize('create', SiteMember::class);
-        $validated = $request->validate([
-            'name' =>['required', 'string', 'max:255'],
-            'job_position' =>['required', 'string', 'max:255'],
-            'language_id' => ['required', 'exists:languages,id']
-        ]);
-
-        try{
-            DB::beginTransaction();
-            $siteMember = SiteMember::create(['name' => $validated['name']]);
-            $siteMember->siteMemberTranslations()->create([
-                'job_position' => $validated['job_position'],
-                'language_id' => $validated['language_id']
-            ]);
-            DB::commit();
-            return response(['message' => 'Site member created'], Response::HTTP_CREATED);
-        } catch(\Throwable $e){
-            DB::rollBack();
-            return response()->json(['message' => 'Site member could not be created'], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    /**
-     * Show the specified resource.
-     */
-    public function show($id)
-    {
-        $siteMember = SiteMember::with(['siteMemberTranslations'])->findOrFail($id);
         return response()->json($siteMember, Response::HTTP_OK);
     }
 
     /**
-     * Update the specified resource in storage.
+     * Public single item
      */
-    public function update(Request $request, $id)
+    public function show(int $id)
     {
-        $siteMember = SiteMember::findOrFail($id);
-        $this->authorize('update', $siteMember);
+        $siteMember = SiteMember::where('status_id', 1)
+            ->find($id);
+
+        if (!$siteMember) {
+            return response()->json([
+                'message' => 'Site member not found!'
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        return response()->json($siteMember, Response::HTTP_OK);
+    }
+
+    /**
+     * Store new member
+     */
+    public function store(Request $request)
+    {
+        $this->authorize('create', SiteMember::class);
+
         $validated = $request->validate([
-            'name' =>['required', 'string', 'max:255'],
-            'job_position' =>['required', 'string', 'max:255'],
-            'language_id' => ['required', 'exists:languages,id']
+            'name'         => ['required', 'string', 'max:255'],
+            'job_position' => ['nullable', 'string', 'max:255'],
+            'status_id'    => ['nullable', 'exists:cms_statuses,id'],
+            'image'        => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:4096'],
         ]);
 
-        try{
-            DB::beginTransaction();
-            $siteMember->update(['name' => $validated['name']]);
-            $translation = $siteMember->siteMemberTranslations()
-                ->where('language_id', $validated['language_id'])
-                ->firstOrFail();
+        $imagePath = null;
 
-            $translation->update([
-                'job_position' => $validated['job_position'],
-                'language_id' => $validated['language_id']
+        try {
+            DB::beginTransaction();
+
+            if ($request->hasFile('image')) {
+                $imagePath = $request->file('image')
+                    ->store('site-members', 'public');
+            }
+
+            SiteMember::create([
+                'name'         => $validated['name'],
+                'job_position' => $validated['job_position'] ?? null,
+                'image'        => $imagePath,
+                'status_id'    => $validated['status_id'] ?? null,
             ]);
+
             DB::commit();
-            return response(['message' => 'Site member updated'], Response::HTTP_OK);
-        } catch(\Throwable $e){
+
+            return response()->json([
+                'message' => 'Site member created'
+            ], Response::HTTP_CREATED);
+
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => 'Site member could not be updated'], Response::HTTP_INTERNAL_SERVER_ERROR);
+
+            if ($imagePath) {
+                Storage::disk('public')->delete($imagePath);
+            }
+
+            return response()->json([
+                'message' => 'Site member could not be created',
+                'error' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Update member
      */
-    public function destroy($id)
+    public function update(Request $request, int $id)
     {
         $siteMember = SiteMember::findOrFail($id);
-        $this->authorize('delete', $siteMember);
-        try{
+
+        $this->authorize('update', $siteMember);
+
+        $validated = $request->validate([
+            'name'         => ['required', 'string', 'max:255'],
+            'job_position' => ['nullable', 'string', 'max:255'],
+            'status_id'    => ['nullable', 'exists:cms_statuses,id'],
+            'image'        => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:4096'],
+        ]);
+
+        try {
             DB::beginTransaction();
-            $siteMember->siteMemberTranslations()->delete();
-            $siteMember->delete();
+
+            $memberData = [
+                'name'         => $validated['name'],
+                'job_position' => $validated['job_position'] ?? null,
+                'status_id'    => $validated['status_id'] ?? $siteMember->status_id,
+            ];
+
+            if ($request->hasFile('image')) {
+
+                if ($siteMember->image) {
+                    Storage::disk('public')->delete($siteMember->image);
+                }
+
+                $memberData['image'] = $request->file('image')
+                    ->store('site-members', 'public');
+            }
+
+            $siteMember->update($memberData);
+
             DB::commit();
-            return response(['message' => 'Site member deleted'], Response::HTTP_OK);
-        } catch(\Throwable $e){
+
+            return response()->json([
+                'message' => 'Site member updated'
+            ], Response::HTTP_OK);
+
+        } catch (\Throwable $e) {
+
             DB::rollBack();
-            return response()->json(['message' => 'Site member could not be deleted'], Response::HTTP_INTERNAL_SERVER_ERROR);
+
+            return response()->json([
+                'message' => 'Site member could not be updated',
+                'error' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Delete member
+     */
+    public function destroy(int $id)
+    {
+        $siteMember = SiteMember::findOrFail($id);
+
+        $this->authorize('delete', $siteMember);
+
+        try {
+            DB::beginTransaction();
+
+            if ($siteMember->image) {
+                Storage::disk('public')->delete($siteMember->image);
+            }
+
+            $siteMember->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Site member deleted'
+            ], Response::HTTP_OK);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Site member could not be deleted',
+                'error' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

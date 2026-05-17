@@ -16,6 +16,10 @@ use Modules\Content\Http\Controllers\PartnerReferenceController;
 use Modules\Content\Http\Controllers\SiteMemberController;
 use Modules\Content\Models\CmsStatus;
 
+Route::get('/site-members/cms/{id}', [SiteMemberController::class, 'showCms']);
+Route::get('/public/site-members/lang/{lang}', [SiteMemberController::class, 'fetchByLangPublic']);
+Route::get('/hero-banners/cms/{id}', [HeroBannerController::class, 'showCms']);
+Route::get('/public/pages/{page}/hero-banner/{lang}', [HeroBannerController::class, 'fetchByPageLangPublic']);
 Route::get('/public/pages/{page}/faq/{lang}', [FrequentlyAskedQuestionController::class, 'fetchByPageLangPublic']);
 Route::apiResource('pages', PageController::class)->only(['index']);
 Route::get('/partners/cms/{id}', [PartnerController::class, 'showCms']);
@@ -58,7 +62,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/partner-count', [CmsStatsController::class, 'partnerCount']);
     Route::get('/faq-count', [CmsStatsController::class, 'faqCount']);
     Route::get('/concept-count', [CmsStatsController::class, 'conceptCount']);
+    Route::get('/content-overview', [CmsStatsController::class, 'contentOverview']);
     Route::apiResource('languages', LanguageController::class);
+    Route::get('/last-updated', [CmsStatsController::class, 'lastUpdated']);
 
     Route::apiResource('contact', ContactSubmissionController::class)
         ->only(['index', 'show', 'update', 'destroy']);

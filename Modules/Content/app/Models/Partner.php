@@ -45,7 +45,7 @@ class Partner extends Model
     }
 
     public function cmsStatus(): BelongsTo{
-        return $this->belongsTo(CmsStatus::class);
+        return $this->belongsTo(CmsStatus::class, 'status_id');
     }
 
     protected static function newFactory(): PartnersFactory

@@ -13,23 +13,22 @@ class SiteMemberSeeder extends Seeder
      */
     public function run(): void
     {
-        $memberOne   = SiteMember::create(['name' => 'Michael Doe']);
-        $memberTwo   = SiteMember::create(['name' => 'John Doe']);
-        $memberThree = SiteMember::create(['name' => 'Jane Doe']);
-
-        $memberOne->siteMemberTranslations()->createMany([
-            ['job_position' => 'Backend Developer', 'language_id' => LanguageType::ENGLISH->value],
-            ['job_position' => 'Backend vývojár',   'language_id' => LanguageType::SLOVAK->value],
+        SiteMember::create([
+            'name' => 'Michael Doe',
+            'job_position' => 'Chief Executive Officer',
+            'status_id' => 1,
         ]);
 
-        $memberTwo->siteMemberTranslations()->createMany([
-            ['job_position' => 'Frontend Developer', 'language_id' => LanguageType::ENGLISH->value],
-            ['job_position' => 'Frontend vývojár',   'language_id' => LanguageType::SLOVAK->value],
+        SiteMember::create([
+            'name' => 'John Doe',
+            'job_position' => 'Project Manager',
+            'status_id' => 1,
         ]);
 
-        $memberThree->siteMemberTranslations()->createMany([
-            ['job_position' => 'Fullstack Developer', 'language_id' => LanguageType::ENGLISH->value],
-            ['job_position' => 'Fullstack vývojár',   'language_id' => LanguageType::SLOVAK->value],
+        SiteMember::create([
+            'name' => 'Jane Doe',
+            'job_position' => 'Marketing Specialist',
+            'status_id' => 1,
         ]);
     }
 }
