@@ -33,7 +33,7 @@ class OrganizationController extends Controller
         ], Response::HTTP_OK);
     }
 
-    public function activate(Organization $organization)
+    public function activate(Request $request, Organization $organization)
     {
         $this->authorize('activate', $organization);
 
@@ -49,7 +49,9 @@ class OrganizationController extends Controller
 
         $orgAdmin->setStatus(UserStatus::ACTIVE);
 
-        event(new OrganizationApproved($organization));
+        $langId = $this->getLanguageId($request);
+
+        event(new OrganizationApproved($organization, $langId));
 
         return response()->json([
             'message' => 'Organization has been approved successfully.'
@@ -76,6 +78,7 @@ class OrganizationController extends Controller
             'phone'   => ['required', 'string', 'max:30'],
             'ico'     => ['required', 'string', 'max:30', 'unique:organization,ico'],
             'web_url' => ['required', 'url', 'max:255'],
+            'description' => ['nullable', 'string'],
 
             'address.city'        => ['required', 'string', 'max:120'],
             'address.street'      => ['required', 'string', 'max:120'],
@@ -148,6 +151,7 @@ class OrganizationController extends Controller
             'phone'   => ['sometimes', 'string', 'max:30'],
             'ico'     => ['sometimes', 'string', 'max:30', 'unique:organization,ico,' . $organization->id],
             'web_url' => ['sometimes', 'url', 'max:255'],
+            'description' => ['nullable', 'string'],
 
             'address.city'        => ['sometimes', 'string', 'max:120'],
             'address.street'      => ['sometimes', 'string', 'max:120'],

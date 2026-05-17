@@ -106,6 +106,7 @@ class AuthController extends Controller
             'country'     => ['required', 'string', 'max:255'],
             'sector'      => ['required', 'array'],
             'sector.*'    => ['required', 'integer', 'exists:sector,id'],
+            'description' => ['nullable', 'string'],
         ]);
 
         try {
@@ -123,6 +124,7 @@ class AuthController extends Controller
                 'phone'      => $validated['phone'],
                 'ico'        => $validated['ico'],
                 'web_url'    => $validated['web_url'] ?? null,
+                'description' => $validated['description'] ?? null,
                 'address_id' => $address->id,
             ]);
 

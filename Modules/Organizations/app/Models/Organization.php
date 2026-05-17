@@ -28,6 +28,7 @@ class Organization extends Model
         'phone',
         'ico',
         'web_url',
+        'description',
         'address_id',
     ];
 
