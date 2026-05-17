@@ -13,12 +13,15 @@ use Modules\Content\Models\Language;
 class FrequentlyAskedQuestionController extends Controller
 {
     use AuthorizesRequests;
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $faq = FrequentlyAskedQuestion::with(['frequentlyAskedQuestionTranslations'])->orderByDesc('created_at')->get();
+        $faq = FrequentlyAskedQuestion::with(['frequentlyAskedQuestionTranslations'])
+            ->orderByDesc('created_at')
+            ->get();
         return response()->json($faq, Response::HTTP_OK);
     }
 
@@ -26,16 +29,17 @@ class FrequentlyAskedQuestionController extends Controller
     {
         $languageId = Language::where('name', $lang)->value('id');
 
-        $banner = FrequentlyAskedQuestion::with(['frequentlyAskedQuestionTranslations' => function ($q) use ($languageId) {
+        $faq = FrequentlyAskedQuestion::with(['frequentlyAskedQuestionTranslations' => function ($q) use ($languageId) {
             $q->where('language_id', $languageId);
         }])
             ->where('page_id', $pageId)
             ->get();
 
-        return response()->json($banner, Response::HTTP_OK);
+        return response()->json($faq, Response::HTTP_OK);
     }
 
-    public function fetchByLang(string $lang){
+    public function fetchByLang(string $lang)
+    {
         $languageId = Language::where('name', $lang)->value('id');
 
         if (!$languageId) {
@@ -44,10 +48,50 @@ class FrequentlyAskedQuestionController extends Controller
             ], Response::HTTP_NOT_FOUND);
         }
 
-        $faq = FrequentlyAskedQuestion::with(['page', // FIX LOADING
-            'frequentlyAskedQuestionTranslations' => fn ($q) =>
+        $faq = FrequentlyAskedQuestion::with([
+            'page',
+            'frequentlyAskedQuestionTranslations' => fn($q) =>
             $q->where('language_id', $languageId)
-        ])->get();
+        ])->paginate(15);
+
+        return response()->json($faq, Response::HTTP_OK);
+    }
+
+    public function fetchByPageLangPublic($page, string $lang)
+    {
+        $languageId = Language::where('name', $lang)->value('id');
+
+        if (!$languageId) {
+            return response()->json([
+                'message' => 'Language not found!'
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $faq = FrequentlyAskedQuestion::with([
+            'page',
+            'frequentlyAskedQuestionTranslations' => fn($q) =>
+            $q->where('language_id', $languageId),
+        ])
+            ->where('page_id', $page)
+            ->where('status_id', 1)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json($faq, Response::HTTP_OK);
+    }
+
+    public function showCms(int $id)
+    {
+        $faq = FrequentlyAskedQuestion::with([
+            'page',
+            'frequentlyAskedQuestionTranslations.language',
+        ])->find($id);
+
+        if (!$faq) {
+            return response()->json([
+                'message' => 'FAQ not found!'
+            ], Response::HTTP_NOT_FOUND);
+        }
 
         return response()->json($faq, Response::HTTP_OK);
     }
@@ -58,24 +102,26 @@ class FrequentlyAskedQuestionController extends Controller
     public function store(Request $request)
     {
         $this->authorize('create', FrequentlyAskedQuestion::class);
+
         $validated = $request->validate([
-            'page_id' => ['required', 'exists:pages,id'],
-            'question' => ['required', 'string', 'max:255'],
-            'answer' => ['required', 'string', 'max:3500'],
-            'language_id' => ['required', 'exists:languages,id']
+            'page_id'     => ['required', 'exists:pages,id'],
+            'question'    => ['required', 'string', 'max:255'],
+            'answer'      => ['required', 'string', 'max:3500'],
+            'language_id' => ['required', 'exists:languages,id'],
+            'status_id'   => ['required', 'exists:cms_statuses,id'],
         ]);
 
-        try{
+        try {
             DB::beginTransaction();
-            $faq = FrequentlyAskedQuestion::create(['page_id' => $validated['page_id']]);
+            $faq = FrequentlyAskedQuestion::create(['page_id' => $validated['page_id'], 'status_id' => $validated['status_id']]);
             $faq->frequentlyAskedQuestionTranslations()->create([
-               'question' => $validated['question'],
-               'answer' => $validated['answer'],
-               'language_id' => $validated['language_id']
+                'question'    => $validated['question'],
+                'answer'      => $validated['answer'],
+                'language_id' => $validated['language_id'],
             ]);
             DB::commit();
             return response()->json(['message' => 'FAQ created successfully!'], Response::HTTP_CREATED);
-        } catch(\Throwable $e){
+        } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => 'FAQ could not be created!'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -97,26 +143,29 @@ class FrequentlyAskedQuestionController extends Controller
     {
         $faq = FrequentlyAskedQuestion::with(['frequentlyAskedQuestionTranslations'])->findOrFail($id);
         $this->authorize('update', $faq);
-        $validated = $request->validate([
-            'page_id' => ['required', 'exists:pages,id'],
-            'question' => ['required', 'string', 'max:255'],
-            'answer' => ['required', 'string', 'max:3500'],
-            'language_id' => ['required', 'exists:languages,id']
-        ]);
-        try{
-            DB::beginTransaction();
-            $faq->update(['page_id' => $validated['page_id']]);
-            $translation = $faq->frequentlyAskedQuestionTranslations()
-                ->where('language_id', $validated['language_id'])
-                ->firstOrFail();
 
-            $translation->update([
-                'question' => $validated['question'],
-                'answer' => $validated['answer']
-            ]);
+        $validated = $request->validate([
+            'page_id'     => ['required', 'exists:pages,id'],
+            'question'    => ['required', 'string', 'max:255'],
+            'answer'      => ['required', 'string', 'max:3500'],
+            'language_id' => ['required', 'exists:languages,id'],
+            'status_id'   => ['required', 'exists:cms_statuses,id'],
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $faq->update(['page_id' => $validated['page_id'], 'status_id' => $validated['status_id']]);
+
+            $faq->frequentlyAskedQuestionTranslations()
+                ->updateOrCreate(
+                    ['language_id' => $validated['language_id']],
+                    ['question' => $validated['question'], 'answer' => $validated['answer']],
+                );
+
             DB::commit();
             return response()->json(['message' => 'FAQ updated successfully!'], Response::HTTP_OK);
-        } catch(\Throwable $e){
+        } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => 'FAQ could not be updated!'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -130,13 +179,13 @@ class FrequentlyAskedQuestionController extends Controller
         $faq = FrequentlyAskedQuestion::with(['frequentlyAskedQuestionTranslations'])->findOrFail($id);
         $this->authorize('delete', $faq);
 
-        try{
+        try {
             DB::beginTransaction();
             $faq->frequentlyAskedQuestionTranslations()->delete();
             $faq->delete();
             DB::commit();
             return response()->json(['message' => 'FAQ deleted successfully!'], Response::HTTP_OK);
-        } catch(\Throwable $e){
+        } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => 'FAQ could not be deleted!'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }

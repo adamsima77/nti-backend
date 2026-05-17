@@ -22,6 +22,11 @@ class Language extends Model
         'name'
     ];
 
+    public function frequentlyAskedQuestions(): HasMany
+    {
+        return $this->hasMany(FrequentlyAskedQuestionTranslation::class);
+    }
+
     public function categoryTranslations(): HasMany
     {
         return $this->hasMany(CategoryTranslation::class);

@@ -19,7 +19,9 @@ class Partner extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
-        'image'
+        'name',
+        'image',
+        'status_id',
     ];
 
     protected $appends = ['image_url'];

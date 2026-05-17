@@ -13,7 +13,8 @@ class FrequentlyAskedQuestion extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
-        'page_id'
+        'page_id',
+        'status_id'
     ];
 
     public function frequentlyAskedQuestionTranslations(): HasMany{

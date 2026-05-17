@@ -10,11 +10,17 @@ use Modules\Content\Http\Controllers\HeroBannerController;
 use Modules\Content\Http\Controllers\LanguageController;
 use Modules\Content\Http\Controllers\MetaTagController;
 use Modules\Content\Http\Controllers\NewsController;
+use Modules\Content\Http\Controllers\PageController;
 use Modules\Content\Http\Controllers\PartnerController;
 use Modules\Content\Http\Controllers\PartnerReferenceController;
 use Modules\Content\Http\Controllers\SiteMemberController;
 use Modules\Content\Models\CmsStatus;
 
+Route::get('/public/pages/{page}/faq/{lang}', [FrequentlyAskedQuestionController::class, 'fetchByPageLangPublic']);
+Route::apiResource('pages', PageController::class)->only(['index']);
+Route::get('/partners/cms/{id}', [PartnerController::class, 'showCms']);
+Route::get('/faq/cms/{id}', [FrequentlyAskedQuestionController::class, 'showCms']);
+Route::get('/public/partners/lang/{lang}', [PartnerController::class, 'fetchByLangPublic']);
 Route::get('/public/news/lang/{lang}', [NewsController::class, 'fetchByLangPublic']);
 Route::get('/pages/{page}/meta-tags/{lang}', [MetaTagController::class, 'getByPageAndLang']);
 Route::get('partners/fetch-images', [PartnerController::class, 'fetchImages']);

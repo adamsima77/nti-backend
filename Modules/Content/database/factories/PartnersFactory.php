@@ -19,6 +19,7 @@ class PartnersFactory extends Factory
     public function definition(): array
     {
         return [
+            'name' => 'Testing name',
         ];
     }
 
@@ -31,12 +32,10 @@ class PartnersFactory extends Factory
 
             $partner->partnerTranslations()->createMany([
                 [
-                    'name' => $name,
                     'description' => $description,
                     'language_id' => LanguageType::ENGLISH->value,
                 ],
                 [
-                    'name' => $name,
                     'description' => $description,
                     'language_id' => LanguageType::SLOVAK->value,
                 ],

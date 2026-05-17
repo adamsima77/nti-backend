@@ -24,6 +24,10 @@ class FrequentlyAskedQuestionTranslation extends Model
         return $this->belongsTo(FrequentlyAskedQuestion::class);
     }
 
+    public function language(): BelongsTo{
+        return $this->belongsTo(Language::class);
+    }
+
     // protected static function newFactory(): FrequentlyAskedQuestionTranslationFactory
     // {
     //     // return FrequentlyAskedQuestionTranslationFactory::new();
