@@ -17,6 +17,8 @@ return new class extends Migration
             $table->foreignId('category_id')->constrained('categories');
             $table->foreignId('language_id')->constrained('languages');
             $table->timestamps();
+
+            $table->unique(['category_id', 'language_id']);
         });
     }
 

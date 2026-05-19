@@ -16,6 +16,9 @@ use Modules\Content\Http\Controllers\PartnerReferenceController;
 use Modules\Content\Http\Controllers\SiteMemberController;
 use Modules\Content\Models\CmsStatus;
 
+Route::get('/partner-references/cms/{id}', [PartnerReferenceController::class, 'showCms']);
+Route::get('/public/partner-references/lang/{lang}', [PartnerReferenceController::class, 'fetchByLangPublic']);
+Route::get('/meta-tags/cms/{id}', [MetaTagController::class, 'showCms']);
 Route::get('/site-members/cms/{id}', [SiteMemberController::class, 'showCms']);
 Route::get('/public/site-members/lang/{lang}', [SiteMemberController::class, 'fetchByLangPublic']);
 Route::get('/hero-banners/cms/{id}', [HeroBannerController::class, 'showCms']);
@@ -76,5 +79,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('partner-references', PartnerReferenceController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('faq', FrequentlyAskedQuestionController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('meta-tags', MetaTagController::class)->only(['store', 'update', 'destroy']);
+
+
     Route::apiResource('site-members', SiteMemberController::class)->only(['store', 'update', 'destroy']);
 });

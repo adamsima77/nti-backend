@@ -22,6 +22,10 @@ class Language extends Model
         'name'
     ];
 
+    public function metaTagTranslations(): HasMany{
+        return $this->hasMany(MetaTagTranslation::class);
+    }
+
     public function frequentlyAskedQuestions(): HasMany
     {
         return $this->hasMany(FrequentlyAskedQuestionTranslation::class);

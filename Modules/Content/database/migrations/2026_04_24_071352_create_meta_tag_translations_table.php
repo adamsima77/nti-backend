@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('meta_tag_translations', function (Blueprint $table) {
             $table->id();
-            $table->string('title');
-            $table->text('description');
+            $table->string('title')->nullable();
+            $table->text('description')->nullable();
             $table->string('og_title')->nullable();
             $table->text('og_description')->nullable();
             $table->string('og_type')->nullable();
@@ -25,6 +25,8 @@ return new class extends Migration
             $table->foreignId('meta_tag_id')->constrained('meta_tags')->onDelete('cascade');
             $table->foreignId('language_id')->constrained('languages')->onDelete('cascade');
             $table->timestamps();
+
+            $table->unique(['meta_tag_id', 'language_id']);
         });
     }
 

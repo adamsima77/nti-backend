@@ -25,7 +25,11 @@ class MetaTagTranslation extends Model
     ];
 
     public function metaTag(): BelongsTo{
-        return $this->belongsTo(MetaTag::class);
+        return $this->belongsTo(MetaTag::class, 'meta_tag_id');
+    }
+
+    public function language(): BelongsTo{
+        return $this->belongsTo(Language::class);
     }
 
     // protected static function newFactory(): MetaTagTranslationFactory

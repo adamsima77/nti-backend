@@ -13,7 +13,9 @@ return new class extends Migration
     {
         Schema::create('partner_references', function (Blueprint $table) {
             $table->id();
-            $table->string('image_url', 255)->nullable();
+            $table->string('name', 255);
+            $table->string('job_position', 255);
+            $table->string('image', 255)->nullable();
             $table->softDeletes();
             $table->timestamps();
         });

@@ -18,6 +18,8 @@ return new class extends Migration
             $table->foreignId('news_id')->constrained()->onDelete('cascade');
             $table->foreignId('language_id')->constrained();
             $table->timestamps();
+
+            $table->unique(['news_id', 'language_id']);
         });
     }
 

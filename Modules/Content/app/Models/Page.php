@@ -26,4 +26,12 @@ class Page extends Model
     public function faqs(): HasMany{
         return $this->hasMany(FrequentlyAskedQuestion::class);
     }
+
+    public function partnerReferences(): HasMany{
+        return $this->hasMany(PartnerReference::class);
+    }
+
+    public function metaTags(): HasMany{
+        return $this->hasMany(MetaTag::class);
+    }
 }

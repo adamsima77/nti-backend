@@ -18,27 +18,23 @@ class PartnerReferenceFactory extends Factory
      */
     public function definition(): array
     {
-        return [];
+        return [
+            'name' => $this->faker->name(),
+            'job_position' => $this->faker->jobTitle()
+        ];
     }
 
     public function configure()
     {
         return $this->afterCreating(function (PartnerReference $partner) {
-
-            $name = $this->faker->company();
-            $job = $this->faker->jobTitle();
             $description = $this->faker->realText(150);
 
             $partner->partnerReferenceTranslations()->createMany([
                 [
-                    'name' => $name,
-                    'job_position' => $job,
                     'description' => $description,
                     'language_id' => LanguageType::ENGLISH->value,
                 ],
                 [
-                    'name' => $name,
-                    'job_position' => $job,
                     'description' => $description,
                     'language_id' => LanguageType::SLOVAK->value,
                 ],

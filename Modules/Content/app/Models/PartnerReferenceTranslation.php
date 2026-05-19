@@ -15,8 +15,6 @@ class PartnerReferenceTranslation extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
-        'name',
-        'job_position',
         'description',
         'partner_reference_id',
         'language_id'

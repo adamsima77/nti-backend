@@ -13,12 +13,12 @@ return new class extends Migration
     {
         Schema::create('partner_reference_translations', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 255);
-            $table->string('job_position', 255);
             $table->text('description');
             $table->foreignId('partner_reference_id')->constrained()->onDelete('cascade');
             $table->foreignId('language_id')->constrained();
             $table->timestamps();
+
+            $table->unique(['partner_reference_id', 'language_id']);
         });
     }
 
