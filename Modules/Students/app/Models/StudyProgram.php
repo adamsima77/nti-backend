@@ -25,6 +25,10 @@ class StudyProgram extends Model
         return $this->hasMany(Student::class, 'study_program_id');
     }
 
+
+    public function studyProgramTranslations(): HasMany{
+        return $this->hasMany(StudyProgramTranslation::class, 'study_program_id');
+    }
     protected static function newFactory(): StudyProgramFactory
     {
         return StudyProgramFactory::new();

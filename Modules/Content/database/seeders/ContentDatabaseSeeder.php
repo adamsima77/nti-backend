@@ -18,7 +18,7 @@ class ContentDatabaseSeeder extends Seeder
         $this->call([
             CmsStatusSeeder::class,
             PageSeeder::class,
-            LanguageSeeder::class,
+            //LanguageSeeder::class,
             CategorySeeder::class,
             HeroBannerSeeder::class,
             FrequentlyAskedQuestionSeeder::class,

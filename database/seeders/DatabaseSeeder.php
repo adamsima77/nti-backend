@@ -3,12 +3,14 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Modules\Content\Database\Seeders\LanguageSeeder;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
         $this->call([
+            LanguageSeeder::class,
             \Modules\IdentityAccess\Database\Seeders\IdentityAccessDatabaseSeeder::class,
             \Modules\Content\Database\Seeders\ContentDatabaseSeeder::class,
             \Modules\Programs\Database\Seeders\ProgramsDatabaseSeeder::class,

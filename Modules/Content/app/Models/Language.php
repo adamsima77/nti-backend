@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Organizations\Models\SectorTranslation;
 use Modules\Programs\Models\CallTranslation;
 use Modules\Programs\Models\CriterionTranslation;
+use Modules\Students\Models\StudyFieldTranslation;
+use Modules\Students\Models\StudyProgramTranslation;
+use Modules\Students\Models\StudyYearTranslation;
 
 // use Modules\Content\Database\Factories\LanguageFactory;
 
@@ -66,6 +69,18 @@ class Language extends Model
 
     public function criterionTranslations(): HasMany{
         return $this->hasMany(CriterionTranslation::class);
+    }
+
+    public function studyFieldTranslations(): HasMany{
+        return $this->hasMany(StudyFieldTranslation::class);
+    }
+
+    public function studyProgramTranslations(): HasMany{
+        return $this->hasMany(StudyProgramTranslation::class);
+    }
+
+    public function studyYearTranslations(): HasMany{
+        return $this->hasMany(StudyYearTranslation::class);
     }
 
     // protected static function newFactory(): LanguageFactory

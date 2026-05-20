@@ -3,6 +3,7 @@
 namespace Modules\IdentityAccess\Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Modules\Content\Enums\LanguageType;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\IdentityAccess\Models\Role;
 use Modules\IdentityAccess\Models\User;
@@ -14,21 +15,9 @@ use Modules\Students\Models\StudyYear;
 use Modules\Applications\Models\Document;
 use Modules\Applications\Models\SecurityClassification;
 
-/**
- * Deterministický študentský účet na lokálne testovanie (login, /auth/me, tímy, prihlášky).
- *
- * Spustenie samostatne:
- *   php artisan db:seed --class="Modules\\IdentityAccess\\Database\\Seeders\\DemoStudentUserSeeder"
- *
- * Prihlásenie cez API vyžaduje overený e-mail a aktívny status — oboje seeder nastaví.
- * Frontend login môže stále vyžadovať Turnstile; pri teste API použite Sanctum token z Postmanu
- * alebo dočasne vypnite validáciu v dev.
- */
 class DemoStudentUserSeeder extends Seeder
 {
     public const EMAIL = 'jan.novak@test.nti.local';
-
-    /** Heslo spĺňa bežné pravidlá (veľké/malé, číslo, symbol). */
     public const PASSWORD = 'Password123!';
 
     public function run(): void
@@ -36,35 +25,62 @@ class DemoStudentUserSeeder extends Seeder
         $role = Role::query()->where('name', 'student')->first();
 
         if (! $role) {
-            $this->command?->error('Demo študent: rola `student` neexistuje. Najprv spustite RoleSeeder (IdentityAccessDatabaseSeeder).');
-
+            $this->command?->error('Role `student` does not exist.');
             return;
         }
 
         $user = User::query()->updateOrCreate(
             ['email' => self::EMAIL],
             [
-                'name'          => 'Ján',
-                'surname'       => 'Novák',
-                'password'      => self::PASSWORD,
-                'status_id'     => UserStatus::ACTIVE->value,
-                'job_position'  => 'Študent (demo)',
+                'name'         => 'Ján',
+                'surname'      => 'Novák',
+                'password'     => self::PASSWORD,
+                'status_id'    => UserStatus::ACTIVE->value,
+                'job_position' => 'Študent (demo)',
             ]
         );
 
         $user->forceFill(['email_verified_at' => now()])->saveQuietly();
-
         $user->roles()->sync([$role->id]);
 
-        // Ensure student-related reference data exists and pick sensible defaults
-        $studyProgram = StudyProgram::first() ?? StudyProgram::create(['name' => 'Informatika']);
-        $studyField = StudyField::first() ?? StudyField::create(['name' => 'Softvérové inžinierstvo']);
-        $university = University::first() ?? University::create(['name' => 'Univerzita testovacia']);
-        $studyYear = StudyYear::first() ?? StudyYear::create(['name' => '1. ročník (Bc.)']);
+        /*
+        |--------------------------------------------------------------------------
+        | STUDENT RELATIONS
+        |--------------------------------------------------------------------------
+        */
 
-        // Create a minimal CV document so cv_document_id satisfies DB constraints
-        $securityClassification = SecurityClassification::where('name', 'internal')->first()
-            ?? SecurityClassification::first()
+        $studyProgram = $this->firstOrCreateTranslated(
+            StudyProgram::class,
+            'studyProgramTranslations',
+            'Informatika',
+            'Computer Science'
+        );
+
+        $studyField = $this->firstOrCreateTranslated(
+            StudyField::class,
+            'studyFieldTranslations',
+            'Softvérové inžinierstvo',
+            'Software Engineering'
+        );
+
+        $university = University::firstOrCreate(
+            ['name' => 'Univerzita testovacia']
+        );
+
+        $studyYear = $this->firstOrCreateTranslated(
+            StudyYear::class,
+            'studyYearTranslations',
+            '1. ročník (Bc.)',
+            '1st year (Bachelor)'
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | DOCUMENT (CV)
+        |--------------------------------------------------------------------------
+        */
+
+        $securityClassification = SecurityClassification::first()
             ?? SecurityClassification::create(['name' => 'internal']);
 
         $cv = Document::query()->firstOrCreate(
@@ -72,8 +88,13 @@ class DemoStudentUserSeeder extends Seeder
             ['security_classification_id' => $securityClassification->id]
         );
 
-        // Create or update student profile with as many fields filled as possible
-        $student = Student::query()->updateOrCreate(
+        /*
+        |--------------------------------------------------------------------------
+        | STUDENT PROFILE
+        |--------------------------------------------------------------------------
+        */
+
+        Student::query()->updateOrCreate(
             ['user_id' => $user->id],
             [
                 'study_program_id' => $studyProgram->id,
@@ -85,22 +106,60 @@ class DemoStudentUserSeeder extends Seeder
             ]
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | OUTPUT
+        |--------------------------------------------------------------------------
+        */
+
         $this->command?->newLine();
-        $this->command?->info('Demo študent vytvorený / aktualizovaný:');
+        $this->command?->info('Demo student created/updated:');
+
         $this->command?->table(
-            ['Údaj', 'Hodnota'],
+            ['Field', 'Value'],
             [
-                ['E-mail', self::EMAIL],
-                ['Heslo', self::PASSWORD],
-                ['Meno', 'Ján Novák'],
-                ['Škola', $university->name],
-                ['Ročník', $studyYear->name],
-                ['Program', $studyProgram->name],
-                ['Odbor', $studyField->name],
+                ['Email', self::EMAIL],
+                ['Password', self::PASSWORD],
+                ['Name', 'Ján Novák'],
+                ['University', 'Test University'],
+                ['Year', '1st year (Bachelor)'],
+                ['Program', 'Computer Science'],
+                ['Field', 'Software Engineering'],
                 ['Portfolio', 'https://portfolio.example/jan-novak'],
                 ['Status', 'active (verified email)'],
-                ['Rola', 'student'],
+                ['Role', 'student'],
             ]
         );
+    }
+
+    /**
+     * Create entity with model-specific translations.
+     */
+    private function firstOrCreateTranslated(
+        string $model,
+        string $relation,
+        string $sk,
+        string $en
+    ) {
+        $existing = $model::has($relation)->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $entity = $model::create();
+
+        $entity->{$relation}()->createMany([
+            [
+                'language_id' => LanguageType::SLOVAK,
+                'name' => $sk,
+            ],
+            [
+                'language_id' => LanguageType::ENGLISH,
+                'name' => $en,
+            ],
+        ]);
+
+        return $entity;
     }
 }

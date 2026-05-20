@@ -5,6 +5,7 @@ namespace Modules\Students\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Modules\Content\Models\Language;
 use Modules\Students\Models\StudyField;
 
 class StudyFieldController extends Controller
@@ -14,8 +15,23 @@ class StudyFieldController extends Controller
      */
     public function index()
     {
-        $fields = StudyField::orderByDesc('created_at')->get();
+        $fields = StudyField::with(['studyFieldTranslations'])->orderByDesc('created_at')->get();
         return response()->json($fields, Response::HTTP_OK);
+    }
+
+    public function fetchByLangPublic(string $lang){
+        $lang = Language::where('name', $lang)->value('id');
+        if(!$lang){
+            return response()->json(['message' => 'Language not found !'], Response::HTTP_NOT_FOUND);
+        }
+
+        $studyFields = StudyField::with([
+            'studyFieldTranslations' => function ($q) use ($lang) {
+                $q->where('language_id', $lang);
+            }
+        ])->get();
+
+        return response()->json($studyFields, Response::HTTP_OK);
     }
 
     /**

@@ -23,6 +23,10 @@ class StudyYear extends Model
         return $this->hasMany(Student::class, 'study_year_id');
     }
 
+    public function studyYearTranslations(): HasMany{
+        return $this->hasMany(StudyYearTranslation::class);
+    }
+
     // protected static function newFactory(): StudyYearFactory
     // {
     //     // return StudyYearFactory::new();

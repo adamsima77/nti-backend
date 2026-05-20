@@ -25,6 +25,10 @@ class StudyField extends Model
         return $this->hasMany(Student::class, 'study_field_id');
     }
 
+    public function studyFieldTranslations(): HasMany{
+        return $this->hasMany(StudyFieldTranslation::class, 'study_field_id');
+    }
+
     protected static function newFactory(): StudyFieldFactory
     {
         return StudyFieldFactory::new();

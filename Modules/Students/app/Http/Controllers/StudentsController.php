@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Modules\Content\Models\Language;
 use Modules\Students\Models\Student;
 
 class StudentsController extends Controller
@@ -18,15 +19,28 @@ class StudentsController extends Controller
      */
     public function showMe(Request $request)
     {
+        $langCode =
+            $request->cookie('i18n_redirected')
+            ?? $request->header('accept-language')
+            ?? 'sk';
+
+        $langId = Language::where('name', $langCode)->value('id');
+
         $student = Student::query()
             ->where('user_id', $request->user()->id)
             ->with([
                 'user',
-                'studyProgram',
-                'studyField',
+                'studyProgram.studyProgramTranslations' => function ($q) use ($langId) {
+                    $q->where('language_id', $langId);
+                },
+                'studyField.studyFieldTranslations' => function ($q) use ($langId) {
+                    $q->where('language_id', $langId);
+                },
                 'university',
+                'studyYear.studyYearTranslations' => function ($q) use ($langId) {
+                    $q->where('language_id', $langId);
+                },
                 'academicFlags',
-                'studyYear',
             ])
             ->first();
 
@@ -38,6 +52,7 @@ class StudentsController extends Controller
 
         return response()->json([
             'student' => $student,
+            'lang'=> $langId
         ], Response::HTTP_OK);
     }
 

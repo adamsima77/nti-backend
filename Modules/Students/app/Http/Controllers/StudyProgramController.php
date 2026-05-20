@@ -5,6 +5,7 @@ namespace Modules\Students\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Modules\Content\Models\Language;
 use Modules\Students\Models\StudyProgram;
 
 class StudyProgramController extends Controller
@@ -14,8 +15,23 @@ class StudyProgramController extends Controller
      */
     public function index()
     {
-        $programs = StudyProgram::orderByDesc('created_at')->get();
+        $programs = StudyProgram::with(['studyProgramTranslations'])->orderByDesc('created_at')->get();
         return response()->json($programs, Response::HTTP_OK);
+    }
+
+    public function fetchByLangPublic(string $lang){
+        $lang = Language::where('name', $lang)->value('id');
+        if(!$lang){
+            return response()->json(['message' => 'Language not found !'], Response::HTTP_NOT_FOUND);
+        }
+
+        $studyPrograms = StudyProgram::with([
+            'studyProgramTranslations' => function ($q) use ($lang) {
+                $q->where('language_id', $lang);
+            }
+        ])->get();
+
+        return response()->json($studyPrograms, Response::HTTP_OK);
     }
 
     /**
