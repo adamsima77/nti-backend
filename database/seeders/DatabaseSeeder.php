@@ -13,13 +13,13 @@ class DatabaseSeeder extends Seeder
             LanguageSeeder::class,
             \Modules\IdentityAccess\Database\Seeders\IdentityAccessDatabaseSeeder::class,
             \Modules\Content\Database\Seeders\ContentDatabaseSeeder::class,
-            \Modules\Programs\Database\Seeders\ProgramsDatabaseSeeder::class,
-            \Modules\Evaluation\Database\Seeders\EvaluationDatabaseSeeder::class,
-            \Modules\Applications\Database\Seeders\ApplicationsDatabaseSeeder::class,
-            \Modules\Mentorship\Database\Seeders\MentorshipDatabaseSeeder::class,
-            \Modules\Organizations\Database\Seeders\OrganizationsDatabaseSeeder::class,
             \Modules\Students\Database\Seeders\StudentsDatabaseSeeder::class,
             \Modules\Teams\Database\Seeders\TeamsDatabaseSeeder::class,
+            \Modules\Organizations\Database\Seeders\OrganizationsDatabaseSeeder::class,
+            \Modules\Applications\Database\Seeders\ApplicationsDatabaseSeeder::class,
+            \Modules\Programs\Database\Seeders\ProgramsDatabaseSeeder::class,
+            //\Modules\Mentorship\Database\Seeders\MentorshipDatabaseSeeder::class, //Seeder bug add migrations
+            \Modules\Evaluation\Database\Seeders\EvaluationDatabaseSeeder::class,
             \Modules\Notifications\Database\Seeders\NotificationsDatabaseSeeder::class,
         ]);
     }
