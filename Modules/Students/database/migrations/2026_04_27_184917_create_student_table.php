@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::create('student', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('user_id');
-            $table->unsignedInteger('study_program_id');
-            $table->unsignedInteger('study_field_id');
-            $table->unsignedInteger('university_id');
-            $table->unsignedBigInteger('cv_document_id');
+            $table->unsignedInteger('study_program_id')->nullable();
+            $table->unsignedInteger('study_field_id')->nullable();   // nullable: may not always be set
+            $table->unsignedInteger('university_id')->nullable();    // nullable: may not always be set
+            $table->unsignedBigInteger('cv_document_id')->nullable();
             $table->string('portfolio_url', 255)->nullable();
             $table->timestamps();
 
@@ -42,6 +42,7 @@ return new class extends Migration
             $table->foreign('cv_document_id')
                 ->references('id')
                 ->on('document');
+
         });
     }
 

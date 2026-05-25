@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('organization', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('name', 255);
-            $table->string('phone', 30);
-            $table->string('ico', 30);
+            $table->string('phone', 30)->nullable();
+            $table->string('ico', 30)->nullable();
             $table->string('web_url', 255)->nullable();
             $table->text('description')->nullable();
             $table->unsignedBigInteger('address_id');

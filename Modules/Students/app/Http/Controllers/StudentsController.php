@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Modules\Content\Models\Language;
+use Modules\IdentityAccess\Models\User;
 use Modules\Students\Models\Student;
 
 class StudentsController extends Controller
@@ -52,7 +53,7 @@ class StudentsController extends Controller
 
         return response()->json([
             'student' => $student,
-            'lang'=> $langId
+            'lang'    => $langId,
         ], Response::HTTP_OK);
     }
 
@@ -68,6 +69,7 @@ class StudentsController extends Controller
             'studyProgram',
             'studyField',
             'university',
+            'studyYear',
             'academicFlags',
         ])->get();
 
@@ -77,59 +79,72 @@ class StudentsController extends Controller
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        return view('students::create');
-    }
-
-    /**
      * Store a newly created resource in storage.
+     *
+     * Self-registration flow: no user_id needed — creates the profile for
+     * the authenticated user via the hasOne relation.
+     *
+     * Admin flow: called internally from UserController after creating the
+     * user, passing the new User model directly — no user_id from frontend.
      */
     public function store(Request $request)
     {
         $this->authorize('create', Student::class);
 
         $validated = $request->validate([
-            'study_program_id' => ['required', 'integer', 'exists:study_program,id'],
-            'study_field_id'   => ['required', 'integer', 'exists:study_field,id'],
-            'university_id'    => ['required', 'integer', 'exists:university,id'],
-            'year_of_study'    => ['required', 'integer', 'min:1', 'max:6'],
+            'study_program_id' => ['required', 'integer'],
+            'study_field_id'   => ['nullable', 'integer'],
+            'university_id'    => ['nullable', 'integer'],
+            'study_year_id'    => ['nullable', 'integer'],
             'portfolio_url'    => ['nullable', 'url', 'max:255'],
             'academic_flags'   => ['nullable', 'array'],
-            'academic_flags.*' => ['integer', 'exists:academic_flags,id'],
+            'academic_flags.*' => ['integer'],
         ]);
 
-        $userId = $request->user()->id;
+        $user = $request->user();
 
-        if (Student::where('user_id', $userId)->exists()) {
+        if ($user->student()->exists()) {
             return response()->json([
                 'message' => 'Študentský profil pre tohto používateľa už existuje.',
             ], Response::HTTP_CONFLICT);
         }
 
-        $student = DB::transaction(function () use ($validated, $userId) {
-            $student = Student::create([
-                'user_id'          => $userId,
-                'study_program_id' => $validated['study_program_id'],
-                'study_field_id'   => $validated['study_field_id'],
-                'university_id'    => $validated['university_id'],
-                'year_of_study'    => $validated['year_of_study'],
-                'portfolio_url'    => $validated['portfolio_url'] ?? null,
+        $student = $this->createStudentForUser($user, $validated);
+
+        return response()->json([
+            'message' => 'Študentský profil bol úspešne vytvorený.',
+            'student' => $student->load('studyProgram', 'studyField', 'university', 'studyYear', 'academicFlags'),
+        ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Create a student profile for a given User model.
+     * Used both by store() (self-registration) and UserController (admin flow).
+     * No user_id is ever taken from request input.
+     */
+    public function createForUser(User $user, array $data): Student
+    {
+        return $this->createStudentForUser($user, $data);
+    }
+
+    private function createStudentForUser(User $user, array $data): Student
+    {
+        return DB::transaction(function () use ($user, $data) {
+            // Create via relation — user_id is set automatically by Eloquent
+            $student = $user->student()->create([
+                'study_program_id' => $data['study_program_id'],
+                'study_field_id'   => $data['study_field_id']  ?? null,
+                'university_id'    => $data['university_id']   ?? null,
+                'study_year_id'    => $data['study_year_id']   ?? null,
+                'portfolio_url'    => $data['portfolio_url']   ?? null,
             ]);
 
-            if (!empty($validated['academic_flags'])) {
-                $student->academicFlags()->attach($validated['academic_flags']);
+            if (!empty($data['academic_flags'])) {
+                $student->academicFlags()->attach($data['academic_flags']);
             }
 
             return $student;
         });
-
-        return response()->json([
-            'message' => 'Študentský profil bol úspešne vytvorený.',
-            'student' => $student->load('studyProgram', 'studyField', 'university', 'academicFlags'),
-        ], Response::HTTP_CREATED);
     }
 
     /**
@@ -145,17 +160,10 @@ class StudentsController extends Controller
                 'studyProgram',
                 'studyField',
                 'university',
+                'studyYear',
                 'academicFlags',
             ]),
         ], Response::HTTP_OK);
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit($id)
-    {
-        return view('students::edit');
     }
 
     /**
@@ -166,13 +174,14 @@ class StudentsController extends Controller
         $this->authorize('update', $student);
 
         $validated = $request->validate([
-            'study_program_id' => ['sometimes', 'integer', 'exists:study_program,id'],
-            'study_field_id'   => ['sometimes', 'integer', 'exists:study_field,id'],
-            'university_id'    => ['sometimes', 'integer', 'exists:university,id'],
-            'year_of_study'    => ['sometimes', 'integer', 'min:1', 'max:6'],
+            'study_program_id' => ['sometimes', 'integer'],
+            'study_field_id'   => ['sometimes', 'nullable', 'integer'],
+            'university_id'    => ['sometimes', 'nullable', 'integer'],
+            'study_year_id'    => ['sometimes', 'nullable', 'integer'],
             'portfolio_url'    => ['nullable', 'url', 'max:255'],
+            'cv_document_id'   => ['nullable', 'integer'],
             'academic_flags'   => ['nullable', 'array'],
-            'academic_flags.*' => ['integer', 'exists:academic_flags,id'],
+            'academic_flags.*' => ['integer'],
         ]);
 
         DB::transaction(function () use ($validated, $student) {
@@ -185,7 +194,7 @@ class StudentsController extends Controller
 
         return response()->json([
             'message' => 'Študentský profil bol úspešne aktualizovaný.',
-            'student' => $student->fresh()->load('studyProgram', 'studyField', 'university', 'academicFlags'),
+            'student' => $student->fresh()->load('studyProgram', 'studyField', 'university', 'studyYear', 'academicFlags'),
         ], Response::HTTP_OK);
     }
 

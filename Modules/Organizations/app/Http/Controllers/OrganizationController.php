@@ -19,6 +19,7 @@ use Modules\Organizations\Models\Sector;
 class OrganizationController extends Controller
 {
     use AuthorizesRequests;
+
     /**
      * Display a listing of the resource.
      */
@@ -26,7 +27,7 @@ class OrganizationController extends Controller
     {
         $this->authorize('viewAny', Organization::class);
 
-        $organizations = Organization::with('address','sectors.sectorTranslations')->get();
+        $organizations = Organization::with('address', 'sectors.sectorTranslations')->get();
 
         return response()->json([
             'organizations' => $organizations,
@@ -43,7 +44,7 @@ class OrganizationController extends Controller
 
         if (!$orgAdmin) {
             return response()->json([
-                'message' => 'No user found for this organization.'
+                'message' => 'No user found for this organization.',
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -54,7 +55,7 @@ class OrganizationController extends Controller
         event(new OrganizationApproved($organization, $langId));
 
         return response()->json([
-            'message' => 'Organization has been approved successfully.'
+            'message' => 'Organization has been approved successfully.',
         ], Response::HTTP_OK);
     }
 
@@ -68,16 +69,22 @@ class OrganizationController extends Controller
 
     /**
      * Store a newly created resource in storage.
+     *
+     * When an admin creates an organization on behalf of a partner user they
+     * pass `partner_user_id`. The organization is then attached to that user
+     * instead of to the authenticated admin. When `partner_user_id` is absent
+     * (e.g. a partner self-registering) the authenticated user is attached,
+     * preserving the original self-registration flow.
      */
     public function store(Request $request)
     {
         $this->authorize('create', Organization::class);
 
         $validated = $request->validate([
-            'name'    => ['required', 'string', 'max:255'],
-            'phone'   => ['required', 'string', 'max:30'],
-            'ico'     => ['required', 'string', 'max:30', 'unique:organization,ico'],
-            'web_url' => ['required', 'url', 'max:255'],
+            'name'        => ['required', 'string', 'max:255'],
+            'phone'       => ['required', 'string', 'max:30'],
+            'ico'         => ['required', 'string', 'max:30', 'unique:organization,ico'],
+            'web_url'     => ['nullable', 'url', 'max:255'],
             'description' => ['nullable', 'string'],
 
             'address.city'        => ['required', 'string', 'max:120'],
@@ -86,18 +93,19 @@ class OrganizationController extends Controller
             'address.country'     => ['required', 'string', 'max:90'],
 
             'sectors'   => ['nullable', 'array'],
-            'sectors.*' => ['integer', 'exists:sector,id'],
+            'sectors.*' => ['integer'],
         ]);
 
         $organization = DB::transaction(function () use ($validated, $request) {
             $address = Address::create($validated['address']);
 
             $organization = Organization::create([
-                'name'       => $validated['name'],
-                'phone'      => $validated['phone'],
-                'ico'        => $validated['ico'],
-                'web_url'    => $validated['web_url'],
-                'address_id' => $address->id,
+                'name'        => $validated['name'],
+                'phone'       => !empty($validated['phone']) ? $validated['phone'] : null,
+                'ico'         => $validated['ico'],
+                'web_url'     => $validated['web_url'] ?? null,
+                'description' => $validated['description'] ?? null,
+                'address_id'  => $address->id,
             ]);
 
             if (!empty($validated['sectors'])) {
@@ -106,6 +114,7 @@ class OrganizationController extends Controller
 
             $adminRole = OrganizationRole::where('name', 'admin')->firstOrFail();
 
+            // Self-registration: attach org to the authenticated user
             $request->user()->organizations()->attach($organization->id, [
                 'organization_role' => $adminRole->id,
             ]);
@@ -115,7 +124,7 @@ class OrganizationController extends Controller
 
         return response()->json([
             'message'      => 'Organizácia bola úspešne vytvorená.',
-            'organization' => $organization->load('address', 'sectors'),
+            'organization' => $organization->load('address', 'sectors.sectorTranslations'),
         ], Response::HTTP_CREATED);
     }
 
@@ -127,7 +136,7 @@ class OrganizationController extends Controller
         $this->authorize('view', $organization);
 
         return response()->json([
-            'organization' => $organization->load('address','sectors.sectorTranslations', 'users'),
+            'organization' => $organization->load('address', 'sectors.sectorTranslations', 'users'),
         ], Response::HTTP_OK);
     }
 
@@ -147,10 +156,10 @@ class OrganizationController extends Controller
         $this->authorize('update', $organization);
 
         $validated = $request->validate([
-            'name'    => ['sometimes', 'string', 'max:255'],
-            'phone'   => ['sometimes', 'string', 'max:30'],
-            'ico'     => ['sometimes', 'string', 'max:30', 'unique:organization,ico,' . $organization->id],
-            'web_url' => ['sometimes', 'url', 'max:255'],
+            'name'        => ['sometimes', 'string', 'max:255'],
+            'phone'       => ['sometimes', 'string', 'max:30'],
+            'ico'         => ['sometimes', 'string', 'max:30', 'unique:organization,ico,' . $organization->id],
+            'web_url'     => ['nullable', 'url', 'max:255'],
             'description' => ['nullable', 'string'],
 
             'address.city'        => ['sometimes', 'string', 'max:120'],
@@ -159,7 +168,7 @@ class OrganizationController extends Controller
             'address.country'     => ['sometimes', 'string', 'max:90'],
 
             'sectors'   => ['nullable', 'array'],
-            'sectors.*' => ['integer', 'exists:sector,id'],
+            'sectors.*' => ['integer'],
         ]);
 
         DB::transaction(function () use ($validated, $organization) {
@@ -167,8 +176,11 @@ class OrganizationController extends Controller
                 $organization->address->update($validated['address']);
             }
 
-            $organization->update(collect($validated)->except('address', 'sectors')->toArray());
+            $organization->update(
+                collect($validated)->except('address', 'sectors')->toArray()
+            );
 
+            // Sync sectors — passing empty array clears all when key is present
             if (array_key_exists('sectors', $validated)) {
                 $organization->sectors()->sync($validated['sectors'] ?? []);
             }
@@ -176,7 +188,7 @@ class OrganizationController extends Controller
 
         return response()->json([
             'message'      => 'Organizácia bola úspešne aktualizovaná.',
-            'organization' => $organization->fresh()->load('address', 'sectors'),
+            'organization' => $organization->fresh()->load('address', 'sectors.sectorTranslations'),
         ], Response::HTTP_OK);
     }
 

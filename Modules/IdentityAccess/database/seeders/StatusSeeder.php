@@ -18,5 +18,6 @@ class StatusSeeder extends Seeder
         Status::create(['name' => 'inactive']);
         Status::create(['name' => 'banned']);
         Status::create(['name' => 'pending_approval']);
+        Status::create(['name' => 'anonymized']);
     }
 }

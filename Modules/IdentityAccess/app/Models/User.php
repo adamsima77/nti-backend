@@ -1,6 +1,7 @@
 <?php
 
 namespace Modules\IdentityAccess\Models;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -21,6 +22,7 @@ use Modules\Notifications\Emails\VerifyEmailMail;
 use Modules\Notifications\Notifications\VerifyEmail as VerifyEmailNotification;
 use Modules\Organizations\Models\Organization;
 use Modules\Organizations\Models\UserOrganization;
+use Modules\Students\Models\Student;
 use Modules\Teams\Models\Team;
 use Modules\Teams\Models\TeamMember;
 
@@ -91,6 +93,11 @@ class User extends Authenticatable
     public function newsTranslations(): HasMany
     {
         return $this->hasMany(NewsTranslation::class);
+    }
+
+    public function student(): HasOne
+    {
+        return $this->hasOne(Student::class, 'user_id');
     }
 
     public function organizations(): BelongsToMany

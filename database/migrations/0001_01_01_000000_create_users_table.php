@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('avatar', 255)->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
+            $table->timestamp('anonymized_at')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });

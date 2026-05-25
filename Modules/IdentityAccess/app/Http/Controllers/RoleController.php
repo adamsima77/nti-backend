@@ -18,7 +18,22 @@ class RoleController extends Controller
     public function index()
     {
         $this->authorize('viewAny', Role::class);
-        $roles = Role::paginate(15);
+        $roles = Role::whereNotIn('name', [
+            'nti_superadmin',
+            'nti_admin',
+            'guest',
+            'team_leader'
+        ])->get();
+        return response()->json(['roles' => $roles], Response::HTTP_OK);
+    }
+
+    public function fetchForSuperAdmin(){
+        $this->authorize('viewAny', Role::class);
+        $roles = Role::whereNotIn('name',[
+            'nti_superadmin',
+            'guest',
+            'team_leader'
+        ])->get();
         return response()->json(['roles' => $roles], Response::HTTP_OK);
     }
 

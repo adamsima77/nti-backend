@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\PersonalAccessToken;
 use Modules\IdentityAccess\Http\Controllers\ConsentTypeController;
 use Modules\IdentityAccess\Http\Controllers\RoleController;
 use Modules\IdentityAccess\Http\Controllers\StatusController;
@@ -9,7 +10,7 @@ use Modules\IdentityAccess\Http\Controllers\UserController;
 use Modules\IdentityAccess\Http\Controllers\AuthController;
 use Modules\Organizations\Http\Controllers\OrganizationController;
 use Modules\Reporting\Http\Controllers\ExportController;
-
+use Illuminate\Http\Request;
 Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login'])
         ->middleware('throttle:auth.login');
@@ -24,7 +25,6 @@ Route::prefix('auth')->group(function () {
         ->name('verification.verify');
 });
 
-
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/me', [AuthController::class, 'me']);
@@ -32,20 +32,22 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('auth/student-onboarding', [AuthController::class, 'studentOnboarding']);
 });
 
-Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('users/{user}/pdf', [ExportController::class, 'userPdf'])->name('users.pdf');
     Route::get('users/export/{format?}', [ExportController::class, 'users'])->name('users.export');
     // POST: multipart súborov — PUT s FormData v PHP často nevyplní $_FILES; profilová fotka ide cez túto cestu.
-    Route::post('users/{user}/avatar', [UserController::class, 'uploadAvatar']);
-    Route::apiResource('users', UserController::class)->only(['index', 'show', 'update', 'destroy']);
+    Route::post('users/{user}/avatar',       [UserController::class, 'uploadAvatar']);
+    Route::post('users/{user}/student',      [UserController::class, 'createStudentProfile']);
+    Route::post('users/{user}/organization', [UserController::class, 'createOrganizationProfile']);
+    Route::post('/users/anonymize-user/{id}', [UserController::class, 'anonymizeUser']);
+    Route::apiResource('users', UserController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
     Route::apiResource('consent-types', ConsentTypeController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::apiResource('roles', RoleController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::apiResource('statuses', StatusController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::apiResource('user-consents', UserConsentController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
 });
 
-Route::middleware(['auth:sanctum', 'verified'])->group(function () {
-    Route::post('/users/{user}/activate', [UserController::class, 'activate']);
-});
-
 Route::get('fetch-mentors', [UserController::class, 'getMentors']);
+
+
+
