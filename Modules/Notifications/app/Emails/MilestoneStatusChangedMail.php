@@ -18,7 +18,8 @@ class MilestoneStatusChangedMail extends Mailable
         public Milestone $milestone,
         public ?string $oldStatus,
         public ?string $newStatus,
-        public User $user,
+        public User $recipient,
+        public User $changedBy,
         public int $languageId
     ) {}
 
@@ -27,13 +28,16 @@ class MilestoneStatusChangedMail extends Mailable
         $template = EmailTemplate::findBySlug('milestone_status_changed')
             ?->forLanguage($this->languageId);
 
+        $recipientName = trim(($this->recipient->name ?? '').' '.($this->recipient->surname ?? ''));
+        $actorName = trim(($this->changedBy->name ?? '').' '.($this->changedBy->surname ?? ''));
+
         $data = [
-            'userName'      => $this->user->name . ' ' . $this->user->surname,
+            'userName'      => $recipientName !== '' ? $recipientName : ($this->recipient->email ?? ''),
             'milestoneName' => $this->milestone->name,
             'oldStatus'     => $this->oldStatus,
             'newStatus'     => $this->newStatus,
             'deadline'      => optional($this->milestone->deadline)->format('d.m.Y'),
-            'actorName'     => $this->user->name . ' ' . $this->user->surname,
+            'actorName'     => $actorName !== '' ? $actorName : ($this->changedBy->email ?? 'Mentor'),
             'projectId'     => $this->milestone->application?->id,
         ];
 
