@@ -5,6 +5,7 @@ namespace Modules\Notifications\Listeners;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Mail;
+use Modules\Content\Enums\LanguageType;
 use Modules\Notifications\Emails\SendWelcomeToOrg;
 use Modules\Organizations\Events\OrganizationApproved;
 
@@ -15,14 +16,16 @@ class SendWelcomeEmailToOrganization implements ShouldQueue
      */
     public function handle(OrganizationApproved $event): void
     {
-        $organization = $event->organization->load('users');
+        $user = $event->user->load('organizations');
+        $organization = $user->organizations->first();
+        if (!$organization) {
+            return;
+        }
 
-        $orgAdmin = $organization->users->first();
+        $languageId = LanguageType::ENGLISH->value;
 
-        if (!$orgAdmin) return;
-
-        Mail::to($orgAdmin->email)->queue(
-            new SendWelcomeToOrg($organization, $event->languageId)
+        Mail::to($user->email)->send(
+            new SendWelcomeToOrg($organization, $languageId)
         );
     }
 }

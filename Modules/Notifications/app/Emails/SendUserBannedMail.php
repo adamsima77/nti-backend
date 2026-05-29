@@ -6,36 +6,42 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Modules\IdentityAccess\Models\User;
 use Modules\Notifications\Models\EmailTemplate;
-use Modules\Organizations\Models\Organization;
 
-class SendWelcomeToOrg extends Mailable
+class SendUserBannedMail extends Mailable
 {
     use Queueable, SerializesModels;
 
+    /**
+     * Create a new message instance.
+     */
     public function __construct(
-        public readonly Organization $organization,
+        public readonly User $user,
         public int $languageId
     ) {}
 
+    /**
+     * Build the message.
+     */
     public function build(): self
     {
-
-        $template = EmailTemplate::findBySlug('organization_account_approved')
+        // Fetch dynamic template from DB
+        $template = EmailTemplate::findBySlug('user_account_banned')
             ?->forLanguage($this->languageId);
 
         $data = [
-            'organizationName' => $this->organization->name,
+            'userName'    => $this->user->name ?? 'User',
+            'userSurname' => $this->user->surname ?? '',
         ];
 
         $renderedSubject = $template
             ? $template->renderSubject($data)
-            : ('Your organization has been approved — ' . $this->organization->name);
-
+            : 'Important update regarding your NTI account';
 
         $renderedBody = $template
             ? $template->render($data)
-            : "<p>Hello, your organization <strong>{$this->organization->name}</strong> has been successfully approved.</p>";
+            : '<p>Your account has been suspended by administration. Please contact support.</p>';
 
         return $this->subject($renderedSubject)
             ->view('notifications::emails.layout')

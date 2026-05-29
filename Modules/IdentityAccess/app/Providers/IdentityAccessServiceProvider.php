@@ -7,6 +7,7 @@ use Modules\IdentityAccess\Models\ConsentType;
 use Modules\IdentityAccess\Models\Role;
 use Modules\IdentityAccess\Models\User;
 use Modules\IdentityAccess\Models\UserConsent;
+use Modules\IdentityAccess\Observers\UserObserver;
 use Modules\IdentityAccess\Policies\ConsentTypePolicy;
 use Modules\IdentityAccess\Policies\RolePolicy;
 use Modules\IdentityAccess\Policies\UserConsentPolicy;
@@ -25,6 +26,8 @@ class IdentityAccessServiceProvider extends ModuleServiceProvider
         $this->registerRateLimiters();
         $this->loadViewsFrom(module_path($this->name, '/resources/views'), $this->nameLower);
        //Add policies if they are not detected
+
+        User::observe(UserObserver::class);
     }
 
     protected function registerRateLimiters(): void

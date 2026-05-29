@@ -89,6 +89,47 @@ class EmailTemplateSeeder extends Seeder
 </p>',
             ],
             [
+                'slug'    => 'user_account_banned',
+                'subject' => 'Important update regarding your NTI account',
+                'body_html' => '
+<h1 style="margin:0 0 16px; font-size:24px; color:#1e293b;">Account Notice</h1>
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    Hello {{ $userName }},<br><br>
+    We are writing to inform you that your account on the NTI platform has been suspended following a comprehensive review by our administration team.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td style="background:#fef2f2; border-left:4px solid #ef4444; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:#991b1b;">
+                🛑 Access Restricted
+            </p>
+            <p style="margin:0; font-size:14px; color:#7f1d1d; line-height:1.6;">
+                Your credentials have been deactivated, and you can no longer authenticate, manage profile details, or interact within active workspaces. Any pending activities or submissions linked to this account have been placed on hold.
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td style="background:#f1f5f9; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 12px; font-size:14px; font-weight:600; color:#0a1628;">Next steps & Appeal process:</p>
+            <p style="margin:0; font-size:14px; color:#64748b; line-height:2;">
+                ⚖️ Review our Terms of Service and usage guidelines<br>
+                ✉️ Prepare your account information if initiating an inquiry<br>
+                📥 Reach out to support directly to request an administrative review
+            </p>
+        </td>
+    </tr>
+</table>
+
+<p style="margin-top:30px; font-size:12px; color:#94a3b8; line-height:1.5;">
+    If you believe this restriction was placed in error, or if you have any questions, please contact our support team immediately.
+</p>',
+            ],
+
+            [
                 'slug'    => 'welcome_email',
                 'subject' => 'Welcome to NTI, {{ $userName }}!',
                 'body_html' => '

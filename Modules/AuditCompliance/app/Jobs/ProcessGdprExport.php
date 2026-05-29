@@ -35,18 +35,12 @@ class ProcessGdprExport implements ShouldQueue
 
     public function handle(): void
     {
-
-
         try {
-
-            // Update status cleanly via direct query to avoid transaction locks
             DB::table('gdpr_reports')
                 ->where('id', $this->reportId)
                 ->update(['status' => GdprReportStatus::PROCESSING->value]);
 
-
             $report = GdprReport::findOrFail($this->reportId);
-
 
             $user = User::with([
                 'roles',
@@ -54,17 +48,15 @@ class ProcessGdprExport implements ShouldQueue
                 'organizations.sectors.sectorTranslations',
                 'userConsents.consent',
                 'student.university',
-                'student.studyYear.studyYearTranslations',       // Updated
-                'student.studyProgram.studyProgramTranslations', // Updated
-                'student.studyField.studyFieldTranslations',     // Updated
+                'student.studyYear.studyYearTranslations',
+                'student.studyProgram.studyProgramTranslations',
+                'student.studyField.studyFieldTranslations',
             ])->findOrFail($report->user_id);
-
 
             $filename    = "gdpr_report_user_{$user->id}_" . now()->format('Y-m-d-His') . '.' . $this->format;
             $storagePath = 'gdpr_reports/' . $filename;
 
             Storage::disk('local')->makeDirectory('gdpr_reports');
-
 
             match ($this->format) {
                 'pdf'  => $this->generatePdf($user, $storagePath),
@@ -72,15 +64,12 @@ class ProcessGdprExport implements ShouldQueue
                 'csv'  => $this->generateSpreadsheet($user, $storagePath, \Maatwebsite\Excel\Excel::CSV),
             };
 
-
             $classificationId = SecurityClassification::where('name', 'confidential')->value('id');
-
 
             $document = Document::create([
                 'owner_id'                   => $report->user_id,
                 'security_classification_id' => $classificationId,
             ]);
-
 
             DocumentVersion::create([
                 'document_id' => $document->id,
@@ -88,18 +77,13 @@ class ProcessGdprExport implements ShouldQueue
                 'file_path'   => $storagePath,
             ]);
 
-
             $report->update([
                 'status'        => GdprReportStatus::COMPLETED->value,
                 'attachment_id' => $document->id,
-                'expires_at'    => now()->addDays(30),
+                'expires_at'    => now()->addMinutes(2),
             ]);
 
-
         } catch (Throwable $e) {
-
-
-            // Immediately break the loop by changing DB status before letting queue engine manage retries
             DB::table('gdpr_reports')
                 ->where('id', $this->reportId)
                 ->update(['status' => GdprReportStatus::FAILED->value]);
@@ -110,21 +94,15 @@ class ProcessGdprExport implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-
-
         DB::table('gdpr_reports')
             ->where('id', $this->reportId)
             ->update(['status' => GdprReportStatus::FAILED->value]);
-
-
     }
 
     private function generatePdf(User $user, string $storagePath): void
     {
-
         $pdf = Pdf::loadView('audit-compliance::gdpr.report-pdf', compact('user'))
             ->setPaper('a4', 'portrait');
-
 
         Storage::disk('local')->put($storagePath, $pdf->output());
     }

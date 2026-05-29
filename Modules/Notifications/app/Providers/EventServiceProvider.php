@@ -8,8 +8,10 @@ use Modules\IdentityAccess\Events\OrganizationOnboarded;
 use Modules\IdentityAccess\Events\PasswordChanged;
 use Modules\IdentityAccess\Events\PasswordResetRequested;
 use Modules\IdentityAccess\Events\StudentOnboarded;
+use Modules\IdentityAccess\Events\UserBanned;
 use Modules\IdentityAccess\Events\UserRegistered;
 use Modules\Mentorship\Events\MilestoneStatusChanged;
+use Modules\Notifications\Listeners\SendBannedEmail;
 use Modules\Notifications\Listeners\SendContactConfirmationEmail;
 use Modules\Notifications\Listeners\SendEmailToAdminWhenOrganizationOnboarded;
 use Modules\Notifications\Listeners\SendPasswordChangeConfirmation;
@@ -44,6 +46,10 @@ class EventServiceProvider extends ServiceProvider
          OrganizationApproved::class => [
            SendWelcomeEmailToOrganization::class,
          ],
+
+      UserBanned::class => [
+          SendBannedEmail::class,
+      ],
 
         StudentOnboarded::class => [
             SendWelcomeAfterStudentOnboarding::class,
