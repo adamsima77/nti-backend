@@ -38,7 +38,10 @@ class VerifyEmail extends Notification implements ShouldQueue
         $queryString = parse_url($signedUrl, PHP_URL_QUERY) ?? '';
         parse_str($queryString, $params);
 
+        $localeCode = $this->languageId === 2 ? 'en' : null;
+
         $frontendUrl = rtrim(config('app.frontend_url'), '/')
+            . ($localeCode ? "/$localeCode" : '')
             . '/auth/verify-email'
             . '/' . $notifiable->id
             . '/' . $hash
