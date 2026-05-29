@@ -17,7 +17,7 @@ class StudyProgram extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
-        'name',
+
     ];
 
     public function students(): HasMany

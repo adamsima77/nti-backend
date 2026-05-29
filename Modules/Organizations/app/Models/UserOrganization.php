@@ -16,9 +16,9 @@ class UserOrganization extends Pivot
 
     protected $table = 'user_organization';
 
-    public $incrementing = false;
+    //public $incrementing = false;
 
-    protected $primaryKey = ['user_id', 'organization_id'];
+    //protected $primaryKey = ['user_id', 'organization_id'];
 
     public $timestamps = false;
 

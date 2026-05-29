@@ -105,7 +105,9 @@ class UserController extends Controller
                 'cv_document_id' => null,
                 'portfolio_url'  => null,
             ]);
-            $user->student?->academicFlags()->detach();
+            if($user->student){
+                $user->student->academicFlags()->detach();
+            }
         } elseif ($user->isPartner()) {
             $user->organizations()->detach();
         }

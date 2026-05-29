@@ -2693,6 +2693,7 @@
         },
         {
             "name": "maennchen/zipstream-php",
+<<<<<<< Updated upstream
             "version": "3.2.2",
             "source": {
                 "type": "git",
@@ -2703,21 +2704,45 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/maennchen/ZipStream-PHP/zipball/77bebeb4c6c340bb3c11c843b2cffd8bbfde4d5e",
                 "reference": "77bebeb4c6c340bb3c11c843b2cffd8bbfde4d5e",
+=======
+            "version": "3.1.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/maennchen/ZipStream-PHP.git",
+                "reference": "aeadcf5c412332eb426c0f9b4485f6accba2a99f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/maennchen/ZipStream-PHP/zipball/aeadcf5c412332eb426c0f9b4485f6accba2a99f",
+                "reference": "aeadcf5c412332eb426c0f9b4485f6accba2a99f",
+>>>>>>> Stashed changes
                 "shasum": ""
             },
             "require": {
                 "ext-mbstring": "*",
                 "ext-zlib": "*",
+<<<<<<< Updated upstream
                 "php-64bit": "^8.3"
+=======
+                "php-64bit": "^8.2"
+>>>>>>> Stashed changes
             },
             "require-dev": {
                 "brianium/paratest": "^7.7",
                 "ext-zip": "*",
+<<<<<<< Updated upstream
                 "friendsofphp/php-cs-fixer": "^3.86",
                 "guzzlehttp/guzzle": "^7.5",
                 "mikey179/vfsstream": "^1.6",
                 "php-coveralls/php-coveralls": "^2.5",
                 "phpunit/phpunit": "^12.0",
+=======
+                "friendsofphp/php-cs-fixer": "^3.16",
+                "guzzlehttp/guzzle": "^7.5",
+                "mikey179/vfsstream": "^1.6",
+                "php-coveralls/php-coveralls": "^2.5",
+                "phpunit/phpunit": "^11.0",
+>>>>>>> Stashed changes
                 "vimeo/psalm": "^6.0"
             },
             "suggest": {
@@ -2759,7 +2784,11 @@
             ],
             "support": {
                 "issues": "https://github.com/maennchen/ZipStream-PHP/issues",
+<<<<<<< Updated upstream
                 "source": "https://github.com/maennchen/ZipStream-PHP/tree/3.2.2"
+=======
+                "source": "https://github.com/maennchen/ZipStream-PHP/tree/3.1.2"
+>>>>>>> Stashed changes
             },
             "funding": [
                 {
@@ -2767,7 +2796,11 @@
                     "type": "github"
                 }
             ],
+<<<<<<< Updated upstream
             "time": "2026-04-11T18:38:28+00:00"
+=======
+            "time": "2025-01-27T12:07:53+00:00"
+>>>>>>> Stashed changes
         },
         {
             "name": "markbaker/complex",

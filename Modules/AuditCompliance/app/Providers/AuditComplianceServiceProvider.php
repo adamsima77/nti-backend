@@ -47,5 +47,7 @@ class AuditComplianceServiceProvider extends ModuleServiceProvider
         UserConsent::observe(UserConsentObserver::class);
 
         Gate::policy(AuditCompliance::class, AuditEventPolicy::class);
+
+        $this->loadViewsFrom(module_path('AuditCompliance', 'Resources/Views'), 'audit-compliance');
     }
 }
