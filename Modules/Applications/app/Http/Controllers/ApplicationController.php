@@ -2,6 +2,7 @@
 
 namespace Modules\Applications\Http\Controllers;
 
+use App\Services\Exports\QueuedExportService;
 use App\Http\Controllers\Controller;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -74,7 +75,7 @@ class ApplicationController extends Controller
         return new ApplicationResource($application);
     }
 
-    public function downloadPdf(Request $request, int $id, PdfService $pdfService)
+    public function downloadPdf(Request $request, int $id, PdfService $pdfService, QueuedExportService $queuedExportService)
     {
         $application = Application::query()
             ->with([
@@ -86,6 +87,42 @@ class ApplicationController extends Controller
             ->findOrFail($id);
 
         $this->authorize('view', $application);
+
+        if ($request->boolean('async')) {
+            $exportRequest = $queuedExportService->queue(
+                (int) $request->user()->id,
+                'application_pdf',
+                'pdf',
+                'pdf',
+                'application-' . $application->id . '.pdf',
+                [
+                    'model_class' => Application::class,
+                    'model_id' => $application->id,
+                    'relations' => [
+                        'call:id,name',
+                        'status:id,name',
+                        'documents:id',
+                        'statusHistory.status:id,name',
+                    ],
+                    'view' => 'applications::pdf.application-details',
+                    'data_key' => 'application',
+                ]
+            );
+
+            return response()->json([
+                'message' => 'Generovanie exportu bolo zaradené do fronty.',
+                'export_request' => [
+                    'id' => $exportRequest->id,
+                    'export_key' => $exportRequest->export_key,
+                    'kind' => $exportRequest->kind,
+                    'format' => $exportRequest->format,
+                    'status' => $exportRequest->status,
+                    'file_name' => $exportRequest->file_name,
+                    'status_url' => route('api.exports.show', ['exportRequest' => $exportRequest]),
+                    'download_url' => route('api.exports.download', ['exportRequest' => $exportRequest]),
+                ],
+            ], 202);
+        }
 
         return $pdfService->download(
             'applications::pdf.application-details',

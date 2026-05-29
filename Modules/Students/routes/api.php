@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Modules\Students\app\Http\Controllers\StudentsController;
+use Modules\Students\Http\Controllers\StudentsController;
 use Modules\Students\Http\Controllers\AcademicFlagController;
 use Modules\Students\Http\Controllers\StudyFieldController;
 use Modules\Students\Http\Controllers\StudyProgramController;

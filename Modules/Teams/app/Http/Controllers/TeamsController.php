@@ -2,6 +2,7 @@
 
 namespace Modules\Teams\Http\Controllers;
 
+use App\Services\Exports\QueuedExportService;
 use App\Http\Controllers\Controller;
 use App\Services\Pdf\PdfService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -208,11 +209,42 @@ class TeamsController extends Controller
         ], Response::HTTP_OK);
     }
 
-    public function downloadPdf(Team $team, PdfService $pdfService)
+    public function downloadPdf(Team $team, PdfService $pdfService, QueuedExportService $queuedExportService, Request $request)
     {
         $this->authorize('pdf', $team);
 
         $team->load('members');
+
+        if ($request->boolean('async')) {
+            $exportRequest = $queuedExportService->queue(
+                (int) $request->user()->id,
+                'team_pdf',
+                'pdf',
+                'pdf',
+                'team-report-' . $team->id . '.pdf',
+                [
+                    'model_class' => Team::class,
+                    'model_id' => $team->id,
+                    'relations' => ['members'],
+                    'view' => 'teams::pdf.team-report',
+                    'data_key' => 'team',
+                ]
+            );
+
+            return response()->json([
+                'message' => 'Generovanie exportu bolo zaradené do fronty.',
+                'export_request' => [
+                    'id' => $exportRequest->id,
+                    'export_key' => $exportRequest->export_key,
+                    'kind' => $exportRequest->kind,
+                    'format' => $exportRequest->format,
+                    'status' => $exportRequest->status,
+                    'file_name' => $exportRequest->file_name,
+                    'status_url' => route('api.exports.show', ['exportRequest' => $exportRequest]),
+                    'download_url' => route('api.exports.download', ['exportRequest' => $exportRequest]),
+                ],
+            ], 202);
+        }
 
         return $pdfService->download(
             'teams::pdf.team-report',

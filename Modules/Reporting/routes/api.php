@@ -1,10 +1,14 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Reporting\Http\Controllers\ExportController;
 use Modules\Reporting\Http\Controllers\ProjectKpiController;
 use Modules\Reporting\Http\Controllers\ProjectOutputController;
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('exports/{exportRequest}', [ExportController::class, 'showExportRequest'])->name('exports.show');
+    Route::get('exports/{exportRequest}/download', [ExportController::class, 'downloadExportRequest'])->name('exports.download');
+
     // ProjectKpi routes
     Route::prefix('applications/{applicationId}/kpis')->group(function () {
         Route::get('/', [ProjectKpiController::class, 'index'])->name('kpis.index');
