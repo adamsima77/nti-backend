@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Mentorship\Models\Milestone;
+use Modules\Mentorship\Models\Mentorship;
 use Modules\IdentityAccess\Models\User;
 use Modules\Programs\Models\Call;
 use Modules\Programs\Models\FormSchema;
@@ -90,6 +91,11 @@ class Application extends Model
     public function milestones(): HasMany
     {
         return $this->hasMany(Milestone::class, 'project_id');
+    }
+
+    public function mentorships(): HasMany
+    {
+        return $this->hasMany(Mentorship::class, 'application_id');
     }
 
     public function kpis(): HasMany

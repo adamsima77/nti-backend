@@ -7,6 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Modules\Applications\Models\Application;
+use Modules\Content\Enums\LanguageType;
 use Modules\IdentityAccess\Models\User;
 use Modules\Mentorship\Events\MilestoneStatusChanged;
 use Modules\Mentorship\Models\Milestone;
@@ -92,11 +93,14 @@ class MilestoneController extends Controller
         });
 
         if ($oldStatus !== $milestone->status) {
+            $milestone->load(['application.team.members', 'application.creator', 'application.call']);
+
             event(new MilestoneStatusChanged(
                 $milestone,
                 $oldStatus,
                 $milestone->status,
-                $request->user()
+                $request->user(),
+                LanguageType::SLOVAK->value,
             ));
         }
 
