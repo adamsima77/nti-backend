@@ -80,7 +80,7 @@ class ProcessGdprExport implements ShouldQueue
             $report->update([
                 'status'        => GdprReportStatus::COMPLETED->value,
                 'attachment_id' => $document->id,
-                'expires_at'    => now()->addMinutes(2),
+                'expires_at'    => now()->addMinutes(15),
             ]);
 
         } catch (Throwable $e) {

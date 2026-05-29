@@ -24,7 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command(PruneExpiredGdprExports::class)
-        ->daily()
+        ->everyMinute()
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
