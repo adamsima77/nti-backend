@@ -12,14 +12,16 @@ class RoleSeeder extends Seeder
      */
     public function run(): void
     {
-        Role::create(['name' => 'guest']);
-        Role::create(['name' => 'student']);
-        Role::create(['name' => 'team_leader']);
-        Role::create(['name' => 'partner']);
-        Role::create(['name' => 'mentor']);
-        Role::create(['name' => 'evaluator']);
-        Role::create(['name' => 'cms_editor']);
-        Role::create(['name' => 'nti_admin']);
-        Role::create(['name' => 'nti_superadmin']);
+        Role::firstOrCreate(['name' => 'guest']);
+        Role::firstOrCreate(['name' => 'student']);
+        Role::firstOrCreate(['name' => 'team_leader']);
+        Role::firstOrCreate(['name' => 'partner']);
+        Role::firstOrCreate(['name' => 'organization']);
+        Role::firstOrCreate(['name' => 'mentor']);
+        Role::firstOrCreate(['name' => 'evaluator']);
+        Role::firstOrCreate(['name' => 'cms_editor']);
+        Role::firstOrCreate(['name' => 'content-manager']);
+        Role::firstOrCreate(['name' => 'nti_admin']);
+        Role::firstOrCreate(['name' => 'nti_superadmin']);
     }
 }

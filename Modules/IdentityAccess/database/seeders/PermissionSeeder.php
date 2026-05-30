@@ -230,6 +230,19 @@ class PermissionSeeder extends Seeder
                 'content.view',
             ],
 
+            // ─── organization (alias of partner) ───────────────────────────
+            'organization' => [
+                'programs.view',
+                'applications.view_own',
+                'organizations.view',
+                'organizations.create',
+                'organizations.edit_own',
+                'organizations.manage_contacts',
+                'notifications.view_own',
+                'notifications.manage_own',
+                'content.view',
+            ],
+
             // ─── mentor ──────────────────────────────────────────────────────
             'mentor' => [
                 'students.profile.view_own',
@@ -268,6 +281,22 @@ class PermissionSeeder extends Seeder
 
             // ─── cms_editor ──────────────────────────────────────────────────
             'cms_editor' => [
+                'content.view',
+                'content.create',
+                'content.edit_own',
+                'content.edit_any',
+                'content.delete_own',
+                'content.delete_any',
+                'content.publish',
+                'content.manage_media',
+                'notifications.view_own',
+                'notifications.manage_own',
+                'notifications.send',
+                'notifications.manage_templates',
+            ],
+
+            // ─── content-manager (alias of cms_editor) ─────────────────────
+            'content-manager' => [
                 'content.view',
                 'content.create',
                 'content.edit_own',
