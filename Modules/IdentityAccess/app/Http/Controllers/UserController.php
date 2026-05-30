@@ -90,9 +90,12 @@ class UserController extends Controller
             'password'          => bcrypt(Str::random(64)),
             'job_position'      => null,
             'avatar'            => null,
-            'email_verified_at' => null,
-            'anonymized_at'     => now(),
         ]);
+
+        $user->forceFill([
+            'email_verified_at' => null,
+            'anonymized_at' => now(),
+        ])->save();
 
         $user->setStatus(UserStatus::ANONYMIZED);
         $user->userConsents()->delete();

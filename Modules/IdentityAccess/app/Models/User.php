@@ -143,7 +143,7 @@ class User extends Authenticatable
 
     public function isPartner(): bool
     {
-        return $this->roles()->where('name', 'partner')->exists();
+        return $this->roles()->whereIn('name', ['partner', 'organization'])->exists();
     }
 
     public function isMentor(): bool

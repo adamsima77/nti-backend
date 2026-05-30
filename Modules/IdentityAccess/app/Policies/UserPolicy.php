@@ -19,7 +19,7 @@ class UserPolicy
     }
 
     public function anonymizeUser(User $user, User $model): bool{
-        return $user->isAdmin() || $user->isSuperAdmin();
+        return $user->isAdmin() || $user->isSuperAdmin() || $user->id === $model->id;
     }
 
     public function create(User $user): bool

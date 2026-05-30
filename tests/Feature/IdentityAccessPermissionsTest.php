@@ -91,4 +91,30 @@ class IdentityAccessPermissionsTest extends TestCase
         $this->assertContains('organizations.view', $permissions);
         $this->assertContains('organizations.edit_own', $permissions);
     }
+
+    public function test_user_can_anonymize_their_own_account(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'John',
+            'surname' => 'Doe',
+            'email' => 'john.doe@test.local',
+        ]);
+
+        $studentRole = Role::query()->where('name', 'student')->firstOrFail();
+        $user->roles()->sync([$studentRole->id]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson("/api/users/anonymize-user/{$user->id}");
+
+        $response->assertOk();
+
+        $user->refresh();
+
+        $this->assertSame('Anonymized', $user->name);
+        $this->assertSame('User', $user->surname);
+        $this->assertSame("anonymized{$user->id}@nti.com", $user->email);
+        $this->assertNotNull($user->anonymized_at);
+        $this->assertCount(0, $user->roles()->get());
+    }
 }
