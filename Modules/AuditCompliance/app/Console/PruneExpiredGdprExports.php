@@ -13,13 +13,14 @@ use Symfony\Component\Console\Input\InputArgument;
 class PruneExpiredGdprExports extends Command
 {
     protected $signature = 'gdpr:prune-expired';
-    protected $description = 'Permanently deletes physical files and database metadata for expired GDPR exports.';
+    protected $description = 'Permanently deletes physical files for expired GDPR exports while leaving all database records and foreign keys intact.';
 
     public function handle(): int
     {
         $this->info('Starting GDPR expired exports pruning...');
-        $maxCycles = 1000; //Safety check
+        $maxCycles = 1000; // Safety check
         $cycleCount = 0;
+
         while (true) {
             $cycleCount++;
             if ($cycleCount > $maxCycles) {
@@ -28,6 +29,7 @@ class PruneExpiredGdprExports extends Command
             }
 
             $reports = GdprReport::where('expires_at', '<', now())
+                ->where('status', '!=', GdprReportStatus::EXPIRED->value)
                 ->whereNotNull('attachment_id')
                 ->with(['attachment.versions'])
                 ->limit(100)
@@ -40,40 +42,29 @@ class PruneExpiredGdprExports extends Command
             foreach ($reports as $report) {
                 $document = $report->attachment;
 
-                if ($document) {
-                    try {
-                        DB::beginTransaction();
+                try {
+                    DB::beginTransaction();
 
-
+                    if ($document && $document->versions) {
                         foreach ($document->versions as $version) {
-                            if (Storage::disk('local')->exists($version->file_path)) {
+                            if ($version->file_path && Storage::disk('local')->exists($version->file_path)) {
                                 Storage::disk('local')->delete($version->file_path);
                             }
-                            $version->delete();
+
                         }
-
-
-                        $report->update([
-                            'attachment_id' => null,
-                            'status' => GdprReportStatus::EXPIRED->value
-                        ]);
-
-
-                        $document->delete();
-
-                        DB::commit();
-                        $this->line("Successfully pruned storage file and metadata for Report ID: {$report->id}");
-
-                    } catch (\Exception $e) {
-                        DB::rollBack();
-                        $this->error("Failed to prune Report ID {$report->id}: " . $e->getMessage());
                     }
-                } else {
-                    // Safe fallback if a metadata record points to a missing document
+
+
                     $report->update([
-                        'attachment_id' => null,
                         'status' => GdprReportStatus::EXPIRED->value
                     ]);
+
+                    DB::commit();
+                    $this->line("Successfully pruned storage file for Report ID: {$report->id}");
+
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    $this->error("Failed to prune Report ID {$report->id}: " . $e->getMessage());
                 }
             }
         }

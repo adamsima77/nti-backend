@@ -67,7 +67,8 @@ class Call extends Model
             'call_has_criterion',
             'call_id',
             'criterion_id'
-        );
+        )->withPivot(['weight', 'is_academic_signal']);
+        // No withTimestamps() — the pivot table has none.
     }
 
     public function applications(): HasMany

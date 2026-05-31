@@ -23,6 +23,9 @@ return new class extends Migration {
             $table->foreign('criterion_id')
                 ->references('id')
                 ->on('criterion');
+
+            $table->integer('weight')->default(1); // Importance multiplier
+            $table->boolean('is_academic_signal')->default(false); // Flags checks like grades/credits
         });
     }
 

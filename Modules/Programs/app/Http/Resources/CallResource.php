@@ -44,6 +44,10 @@ class CallResource extends JsonResource
             return [
                 'id' => $criterion->id,
                 'name' => $name,
+                'pivot' => [
+                    'weight' => $criterion->pivot?->weight ?? 1,
+                    'is_academic_signal' => (bool) ($criterion->pivot?->is_academic_signal ?? false),
+                ]
             ];
         })->values();
 
