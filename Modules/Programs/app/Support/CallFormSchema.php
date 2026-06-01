@@ -37,47 +37,29 @@ class CallFormSchema
         $overlay = $call->application_form_schema;
         $hasOverlay = is_array($overlay) && $overlay !== [];
 
-        $criteriaFields = self::criteriaFields($call, $language, $localeCode);
-        $documentField = self::documentField($localeCode);
-
+        // If no overlay schema exists at all, we can fallback to criteria + default document field
         if (! $hasOverlay) {
             return self::wrap(
                 $localeCode === 'en' ? 'Application details' : 'Údaje prihlášky',
                 null,
-                array_merge($criteriaFields, [$documentField]),
+                array_merge(self::criteriaFields($call, $language, $localeCode), [self::documentField($localeCode)]),
                 null
             );
         }
 
-        $appendToCriteria = filter_var($overlay['appendToCriteria'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        // Get the custom fields explicitly saved by the user
         $customFields = isset($overlay['fields']) && is_array($overlay['fields'])
             ? self::normalizeCustomFields($overlay['fields'])
             : [];
 
-        if ($appendToCriteria && $customFields !== []) {
-            $fields = array_merge($criteriaFields, $customFields);
-            $fields = self::ensureDocumentAttachmentField($fields, $documentField);
-            $title = self::pickTitle($overlay, $localeCode);
-            $description = is_string($overlay['description'] ?? null) ? $overlay['description'] : null;
+        $title = self::pickTitle($overlay, $localeCode);
+        $description = is_string($overlay['description'] ?? null) ? $overlay['description'] : null;
+        $sections = isset($overlay['sections']) && is_array($overlay['sections']) ? $overlay['sections'] : null;
+        $sections = is_array($sections) && $sections !== [] ? $sections : null;
 
-            return self::wrap($title, $description, $fields, null);
-        }
-
-        if ($customFields !== []) {
-            $fields = self::ensureDocumentAttachmentField($customFields, $documentField);
-            $title = self::pickTitle($overlay, $localeCode);
-            $description = is_string($overlay['description'] ?? null) ? $overlay['description'] : null;
-            $sections = isset($overlay['sections']) && is_array($overlay['sections']) ? $overlay['sections'] : null;
-
-            return self::wrap($title, $description, $fields, $sections);
-        }
-
-        return self::wrap(
-            $localeCode === 'en' ? 'Application details' : 'Údaje prihlášky',
-            null,
-            array_merge($criteriaFields, [$documentField]),
-            null
-        );
+        // CRITICAL FIX: Do not append criteriaFields or ensureDocumentAttachmentField.
+        // Return exactly what the custom schema defines.
+        return self::wrap($title, $description, $customFields, $sections);
     }
 
     /**

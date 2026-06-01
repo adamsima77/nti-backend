@@ -34,6 +34,11 @@ use Modules\Programs\Support\CallFormSchema;
  * (e.g. GPA, credit checks) that must
  * NOT auto-disqualify (spec §7.2)
  *
+ * force_closed (bool on Call)
+ * └─ Manual admin override. When true, is_open is always false
+ * regardless of application_deadline. Reversible — admin can
+ * toggle it back to false to re-open (if deadline still future).
+ *
  * Mentors / Teams / Doc-signal scoring → separate modules (not here).
  * ────────────────────────────────────────────────────────────────────────────
  */
@@ -88,9 +93,15 @@ class CallController extends Controller
             )
             ->latest('id');
 
-        return response()->json(
-            CallResource::collection($query->paginate((int) $request->query('per_page', 15)))
-        );
+        $paginator = $query->paginate((int) $request->query('per_page', 15));
+
+        return response()->json([
+            'data'         => CallResource::collection($paginator->items()),
+            'total'        => $paginator->total(),
+            'current_page' => $paginator->currentPage(),
+            'last_page'    => $paginator->lastPage(),
+            'per_page'     => $paginator->perPage(),
+        ]);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -191,18 +202,18 @@ class CallController extends Controller
             'language_id'             => ['required', 'integer', 'exists:languages,id'],
 
             // Form schema
-            'application_form_schema'                     => ['nullable', 'array'],
-            'application_form_schema.fields'              => ['sometimes', 'array'],
-            'application_form_schema.fields.*.id'         => ['required', 'string', 'max:100'],
-            'application_form_schema.fields.*.type'       => ['required', Rule::in(self::FIELD_TYPES)],
-            'application_form_schema.fields.*.label'      => ['required', 'string', 'max:255'],
-            'application_form_schema.fields.*.name'       => ['required', 'string', 'max:100', 'regex:/^[a-z][a-z0-9_]*$/'],
-            'application_form_schema.fields.*.required'   => ['sometimes', 'boolean'],
-            'application_form_schema.fields.*.help_text'  => ['nullable', 'string', 'max:500'],
-            'application_form_schema.fields.*.placeholder'=> ['nullable', 'string', 'max:255'],
-            'application_form_schema.fields.*.options'    => ['sometimes', 'array'],
-            'application_form_schema.fields.*.options.*'  => ['nullable', 'string', 'max:255'],
-            'application_form_schema.fields.*.accept'     => ['nullable', 'string', 'max:255'],
+            'application_form_schema'                      => ['nullable', 'array'],
+            'application_form_schema.fields'               => ['sometimes', 'array'],
+            'application_form_schema.fields.*.id'          => ['required', 'string', 'max:100'],
+            'application_form_schema.fields.*.type'        => ['required', Rule::in(self::FIELD_TYPES)],
+            'application_form_schema.fields.*.label'       => ['required', 'string', 'max:255'],
+            'application_form_schema.fields.*.name'        => ['required', 'string', 'max:100', 'regex:/^[a-z][a-z0-9_]*$/'],
+            'application_form_schema.fields.*.required'    => ['sometimes', 'boolean'],
+            'application_form_schema.fields.*.help_text'   => ['nullable', 'string', 'max:500'],
+            'application_form_schema.fields.*.placeholder' => ['nullable', 'string', 'max:255'],
+            'application_form_schema.fields.*.options'     => ['sometimes', 'array'],
+            'application_form_schema.fields.*.options.*'   => ['nullable', 'string', 'max:255'],
+            'application_form_schema.fields.*.accept'      => ['nullable', 'string', 'max:255'],
 
             // Criteria with pivot data
             'criteria'                      => ['nullable', 'array'],
@@ -210,10 +221,10 @@ class CallController extends Controller
             'criteria.*.weight'             => ['sometimes', 'integer', 'min:1', 'max:10'],
             'criteria.*.is_academic_signal' => ['sometimes', 'boolean'],
 
-            'translations'                 => ['sometimes', 'array'],
-            'translations.*.language_id'   => ['required', 'integer', 'exists:languages,id'],
-            'translations.*.name'          => ['required', 'string', 'max:255'],
-            'translations.*.description'   => ['nullable', 'string'],
+            'translations'               => ['sometimes', 'array'],
+            'translations.*.language_id' => ['required', 'integer', 'exists:languages,id'],
+            'translations.*.name'        => ['required', 'string', 'max:255'],
+            'translations.*.description' => ['nullable', 'string'],
         ]);
 
         if (!empty($validated['application_form_schema']['fields'])) {
@@ -293,18 +304,21 @@ class CallController extends Controller
             'status_id'               => ['nullable', 'integer', 'exists:status_of_call,id'],
             'language_id'             => ['required', 'integer', 'exists:languages,id'],
 
-            'application_form_schema'                     => ['nullable', 'array'],
-            'application_form_schema.fields'              => ['required_with:application_form_schema', 'array'],
-            'application_form_schema.fields.*.id'         => ['required', 'string', 'max:100'],
-            'application_form_schema.fields.*.type'       => ['required', Rule::in(self::FIELD_TYPES)],
-            'application_form_schema.fields.*.label'      => ['required', 'string', 'max:255'],
-            'application_form_schema.fields.*.name'       => ['required', 'string', 'max:100', 'regex:/^[a-z][a-z0-9_]*$/'],
-            'application_form_schema.fields.*.required'   => ['sometimes', 'boolean'],
-            'application_form_schema.fields.*.help_text'  => ['nullable', 'string', 'max:500'],
-            'application_form_schema.fields.*.placeholder'=> ['nullable', 'string', 'max:255'],
-            'application_form_schema.fields.*.options'    => ['sometimes', 'array'],
-            'application_form_schema.fields.*.options.*'  => ['nullable', 'string', 'max:255'],
-            'application_form_schema.fields.*.accept'     => ['nullable', 'string', 'max:255'],
+            // Manual close override — reversible, admin can set back to false
+            'force_closed'            => ['sometimes', 'boolean'],
+
+            'application_form_schema'                      => ['nullable', 'array'],
+            'application_form_schema.fields'               => ['required_with:application_form_schema', 'array'],
+            'application_form_schema.fields.*.id'          => ['required', 'string', 'max:100'],
+            'application_form_schema.fields.*.type'        => ['required', Rule::in(self::FIELD_TYPES)],
+            'application_form_schema.fields.*.label'       => ['required', 'string', 'max:255'],
+            'application_form_schema.fields.*.name'        => ['required', 'string', 'max:100', 'regex:/^[a-z][a-z0-9_]*$/'],
+            'application_form_schema.fields.*.required'    => ['sometimes', 'boolean'],
+            'application_form_schema.fields.*.help_text'   => ['nullable', 'string', 'max:500'],
+            'application_form_schema.fields.*.placeholder' => ['nullable', 'string', 'max:255'],
+            'application_form_schema.fields.*.options'     => ['sometimes', 'array'],
+            'application_form_schema.fields.*.options.*'   => ['nullable', 'string', 'max:255'],
+            'application_form_schema.fields.*.accept'      => ['nullable', 'string', 'max:255'],
 
             // Criteria with pivot data
             'criteria'                      => ['nullable', 'array'],
@@ -312,10 +326,10 @@ class CallController extends Controller
             'criteria.*.weight'             => ['sometimes', 'integer', 'min:1', 'max:10'],
             'criteria.*.is_academic_signal' => ['sometimes', 'boolean'],
 
-            'translations'                 => ['sometimes', 'array'],
-            'translations.*.language_id'   => ['required_with:translations', 'integer', 'exists:languages,id'],
-            'translations.*.name'          => ['required_with:translations', 'string', 'max:255'],
-            'translations.*.description'   => ['nullable', 'string'],
+            'translations'               => ['sometimes', 'array'],
+            'translations.*.language_id' => ['required_with:translations', 'integer', 'exists:languages,id'],
+            'translations.*.name'        => ['required_with:translations', 'string', 'max:255'],
+            'translations.*.description' => ['nullable', 'string'],
         ]);
 
         if (!empty($validated['application_form_schema']['fields'])) {
@@ -336,6 +350,7 @@ class CallController extends Controller
                         'name', 'description', 'application_start',
                         'application_deadline', 'project_start', 'project_end',
                         'program_id', 'application_form_schema',
+                        'force_closed',
                     ])
                     ->toArray()
             );
@@ -355,9 +370,9 @@ class CallController extends Controller
                 );
             }
 
-            if (isset($validated['status_id']) && (int)$validated['status_id'] > 0) {
+            if (isset($validated['status_id']) && (int) $validated['status_id'] > 0) {
                 $call->statusHistory()->create([
-                    'status_of_call_id' => (int) $validated['status_id']
+                    'status_of_call_id' => (int) $validated['status_id'],
                 ]);
             }
 
@@ -417,9 +432,24 @@ class CallController extends Controller
             )
             ->paginate(15);
 
-        $calls->getCollection()->transform(
-            fn ($call) => $this->formatCallForLang($call, $language, $lang)
-        );
+        $calls->getCollection()->transform(function ($call) use ($language, $lang) {
+            // 1. Capture the structural state flags from the original Eloquent model
+            $isOpen = (bool) $call->is_open;
+            $forceClosed = (bool) $call->force_closed;
+
+            // 2. Run your existing language formatter
+            $formatted = $this->formatCallForLang($call, $language, $lang);
+
+            // 3. Convert to array if it's an object/stdClass to safely drop/add keys
+            $formattedArray = (array) $formatted;
+
+            // 4. Inject the states and strip the sensitive schema
+            $formattedArray['is_open'] = $isOpen;
+            $formattedArray['force_closed'] = $forceClosed;
+            unset($formattedArray['formSchema'], $formattedArray['form_schema']);
+
+            return $formattedArray;
+        });
 
         return response()->json($calls);
     }
@@ -445,7 +475,20 @@ class CallController extends Controller
             )
             ->findOrFail($id);
 
-        return response()->json($this->formatCallForLang($call, $language, $lang));
+        // 1. Capture the structural state flags from the original Eloquent model
+        $isOpen = (bool) $call->is_open;
+        $forceClosed = (bool) $call->force_closed;
+
+        // 2. Run your existing language formatter
+        $formatted = $this->formatCallForLang($call, $language, $lang);
+
+        // 3. Convert to array, inject state, and remove schema
+        $formattedArray = (array) $formatted;
+        $formattedArray['is_open'] = $isOpen;
+        $formattedArray['force_closed'] = $forceClosed;
+        unset($formattedArray['formSchema'], $formattedArray['form_schema']);
+
+        return response()->json($formattedArray);
     }
 
     public function downloadPdf(int $id, PdfService $pdfService)
@@ -507,11 +550,10 @@ class CallController extends Controller
     private function setInitialStatus(Call $call, ?int $statusId): void
     {
         if (!empty($statusId)) {
-
             \Modules\Programs\Models\StatusOfCallHasCall::create([
                 'call_id'           => $call->id,
                 'status_of_call_id' => (int) $statusId,
-                'note'              => 'Inicializácia výzvy'
+                'note'              => 'Inicializácia výzvy',
             ]);
         }
     }
@@ -528,20 +570,23 @@ class CallController extends Controller
             'application_deadline'    => $call->application_deadline,
             'project_start'           => $call->project_start,
             'project_end'             => $call->project_end,
-            'is_open'                 => $call->application_deadline
-                ? now()->lt($call->application_deadline)
-                : false,
+            'force_closed'            => (bool) $call->force_closed,
+            'is_open'                 => !$call->force_closed && (
+                $call->application_deadline
+                    ? now()->lt($call->application_deadline)
+                    : false
+                ),
             'applicants_count'        => $call->applications_count ?? 0,
             'application_form_schema' => $call->application_form_schema,
-            'program'      => ['id' => $call->program?->id, 'name' => $call->program?->typeOfProgram?->name],
+            'program'      => ['id' => $call->program?->id,      'name' => $call->program?->typeOfProgram?->name],
             'organization' => ['id' => $call->organization?->id, 'name' => $call->organization?->name],
-            'call_type'    => ['id' => $call->callType?->id, 'name' => $call->callType?->name],
+            'call_type'    => ['id' => $call->callType?->id,     'name' => $call->callType?->name],
             'call_criteria' => collect($call->callCriteria)
                 ->map(fn ($c) => [
-                    'id'                => $c->id,
-                    'name'              => $c->criterionTranslations->firstWhere('language_id', $language->id)?->name,
-                    'weight'            => $c->pivot->weight ?? 1,
-                    'is_academic_signal'=> $c->pivot->is_academic_signal ?? false,
+                    'id'                 => $c->id,
+                    'name'               => $c->criterionTranslations->firstWhere('language_id', $language->id)?->name,
+                    'weight'             => $c->pivot->weight ?? 1,
+                    'is_academic_signal' => $c->pivot->is_academic_signal ?? false,
                 ])
                 ->values(),
             'form_schema' => CallFormSchema::build($call, $language, $lang),

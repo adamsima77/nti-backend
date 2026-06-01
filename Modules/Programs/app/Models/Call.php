@@ -24,10 +24,12 @@ class Call extends Model
         'program_id',
         'organization_id',
         'call_type_id',
-        'application_start'
+        'application_start',
+        'force_closed'
     ];
 
     protected $casts = [
+        'force_closed' => 'boolean',
         'application_form_schema' => 'array',
     ];
 
