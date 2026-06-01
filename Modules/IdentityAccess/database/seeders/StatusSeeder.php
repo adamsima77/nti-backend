@@ -12,12 +12,12 @@ class StatusSeeder extends Seeder
      */
     public function run(): void
     {
-        Status::create(['name' => 'pending_email']);
-        Status::create(['name' => 'pending_onboarding']);
-        Status::create(['name' => 'active']);
-        Status::create(['name' => 'inactive']);
-        Status::create(['name' => 'banned']);
-        Status::create(['name' => 'pending_approval']);
-        Status::create(['name' => 'anonymized']);
+        Status::updateOrCreate(['id' => 1], ['name' => 'pending_email']);
+        Status::updateOrCreate(['id' => 2], ['name' => 'pending_onboarding']);
+        Status::updateOrCreate(['id' => 3], ['name' => 'active']);
+        Status::updateOrCreate(['id' => 4], ['name' => 'inactive']);
+        Status::updateOrCreate(['id' => 5], ['name' => 'banned']);
+        Status::updateOrCreate(['id' => 6], ['name' => 'pending_approval']);
+        Status::updateOrCreate(['id' => 7], ['name' => 'anonymized']);
     }
 }

@@ -9,9 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use App\Services\ApplicationWorkflowService;
 use Modules\Applications\Models\Application;
-use Modules\Applications\Models\ApplicationStatusHistory;
-use Modules\Applications\Models\StatusOfApplication;
 use Modules\Evaluation\Models\CommissionMember;
 use Modules\Evaluation\Models\Decision;
 use Modules\Evaluation\Models\Evaluation;
@@ -119,6 +118,11 @@ class EvaluationController extends Controller
             'submitted_at' => optional($evaluation->created_at)?->toDateTimeString(),
             'locked' => false,
         ];
+    }
+
+    private function workflowService(): ApplicationWorkflowService
+    {
+        return app(ApplicationWorkflowService::class);
     }
 
     private function applicationSummary(Application $application, ?int $myCommissionMemberId = null): array
@@ -341,8 +345,14 @@ class EvaluationController extends Controller
             ->findOrFail($applicationId);
 
         $decisionId = $this->resolveDecisionId($validated['recommendation']);
+        $statusName = match ($validated['recommendation']) {
+            'approve' => 'Schválené',
+            'reject' => 'Zamietnuté',
+            'supplement' => 'Vyžiadané doplnenie',
+            default => 'Vyžiadané doplnenie',
+        };
 
-        $evaluation = DB::transaction(function () use ($validated, $application, $commissionMember, $decisionId, $evaluationId) {
+        $evaluation = DB::transaction(function () use ($validated, $application, $commissionMember, $decisionId, $evaluationId, $statusName) {
             $evaluation = $evaluationId !== null
                 ? Evaluation::query()
                     ->where('id', $evaluationId)
@@ -386,6 +396,20 @@ class EvaluationController extends Controller
 
             return $evaluation->load('scores', 'decision');
         });
+
+        $note = $validated['internal_note'] ?? null;
+        $this->workflowService()->evaluateApplication(
+            $application,
+            $evaluation,
+            $validated['recommendation'],
+            $note,
+            $request->user(),
+            $evaluationId === null
+        );
+
+        if ($evaluation->wasRecentlyCreated) {
+            $this->workflowService()->notifyEvaluatorAssigned($evaluation);
+        }
 
         return response()->json([
             'message' => 'Hodnotenie bolo úspešne uložené.',
@@ -619,20 +643,7 @@ class EvaluationController extends Controller
         ]);
 
         $application = Application::query()->findOrFail($applicationId);
-        $status = StatusOfApplication::query()->firstOrCreate(['name' => 'Vyžiadané doplnenie']);
-
-        DB::transaction(function () use ($application, $status, $validated) {
-            $application->update([
-                'active_status' => $status->id,
-                'last_update' => now(),
-            ]);
-
-            ApplicationStatusHistory::query()->create([
-                'status_of_application_id' => $status->id,
-                'application_id' => $application->id,
-                'note' => $validated['reason'],
-            ]);
-        });
+        $this->workflowService()->requestSupplement($application, $validated['reason'], $request->user());
 
         return response()->json([
             'message' => 'Žiadosť o doplnenie bola odoslaná.',
@@ -681,6 +692,8 @@ class EvaluationController extends Controller
 
             return $evaluation;
         });
+
+        $this->workflowService()->notifyEvaluatorAssigned($evaluation);
 
         return response()->json([
             'message'    => 'Hodnotenie bolo úspešne odoslané.',

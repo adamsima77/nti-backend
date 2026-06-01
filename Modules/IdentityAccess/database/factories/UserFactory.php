@@ -25,7 +25,7 @@ class UserFactory extends Factory
             'surname' => $this->faker->lastName(),
             'email' => $this->faker->unique()->safeEmail(),
             'password' => Hash::make('password'),
-            'status_id' => $this->faker->numberBetween(1, 3),
+            'status_id' => Status::query()->inRandomOrder()->value('id') ?? 1,
             'job_position' => $this->faker->jobTitle()
         ];
     }
