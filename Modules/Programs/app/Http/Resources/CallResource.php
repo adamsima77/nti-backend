@@ -29,21 +29,25 @@ class CallResource extends JsonResource
     public function toArray(Request $request): array
     {
         $currentStatus = $this->currentStatusHistory?->status;
-        $translation = $this->getTranslation($request);
-        $localeCode = $this->resolveLocaleCode($request);
-        $language = Language::query()->where('name', $localeCode)->first();
+        $translation   = $this->getTranslation($request);
+        $localeCode    = $this->resolveLocaleCode($request);
+        $language      = Language::query()->where('name', $localeCode)->first();
 
         $criteria = collect($this->callCriteria)->map(function ($criterion) use ($language) {
             $name = $criterion->name;
             if ($language) {
-                $tr = $criterion->criterionTranslations
+                $tr   = $criterion->criterionTranslations
                     ?->firstWhere('language_id', $language->id);
                 $name = $tr?->name ?? $criterion->name;
             }
 
             return [
-                'id' => $criterion->id,
+                'id'   => $criterion->id,
                 'name' => $name,
+                'pivot' => [
+                    'weight'             => $criterion->pivot?->weight ?? 1,
+                    'is_academic_signal' => (bool) ($criterion->pivot?->is_academic_signal ?? false),
+                ],
             ];
         })->values();
 
@@ -54,33 +58,39 @@ class CallResource extends JsonResource
         return [
             'id' => $this->id,
 
-            'name' => $translation?->name ?? $this->name,
+            'name'        => $translation?->name        ?? $this->name,
             'description' => $translation?->description ?? $this->description,
 
-            'application_start' => $this->application_start,
+            'application_start'    => $this->application_start,
             'application_deadline' => $this->application_deadline,
 
             'project_start' => $this->project_start,
-            'project_end' => $this->project_end,
+            'project_end'   => $this->project_end,
 
-            'is_open' => $this->application_deadline
-                ? now()->lt($this->application_deadline)
-                : false,
+            // is_open respects both the deadline AND the manual override.
+            // Admin can force-close even before the deadline, or re-open by
+            // toggling force_closed back to false (if deadline still in future).
+            'force_closed' => (bool) $this->force_closed,
+            'is_open'      => !$this->force_closed && (
+                $this->application_deadline
+                    ? now()->lt($this->application_deadline)
+                    : false
+                ),
 
             'applicants_count' => $this->applications_count ?? 0,
 
             'status' => [
-                'id' => $currentStatus?->id,
+                'id'   => $currentStatus?->id,
                 'name' => $currentStatus?->name,
             ],
 
             'program' => [
-                'id' => $this->program?->id,
+                'id'   => $this->program?->id,
                 'name' => $this->program?->typeOfProgram?->name,
             ],
 
             'organization' => [
-                'id' => $this->organization?->id,
+                'id'   => $this->organization?->id,
                 'name' => $this->organization?->name,
             ],
 

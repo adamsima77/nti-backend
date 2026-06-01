@@ -10,8 +10,10 @@ class CallTypeSeeder extends Seeder
     public function run(): void
     {
         $items = [
-            ['name' => 'Verejná výzva'],
-            ['name' => 'Firemné zadanie'],
+            ['code' => null,        'name' => 'Verejná výzva'],
+            ['code' => null,        'name' => 'Firemné zadanie'],
+            ['code' => 'program_a', 'name' => 'Program A'],
+            ['code' => 'program_b', 'name' => 'Program B'],
         ];
 
         foreach ($items as $item) {

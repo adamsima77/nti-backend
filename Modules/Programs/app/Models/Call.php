@@ -24,10 +24,12 @@ class Call extends Model
         'program_id',
         'organization_id',
         'call_type_id',
-        'application_start'
+        'application_start',
+        'force_closed'
     ];
 
     protected $casts = [
+        'force_closed' => 'boolean',
         'application_form_schema' => 'array',
         'application_start' => 'datetime',
         'application_deadline' => 'datetime',
@@ -71,7 +73,8 @@ class Call extends Model
             'call_has_criterion',
             'call_id',
             'criterion_id'
-        );
+        )->withPivot(['weight', 'is_academic_signal']);
+        // No withTimestamps() — the pivot table has none.
     }
 
     public function applications(): HasMany
