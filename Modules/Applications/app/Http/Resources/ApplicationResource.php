@@ -34,6 +34,7 @@ class ApplicationResource extends JsonResource
             'id'             => $this->id,
             'submitted_at'   => $this->submitted_at,
             'last_update'    => $this->last_update,
+            'academic_flag'  => $this->academic_flag,
             'call'           => [
                 'id'   => $this->call?->id,
                 'name' => $this->call?->name,

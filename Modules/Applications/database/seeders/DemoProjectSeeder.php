@@ -10,6 +10,7 @@ use Modules\IdentityAccess\Models\Role;
 use Modules\IdentityAccess\Models\User;
 use Modules\Programs\Models\Call;
 use Modules\Programs\Models\CallType;
+use Modules\Programs\Models\Criterion;
 use Modules\Programs\Models\Program;
 use Modules\Programs\Models\StatusOfCall;
 use Modules\Programs\Models\StatusOfCallHasCall;
@@ -35,6 +36,7 @@ class DemoProjectSeeder extends Seeder
 
         $programA = Program::query()->where('type_of_program_id', 1)->first();
         $programB = Program::query()->where('type_of_program_id', 2)->first();
+        $criteria = Criterion::query()->pluck('id')->all();
 
         if (! $programA || ! $programB || ! $mentorRole || ! $studentRole || ! $leaderTeamRole || ! $memberTeamRole) {
             return;
@@ -96,7 +98,7 @@ class DemoProjectSeeder extends Seeder
                 ]
             );
 
-            $call->callCriteria()->syncWithoutDetaching([]);
+            $call->callCriteria()->syncWithoutDetaching($criteria);
             StatusOfCallHasCall::query()->updateOrCreate(
                 [
                     'call_id' => $call->id,

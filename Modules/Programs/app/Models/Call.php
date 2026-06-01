@@ -29,6 +29,10 @@ class Call extends Model
 
     protected $casts = [
         'application_form_schema' => 'array',
+        'application_start' => 'datetime',
+        'application_deadline' => 'datetime',
+        'project_start' => 'datetime',
+        'project_end' => 'datetime',
     ];
 
     public function program(): BelongsTo

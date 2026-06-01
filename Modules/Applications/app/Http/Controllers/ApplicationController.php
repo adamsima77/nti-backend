@@ -39,6 +39,7 @@ class ApplicationController extends Controller
                 'call:id,name',
                 'status:id,name',
                 'team:id,name',
+                'team.members.student.academicFlags',
                 'documents:id',
             ])
             ->where('created_by', $request->user()->id)
@@ -63,6 +64,7 @@ class ApplicationController extends Controller
                 'call:id,name',
                 'status:id,name',
                 'team:id,name',
+                'team.members.student.academicFlags',
                 'documents:id',
                 'documents.versions',
                 'statusHistory.status:id,name',
@@ -81,6 +83,8 @@ class ApplicationController extends Controller
             ->with([
                 'call:id,name',
                 'status:id,name',
+                'team:id,name',
+                'team.members.student.academicFlags',
                 'documents:id',
                 'statusHistory.status:id,name',
             ])
@@ -101,6 +105,8 @@ class ApplicationController extends Controller
                     'relations' => [
                         'call:id,name',
                         'status:id,name',
+                        'team:id,name',
+                        'team.members.student.academicFlags',
                         'documents:id',
                         'statusHistory.status:id,name',
                     ],
@@ -258,6 +264,7 @@ class ApplicationController extends Controller
                 'call:id,name',
                 'status:id,name',
                 'team:id,name',
+                'team.members.student.academicFlags',
                 'documents:id',
                 'documents.versions',
             ]);
@@ -307,6 +314,8 @@ class ApplicationController extends Controller
             return $application->load([
                 'call:id,name',
                 'status:id,name',
+                'team:id,name',
+                'team.members.student.academicFlags',
                 'documents:id',
                 'statusHistory.status:id,name',
             ]);

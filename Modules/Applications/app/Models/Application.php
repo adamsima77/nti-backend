@@ -41,6 +41,10 @@ class Application extends Model
         'form_data' => 'array',
     ];
 
+    protected $appends = [
+        'academic_flag',
+    ];
+
     public function status(): BelongsTo
     {
         return $this->belongsTo(StatusOfApplication::class, 'active_status');
@@ -106,5 +110,33 @@ class Application extends Model
     public function outputs(): HasMany
     {
         return $this->hasMany(ProjectOutput::class, 'application_id');
+    }
+
+    public function getAcademicFlagAttribute(): ?bool
+    {
+        $this->loadMissing(['team.members.student.academicFlags']);
+
+        $members = $this->team?->members;
+
+        if ($members === null || $members->isEmpty()) {
+            return null;
+        }
+
+        $hasUnknown = false;
+
+        foreach ($members as $member) {
+            $student = $member->student;
+
+            if ($student === null) {
+                $hasUnknown = true;
+                continue;
+            }
+
+            if ($student->academicFlags->isEmpty()) {
+                return false;
+            }
+        }
+
+        return $hasUnknown ? null : true;
     }
 }

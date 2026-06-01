@@ -17,7 +17,16 @@ class CommissionMemberSeeder extends Seeder
             return;
         }
 
-        $users = User::query()->orderBy('id')->take(3)->get();
+        $users = User::query()
+            ->whereHas('roles', fn ($query) => $query->where('name', 'evaluator'))
+            ->orderBy('id')
+            ->get();
+
+        if ($users->isEmpty()) {
+            $users = User::query()->orderBy('id')->take(3)->get();
+        }
+
+        $users = $users->take(3);
 
         foreach ($users as $user) {
             CommissionMember::query()->updateOrCreate(
