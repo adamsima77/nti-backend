@@ -66,6 +66,11 @@ class ApplicationsPolicy
         return $user->hasRole('admin'); // Only admins can reject
     }
 
+    public function changeStatus(User $user, Application $application): bool
+    {
+        return $user->isAdmin() || $user->isSuperAdmin() || $user->isCommissionChair();
+    }
+
     public function export(User $user): bool
     {
         return $user->isAdmin() || $user->isSuperAdmin();

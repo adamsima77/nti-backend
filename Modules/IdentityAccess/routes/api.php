@@ -33,6 +33,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('profile', [UserController::class, 'profile']);
+    Route::match(['put', 'patch'], 'profile', [UserController::class, 'updateProfile']);
+    Route::post('profile/avatar', [UserController::class, 'uploadCurrentAvatar']);
     Route::get('users/export/{format?}', [ExportController::class, 'users'])->name('users.export');
     Route::get('users/{user}/pdf', [ExportController::class, 'userPdf'])->name('users.pdf')->whereNumber('user');
     // POST: multipart súborov — PUT s FormData v PHP často nevyplní $_FILES; profilová fotka ide cez túto cestu.

@@ -21,8 +21,8 @@ class EvaluationPolicy
 
     public function viewAny(User $user): bool
     {
-        // Allow viewing evaluations list only for admins and commission members
-        return $user->isAdmin() || $user->isSuperAdmin();
+        // Allow viewing evaluations list only for admins and commission chairs.
+        return $user->isAdmin() || $user->isSuperAdmin() || $user->isCommissionChair();
     }
 
     public function view(User $user, Evaluation $evaluation): bool

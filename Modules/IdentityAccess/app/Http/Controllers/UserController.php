@@ -294,6 +294,21 @@ class UserController extends Controller
         return response()->json($user, Response::HTTP_OK);
     }
 
+    public function profile(Request $request)
+    {
+        return $this->show($request->user()->id);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        return $this->update($request, $request->user()->id);
+    }
+
+    public function uploadCurrentAvatar(Request $request)
+    {
+        return $this->uploadAvatar($request, $request->user());
+    }
+
     public function downloadPdf(User $user, PdfService $pdfService)
     {
         $this->authorize('pdf', $user);

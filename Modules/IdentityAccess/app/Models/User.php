@@ -161,6 +161,11 @@ class User extends Authenticatable
         return $this->roles()->where('name', 'evaluator')->exists();
     }
 
+    public function isCommissionChair(): bool
+    {
+        return $this->roles()->where('name', 'predseda_komisie')->exists();
+    }
+
     public function isCMSEditor(): bool
     {
         return $this->roles()->where('name', 'cms_editor')->exists();

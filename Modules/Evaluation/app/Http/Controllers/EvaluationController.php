@@ -115,7 +115,7 @@ class EvaluationController extends Controller
                 ? 'approve'
                 : ($this->normalizeApplicationStatus($evaluation->decision?->name) === 'rejected' ? 'reject' : 'supplement'),
             'internal_note' => null,
-            'submitted_at' => optional($evaluation->created_at)?->toDateTimeString(),
+            'submitted_at' => optional($evaluation->submitted_at ?? $evaluation->created_at)?->toDateTimeString(),
             'locked' => false,
         ];
     }
@@ -344,6 +344,32 @@ class EvaluationController extends Controller
             ])
             ->findOrFail($applicationId);
 
+        if ($evaluationId === null) {
+            $this->authorize('create', Evaluation::class);
+        }
+
+        $evaluation = null;
+        if ($evaluationId !== null) {
+            $evaluation = Evaluation::query()
+                ->where('id', $evaluationId)
+                ->where('application_id', $application->id)
+                ->where('commission_member_id', $commissionMember->id)
+                ->firstOrFail();
+
+            $this->authorize('update', $evaluation);
+        }
+
+        $existingEvaluation = Evaluation::query()
+            ->where('application_id', $application->id)
+            ->where('commission_member_id', $commissionMember->id)
+            ->first();
+
+        if ($evaluationId === null && $existingEvaluation !== null) {
+            return response()->json([
+                'message' => 'Hodnotenie pre túto prihlášku ste už odoslali.',
+            ], Response::HTTP_CONFLICT);
+        }
+
         $decisionId = $this->resolveDecisionId($validated['recommendation']);
         $statusName = match ($validated['recommendation']) {
             'approve' => 'Schválené',
@@ -354,20 +380,13 @@ class EvaluationController extends Controller
 
         $evaluation = DB::transaction(function () use ($validated, $application, $commissionMember, $decisionId, $evaluationId, $statusName) {
             $evaluation = $evaluationId !== null
-                ? Evaluation::query()
-                    ->where('id', $evaluationId)
-                    ->where('application_id', $application->id)
-                    ->where('commission_member_id', $commissionMember->id)
-                    ->firstOrFail()
-                : Evaluation::query()->updateOrCreate(
-                    [
-                        'application_id' => $application->id,
-                        'commission_member_id' => $commissionMember->id,
-                    ],
-                    [
-                        'decision_id' => $decisionId,
-                    ]
-                );
+                ? $evaluation
+                : Evaluation::query()->create([
+                    'application_id' => $application->id,
+                    'commission_member_id' => $commissionMember->id,
+                    'decision_id' => $decisionId,
+                    'submitted_at' => now(),
+                ]);
 
             $evaluation->update([
                 'decision_id' => $decisionId,
@@ -396,20 +415,6 @@ class EvaluationController extends Controller
 
             return $evaluation->load('scores', 'decision');
         });
-
-        $note = $validated['internal_note'] ?? null;
-        $this->workflowService()->evaluateApplication(
-            $application,
-            $evaluation,
-            $validated['recommendation'],
-            $note,
-            $request->user(),
-            $evaluationId === null
-        );
-
-        if ($evaluation->wasRecentlyCreated) {
-            $this->workflowService()->notifyEvaluatorAssigned($evaluation);
-        }
 
         return response()->json([
             'message' => 'Hodnotenie bolo úspešne uložené.',
@@ -624,6 +629,39 @@ class EvaluationController extends Controller
             : null;
 
         return response()->json($this->applicationDetailPayload($application, $currentEvaluation, $commissionMembers, $currentCommissionMember?->id));
+    }
+
+    public function index(Request $request, int $applicationId): JsonResponse
+    {
+        $application = Application::query()
+            ->with(['call.callCriteria.criterionTranslations:id,criterion_id,language_id,name'])
+            ->findOrFail($applicationId);
+
+        $this->authorize('viewAny', Evaluation::class);
+
+        $evaluations = Evaluation::query()
+            ->with(['scores', 'commissionMember.user', 'decision'])
+            ->where('application_id', $applicationId)
+            ->get();
+
+        $items = $evaluations->map(function (Evaluation $evaluation) use ($application) {
+            return [
+                'id' => $evaluation->id,
+                'commission_member_id' => $evaluation->commission_member_id,
+                'evaluator' => [
+                    'id' => $evaluation->commissionMember?->user?->id,
+                    'name' => trim(($evaluation->commissionMember?->user?->name ?? '') . ' ' . ($evaluation->commissionMember?->user?->surname ?? '')),
+                ],
+                'submitted_at' => optional($evaluation->submitted_at ?? $evaluation->created_at)?->toDateTimeString(),
+                'criteria' => $this->evaluationPayload($evaluation, $application->call?->callCriteria ?? collect())['criteria'] ?? [],
+                'total_score' => $this->evaluationTotal($evaluation),
+                'recommendation' => $this->normalizeApplicationStatus($evaluation->decision?->name) === 'approved'
+                    ? 'approve'
+                    : ($this->normalizeApplicationStatus($evaluation->decision?->name) === 'rejected' ? 'reject' : 'supplement'),
+            ];
+        });
+
+        return response()->json(['evaluations' => $items]);
     }
 
     public function storeEvaluatorEvaluation(Request $request, int $applicationId): JsonResponse

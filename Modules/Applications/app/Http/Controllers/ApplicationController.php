@@ -359,15 +359,13 @@ class ApplicationController extends Controller
     {
         $application = Application::findOrFail($id);
 
-        $this->authorize('update', $application);
+        $this->authorize('changeStatus', $application);
 
         $validated = $request->validate([
             'status_id' => ['nullable', 'integer', 'exists:status_of_application,id', 'required_without:status_name'],
             'status_name' => ['nullable', 'string', 'max:120', 'required_without:status_id'],
             'note' => ['nullable', 'string'],
         ]);
-
-        $status = null;
 
         $application = $this->workflowService()->changeStatus(
             $application,

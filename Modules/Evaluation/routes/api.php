@@ -12,6 +12,7 @@ Route::middleware('auth:sanctum')->group(function () {
 		Route::get('calls', [EvaluationController::class, 'calls']);
 		Route::get('calls/{callId}/applications', [EvaluationController::class, 'callApplications']);
 		Route::get('applications/{applicationId}', [EvaluationController::class, 'application']);
+		Route::get('applications/{applicationId}/evaluations', [EvaluationController::class, 'index']);
 		Route::post('applications/{applicationId}/evaluations', [EvaluationController::class, 'storeEvaluatorEvaluation']);
 		Route::patch('applications/{applicationId}/evaluations/{evaluationId}', [EvaluationController::class, 'updateEvaluatorEvaluation']);
 		Route::post('applications/{applicationId}/supplement-request', [EvaluationController::class, 'requestSupplement']);

@@ -279,6 +279,16 @@ class PermissionSeeder extends Seeder
                 'content.view',
             ],
 
+            'predseda_komisie' => [
+                'programs.view',
+                'applications.view_any',
+                'applications.change_status',
+                'evaluation.view_any',
+                'notifications.view_own',
+                'notifications.manage_own',
+                'content.view',
+            ],
+
             // ─── cms_editor ──────────────────────────────────────────────────
             'cms_editor' => [
                 'content.view',
