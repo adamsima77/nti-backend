@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Organizations\Models\SectorTranslation;
 use Modules\Programs\Models\CallTranslation;
 use Modules\Programs\Models\CriterionTranslation;
+use Modules\Programs\Models\QualificationStackTranslation;
 use Modules\Students\Models\StudyFieldTranslation;
 use Modules\Students\Models\StudyProgramTranslation;
 use Modules\Students\Models\StudyYearTranslation;
@@ -27,6 +28,10 @@ class Language extends Model
 
     public function metaTagTranslations(): HasMany{
         return $this->hasMany(MetaTagTranslation::class);
+    }
+
+    public function qualificationTranslations(): HasMany{
+        return $this->hasMany(QualificationStackTranslation::class);
     }
 
     public function frequentlyAskedQuestions(): HasMany

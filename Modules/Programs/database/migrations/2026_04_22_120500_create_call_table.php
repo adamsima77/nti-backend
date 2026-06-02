@@ -21,6 +21,7 @@ return new class extends Migration {
             $table->unsignedBigInteger('program_id');
             $table->unsignedBigInteger('organization_id');
             $table->unsignedBigInteger('call_type_id');
+            $table->foreignId('qualification_stack_id')->nullable()->constrained('qualification_stacks');
             $table->timestamps();
 
             $table->foreign('program_id')->references('id')->on('program');

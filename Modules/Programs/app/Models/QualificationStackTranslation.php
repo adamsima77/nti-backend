@@ -7,9 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\Content\Models\Language;
 
-// use Modules\Programs\Database\Factories\CriterionTranslationFactory;
+// use Modules\Programs\Database\Factories\QualificationStackTranslationFactory;
 
-class CriterionTranslation extends Model
+class QualificationStackTranslation extends Model
 {
     use HasFactory;
 
@@ -19,20 +19,19 @@ class CriterionTranslation extends Model
     protected $fillable = [
         'name',
         'language_id',
-        'criterion_id',
-        'description'
+        'qualification_stack_id'
     ];
 
-    public function criterion(): BelongsTo{
-        return $this->belongsTo(Criterion::class);
+    public function qualification_stack(): BelongsTo{
+        return $this->belongsTo(QualificationStack::class);
     }
 
     public function language(): BelongsTo{
         return $this->belongsTo(Language::class);
     }
 
-    // protected static function newFactory(): CriterionTranslationFactory
+    // protected static function newFactory(): QualificationStackTranslationFactory
     // {
-    //     // return CriterionTranslationFactory::new();
+    //     // return QualificationStackTranslationFactory::new();
     // }
 }

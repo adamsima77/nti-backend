@@ -42,6 +42,7 @@ class CriterionController extends Controller
             'translations'                   => ['required', 'array', 'min:1'],
             'translations.*.language_id'     => ['required', 'integer', 'exists:languages,id'],
             'translations.*.name'            => ['required', 'string', 'max:255'],
+            'translations.*.description' => ['nullable', 'string', 'max:1000']
         ]);
 
         return DB::transaction(function () use ($validated) {
@@ -53,6 +54,7 @@ class CriterionController extends Controller
                 $criterion->criterionTranslations()->create([
                     'language_id' => $tr['language_id'],
                     'name'        => $tr['name'],
+                    'description' => $tr['description'] ?? null,
                 ]);
             }
 

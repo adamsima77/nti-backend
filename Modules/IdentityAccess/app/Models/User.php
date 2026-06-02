@@ -5,6 +5,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Modules\AuditCompliance\Models\SystemEvent;
 use Modules\Content\Models\NewsTranslation;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -78,6 +79,10 @@ class User extends Authenticatable
     public function status(): BelongsTo
     {
         return $this->belongsTo(Status::class);
+    }
+
+    public function systemEvents(): HasMany{
+        return $this->hasMany(SystemEvent::class);
     }
 
     public function roles(): BelongsToMany

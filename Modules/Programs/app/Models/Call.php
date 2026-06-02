@@ -25,7 +25,8 @@ class Call extends Model
         'organization_id',
         'call_type_id',
         'application_start',
-        'force_closed'
+        'force_closed',
+        'qualification_stack_id'
     ];
 
     protected $casts = [
@@ -36,6 +37,10 @@ class Call extends Model
         'project_start' => 'datetime',
         'project_end' => 'datetime',
     ];
+
+    public function qualificationStack(): BelongsTo{
+        return $this->belongsTo(QualificationStack::class);
+    }
 
     public function program(): BelongsTo
     {

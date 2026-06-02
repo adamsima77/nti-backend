@@ -5,6 +5,7 @@ use Modules\Reporting\Http\Controllers\AdminDashboardController;
 use Modules\Reporting\Http\Controllers\ExportController;
 use Modules\Reporting\Http\Controllers\ProjectKpiController;
 use Modules\Reporting\Http\Controllers\ProjectOutputController;
+use Modules\Reporting\Http\Controllers\SuperAdminDashboardController;
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -46,4 +47,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{id}/attach-documents', [ProjectOutputController::class, 'attachDocuments'])->name('outputs.attach-documents');
         Route::post('{id}/detach-documents', [ProjectOutputController::class, 'detachDocuments'])->name('outputs.detach-documents');
     });
+
+
+        Route::get('/users-count', [SuperAdminDashboardController::class, 'fetchAllUsersCount']);
+        Route::get('/organizations-count', [SuperAdminDashboardController::class, 'fetchAllOrganizationsCount']);
+        Route::get('/security-alerts', [SuperAdminDashboardController::class, 'securityAlertsNewer']);
+        Route::get('/active-problems', [SuperAdminDashboardController::class, 'activeSystemProblemsCount']);
+        Route::get('/gdpr-prune', [SuperAdminDashboardController::class, 'fetchGdprPrune']);
+        Route::get('/status-of-services', [SuperAdminDashboardController::class, 'fetchStatusOfServices']);
+        Route::get('/logs', [SuperAdminDashboardController::class, 'fetchLogs']);
+
 });

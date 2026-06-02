@@ -11,12 +11,12 @@ use Modules\Programs\Http\Controllers\TypeOfProgramController;
 use Modules\Reporting\Http\Controllers\ExportController;
 
 // ── Public routes ──────────────────────────────────────────────────────
-Route::get('/calls/{id}/lang/{lang}', [CallController::class, 'fetchCallByIdAndLang']);
+Route::get('/calls/{id}/lang/{lang}', [CallController::class, 'fetchCallByIdAndLang'])->whereNumber('id');
 Route::get('/programs/lang/{lang}',   [ProgramsController::class, 'getProgramByLang']);
 Route::get('/calls/lang/{lang}',      [CallController::class, 'fetchCallByLang']);
 Route::get('calls',                   [CallController::class, 'index']);
-Route::get('calls/{id}',              [CallController::class, 'show']);
-Route::get('calls/{id}/pdf',          [ExportController::class, 'callPdf'])->name('calls.pdf');
+Route::get('calls/{id}',              [CallController::class, 'show'])->whereNumber('id');
+Route::get('calls/{id}/pdf',          [ExportController::class, 'callPdf'])->name('calls.pdf')->whereNumber('id');
 
 // ── Authenticated routes (Sanctum protected) ───────────────────────────
 Route::middleware(['auth:sanctum'])->group(function () {

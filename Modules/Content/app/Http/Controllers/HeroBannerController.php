@@ -5,6 +5,7 @@ namespace Modules\Content\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Modules\Content\Models\HeroBanner;
 use Illuminate\Http\Response;
@@ -59,30 +60,33 @@ class HeroBannerController extends Controller
 
     public function fetchByPageLangPublic(int $pageId, string $lang)
     {
-        $languageId = Language::where('name', $lang)->value('id');
+        $cacheKey = "public_hero_banner:{$pageId}:{$lang}";
 
-        if (!$languageId) {
+        $data = Cache::remember($cacheKey, 300, function () use ($pageId, $lang) {
+
+            $languageId = Language::where('name', $lang)->value('id');
+
+            if (!$languageId) {
+                return null;
+            }
+
+            return HeroBanner::with([
+                'page',
+                'heroBannerTranslations' => fn($q) =>
+                $q->where('language_id', $languageId),
+            ])
+                ->where('page_id', $pageId)
+                ->where('status_id', 1)
+                ->first();
+        });
+
+        if (!$data) {
             return response()->json([
-                'message' => 'Language not found!'
+                'message' => 'Hero banner not found or language invalid!'
             ], Response::HTTP_NOT_FOUND);
         }
 
-        $banner = HeroBanner::with([
-            'page',
-            'heroBannerTranslations' => fn($q) =>
-            $q->where('language_id', $languageId),
-        ])
-            ->where('page_id', $pageId)
-            ->where('status_id', 1)
-            ->first();
-
-        if (!$banner) {
-            return response()->json([
-                'message' => 'Hero banner not found!'
-            ], Response::HTTP_NOT_FOUND);
-        }
-
-        return response()->json($banner, Response::HTTP_OK);
+        return response()->json($data, Response::HTTP_OK);
     }
 
     public function showCms(int $id)

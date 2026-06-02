@@ -11,12 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('criterion_translations', function (Blueprint $table) {
+        Schema::create('qualification_stack_translations', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 255);
-            $table->string('description')->nullable();
-            $table->foreignId('criterion_id')->constrained('criterion');
+            $table->string('name');
             $table->foreignId('language_id')->constrained('languages');
+            $table->foreignId('qualification_stack_id')->constrained('qualification_stacks');
             $table->timestamps();
         });
     }
@@ -26,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('criterion_translations');
+        Schema::dropIfExists('qualification_stack_translations');
     }
 };
