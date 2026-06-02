@@ -15,6 +15,7 @@ use Modules\Programs\Models\FormSchema;
 use Modules\Reporting\Models\ProjectKpi;
 use Modules\Reporting\Models\ProjectOutput;
 use Modules\Teams\Models\Team;
+use Modules\Content\Models\Category;
 
 class Application extends Model
 {
@@ -31,6 +32,7 @@ class Application extends Model
         'team_id',
         'created_by',
         'active_status',
+        'category_id',
         'form_data',
         'form_schema_id',
     ];
@@ -68,6 +70,11 @@ class Application extends Model
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class, 'team_id');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class, 'category_id');
     }
 
     public function creator(): BelongsTo

@@ -132,6 +132,7 @@ class EvaluationController extends Controller
             'team.members',
             'team.members.student.academicFlags',
             'status:id,name',
+            'category.categoryTranslations:id,category_id,language_id,name',
         ]);
 
         $evaluations = Evaluation::query()
@@ -173,6 +174,12 @@ class EvaluationController extends Controller
             'deadline' => $application->call?->application_deadline?->format('Y-m-d'),
             'avgScore' => $avgScore,
             'call_id' => $application->call_id,
+            'category' => $application->category ? [
+                'id' => $application->category->id,
+                'name' => $application->category->categoryTranslations
+                    ->firstWhere('language_id', LanguageType::SLOVAK->value)?->name
+                    ?? $application->category->slug,
+            ] : null,
         ];
     }
 
@@ -246,6 +253,7 @@ class EvaluationController extends Controller
             'documents.versions',
             'statusHistory.status:id,name',
             'status:id,name',
+            'category.categoryTranslations:id,category_id,language_id,name',
         ]);
 
         $callCriteria = $application->call?->callCriteria ?? collect();
@@ -282,6 +290,12 @@ class EvaluationController extends Controller
             'deadline' => $application->call?->application_deadline?->format('Y-m-d'),
             'avgScore' => $avgScore,
             'call_id' => $application->call_id,
+            'category' => $application->category ? [
+                'id' => $application->category->id,
+                'name' => $application->category->categoryTranslations
+                    ->firstWhere('language_id', LanguageType::SLOVAK->value)?->name
+                    ?? $application->category->slug,
+            ] : null,
             'description' => $application->call?->description ?? '',
             'documents' => $application->documents->map(function ($document) {
                 $latest = $document->versions->sortByDesc('id')->first();

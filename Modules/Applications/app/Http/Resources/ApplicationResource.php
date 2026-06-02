@@ -4,6 +4,7 @@ namespace Modules\Applications\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Content\Enums\LanguageType;
 use Modules\Mentorship\Models\Milestone;
 
 class ApplicationResource extends JsonResource
@@ -23,6 +24,24 @@ class ApplicationResource extends JsonResource
         }
 
         return 'pending';
+    }
+
+    private function languageId(Request $request): int
+    {
+        $locale = strtolower((string) $request->header('X-Locale', 'sk'));
+        return $locale === 'en' ? LanguageType::ENGLISH->value : LanguageType::SLOVAK->value;
+    }
+
+    private function categoryName(Request $request): ?string
+    {
+        if (! $this->category) {
+            return null;
+        }
+
+        return $this->category->categoryTranslations
+            ->firstWhere('language_id', $this->languageId($request))?->name
+            ?? $this->category->categoryTranslations->first()?->name
+            ?? $this->category->slug;
     }
 
     /**
@@ -80,6 +99,12 @@ class ApplicationResource extends JsonResource
                         ];
                     })
                     ->values();
+            }),
+            'category'       => $this->whenLoaded('category', function () use ($request) {
+                return [
+                    'id' => $this->category?->id,
+                    'name' => $this->categoryName($request),
+                ];
             }),
             'milestones'     => $this->whenLoaded('milestones', function () {
                 return $this->milestones->map(function (Milestone $milestone) {

@@ -46,6 +46,7 @@ class ApplicationController extends Controller
                 'team:id,name',
                 'team.members.student.academicFlags',
                 'documents:id',
+                'category.categoryTranslations:id,category_id,language_id,name',
             ])
             ->where('created_by', $request->user()->id)
             ->when(
@@ -74,6 +75,7 @@ class ApplicationController extends Controller
                 'documents.versions',
                 'statusHistory.status:id,name',
                 'milestones',
+                'category.categoryTranslations:id,category_id,language_id,name',
             ])
             ->findOrFail($id);
 
