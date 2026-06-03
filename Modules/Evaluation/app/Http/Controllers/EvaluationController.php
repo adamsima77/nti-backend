@@ -424,14 +424,8 @@ class EvaluationController extends Controller
         }
 
         $decisionId = $this->resolveDecisionId($validated['recommendation']);
-        $statusName = match ($validated['recommendation']) {
-            'approve' => 'Schválené',
-            'reject' => 'Zamietnuté',
-            'supplement' => 'Vyžiadané doplnenie',
-            default => 'Vyžiadané doplnenie',
-        };
 
-        $evaluation = DB::transaction(function () use ($validated, $application, $commissionMember, $decisionId, $evaluationId, $statusName) {
+        $evaluation = DB::transaction(function () use ($validated, $application, $commissionMember, $decisionId, $evaluationId) {
             $evaluation = $evaluationId !== null
                 ? $evaluation
                 : Evaluation::query()->create([
