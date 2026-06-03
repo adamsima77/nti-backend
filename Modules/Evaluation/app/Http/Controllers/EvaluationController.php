@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Services\ApplicationWorkflowService;
 use Modules\Applications\Models\Application;
 use Modules\Evaluation\Models\CommissionMember;
@@ -85,6 +86,29 @@ class EvaluationController extends Controller
         $application->loadMissing(['team.members.student.academicFlags']);
 
         return $application->academic_flag;
+    }
+
+    private function resolveAcademicRecord(Application $application): ?array
+    {
+        foreach ($application->team?->members ?? [] as $member) {
+            $student = $member?->student;
+            if ($student?->academicRecord !== null) {
+                $record = $student->academicRecord;
+                $transcriptUrl = $record->transcript_file ? Storage::url($record->transcript_file) : null;
+
+                return [
+                    'student_id' => $record->student_id,
+                    'transcript_file' => $transcriptUrl,
+                    'honor_declaration' => (bool) $record->honor_declaration,
+                    'honor_declaration_signed_at' => optional($record->honor_declaration_signed_at)?->toDateTimeString(),
+                    'school' => $student->university?->name ?? null,
+                    'study_program' => $student->studyProgram?->studyProgramTranslations?->first()?->name ?? $student->studyProgram?->name ?? null,
+                    'study_year' => $student->studyYear?->studyYearTranslations?->first()?->name ?? null,
+                ];
+            }
+        }
+
+        return null;
     }
 
     private function evaluationPayload(?Evaluation $evaluation, Collection $callCriteria): ?array
@@ -250,6 +274,10 @@ class EvaluationController extends Controller
             'call.callCriteria.criterionTranslations:id,criterion_id,language_id,name',
             'team.members',
             'team.members.student.academicFlags',
+            'team.members.student.academicRecord',
+            'team.members.student.university',
+            'team.members.student.studyProgram.studyProgramTranslations',
+            'team.members.student.studyYear.studyYearTranslations',
             'documents.versions',
             'statusHistory.status:id,name',
             'status:id,name',
@@ -323,6 +351,7 @@ class EvaluationController extends Controller
                     'role' => $teamRoleMap->get((int) $member->pivot->team_role_id, 'Člen tímu'),
                 ];
             })->values() ?? [],
+            'academic_record' => $this->resolveAcademicRecord($application),
             'commissionMembers' => $commissionMembers->map(function (CommissionMember $commissionMember) use ($scoreMap) {
                 $user = $commissionMember->user;
 

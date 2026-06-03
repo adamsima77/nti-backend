@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Modules\Content\Models\Language;
 use Modules\IdentityAccess\Models\User;
+use Modules\Students\Models\AcademicRecord;
 use Modules\Students\Models\Student;
 
 class StudentsController extends Controller
@@ -54,6 +57,66 @@ class StudentsController extends Controller
         return response()->json([
             'student' => $student,
             'lang'    => $langId,
+        ], Response::HTTP_OK);
+    }
+
+    /**
+     * Store or update the authenticated student's academic record.
+     */
+    public function storeAcademicRecord(Request $request)
+    {
+        $student = $request->user()?->student;
+        if ($student === null) {
+            return response()->json([
+                'message' => 'Študentský profil nebol nájdený.',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $this->authorize('update', $student);
+
+        $validated = $request->validate([
+            'honor_declaration' => ['required', 'boolean'],
+            'transcript_file' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+        ]);
+
+        $transcriptPath = $student->academicRecord?->transcript_file ?? null;
+        if ($request->hasFile('transcript_file')) {
+            /** @var UploadedFile $file */
+            $file = $request->file('transcript_file');
+            $filename = sprintf('%s_%s.%s', $student->id, uniqid('', true), $file->getClientOriginalExtension());
+            $transcriptPath = $file->storeAs('transcripts', $filename, 'local');
+        }
+
+        $academicRecord = AcademicRecord::updateOrCreate(
+            ['student_id' => $student->id],
+            [
+                'transcript_file' => $transcriptPath,
+                'honor_declaration' => $validated['honor_declaration'],
+                'honor_declaration_signed_at' => $validated['honor_declaration'] ? now() : null,
+            ]
+        );
+
+        return response()->json([
+            'academic_record' => $academicRecord,
+        ], Response::HTTP_OK);
+    }
+
+    /**
+     * Display the authenticated student's academic record.
+     */
+    public function academicRecordMe(Request $request)
+    {
+        $student = $request->user()?->student;
+        if ($student === null) {
+            return response()->json([
+                'message' => 'Študentský profil nebol nájdený.',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $this->authorize('view', $student);
+
+        return response()->json([
+            'academic_record' => $student->loadMissing('academicRecord')->academicRecord,
         ], Response::HTTP_OK);
     }
 
@@ -163,6 +226,18 @@ class StudentsController extends Controller
                 'studyYear',
                 'academicFlags',
             ]),
+        ], Response::HTTP_OK);
+    }
+
+    /**
+     * Fetch the academic record for a student.
+     */
+    public function academicRecord(Student $student)
+    {
+        $this->authorize('view', $student);
+
+        return response()->json([
+            'academic_record' => $student->loadMissing('academicRecord')->academicRecord,
         ], Response::HTTP_OK);
     }
 
