@@ -19,6 +19,7 @@ class Evaluation extends Model
         'commission_member_id',
         'decision_id',
         'submitted_at',
+        'internal_note',
     ];
 
     public function application(): BelongsTo

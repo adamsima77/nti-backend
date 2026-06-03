@@ -300,9 +300,47 @@ class ApplicationController extends Controller
             'form_data.*' => ['nullable', 'string', 'max:20000'],
         ]);
 
-        $application = DB::transaction(function () use ($validated, $application) {
+        $application = DB::transaction(function () use ($validated, $application, $request) {
+            $application->loadMissing([
+                'call.callCriteria.criterionTranslations:id,criterion_id,language_id,name',
+            ]);
+
+            $langHeader = strtolower((string) $request->header('X-Locale', 'sk'));
+            if (! in_array($langHeader, ['sk', 'en'], true)) {
+                $langHeader = 'sk';
+            }
+
+            $language = Language::query()->where('name', $langHeader)->first()
+                ?? Language::query()->where('name', 'sk')->first();
+            $storedFormData = [];
+
+            if (! empty($validated['form_data'])) {
+                $storedFormData = CallFormSchema::normalizeStoredFormAnswers(
+                    $application->call,
+                    $language,
+                    $langHeader,
+                    $validated['form_data'] ?? []
+                );
+
+                $unionIds = CallFormSchema::collectDocumentIdsFromStoredAnswers(
+                    $storedFormData,
+                    $application->call,
+                    $language,
+                    $langHeader
+                );
+
+                $requestIds = array_values(array_unique(array_map('intval', $validated['document_ids'])));
+                sort($requestIds);
+
+                if ($unionIds !== $requestIds) {
+                    throw ValidationException::withMessages([
+                        'document_ids' => ['Zoznam príloh musí presne zodpovedať súborom priradeným v poliach formulára.'],
+                    ]);
+                }
+            }
+
             $application->update([
-                'form_data' => $validated['form_data'] ?? null,
+                'form_data' => $storedFormData === [] ? null : $storedFormData,
                 'last_update' => now(),
             ]);
 
@@ -313,9 +351,28 @@ class ApplicationController extends Controller
                 ]);
 
                 $application->documents()->syncWithPivotValues(
-                    $validated['document_ids'],
+                    $validated['document_ids'], 
                     ['type_of_application_id' => $defaultType->id]
                 );
+            }
+
+            if ($application->call !== null) {
+                $publishedSchema = FormSchema::publishedLatestForCall((int) $application->call_id);
+                if ($publishedSchema !== null) {
+                    ApplicationAnswer::query()->where('application_id', $application->id)->delete();
+                    foreach ($publishedSchema->formFields as $formField) {
+                        $key = $formField->name;
+                        if (! array_key_exists($key, $storedFormData)) {
+                            continue;
+                        }
+
+                        ApplicationAnswer::query()->create([
+                            'application_id' => $application->id,
+                            'form_field_id' => $formField->id,
+                            'value' => $storedFormData[$key],
+                        ]);
+                    }
+                }
             }
 
             return $application->load([

@@ -225,6 +225,7 @@ class StudentsController extends Controller
                 'university',
                 'studyYear',
                 'academicFlags',
+                'academicRecord',
             ]),
         ], Response::HTTP_OK);
     }

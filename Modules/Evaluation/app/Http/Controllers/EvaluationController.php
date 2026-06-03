@@ -17,8 +17,10 @@ use Modules\Evaluation\Models\Decision;
 use Modules\Evaluation\Models\Evaluation;
 use Modules\Evaluation\Models\EvaluationScore;
 use Modules\Content\Enums\LanguageType;
+use Modules\Content\Models\Language;
 use Modules\Programs\Models\Call as ProgramCall;
 use Modules\Programs\Models\Criterion;
+use Modules\Programs\Support\CallFormSchema;
 use Modules\Teams\Models\TeamRole;
 
 class EvaluationController extends Controller
@@ -138,9 +140,9 @@ class EvaluationController extends Controller
             'recommendation' => $this->normalizeApplicationStatus($evaluation->decision?->name) === 'approved'
                 ? 'approve'
                 : ($this->normalizeApplicationStatus($evaluation->decision?->name) === 'rejected' ? 'reject' : 'supplement'),
-            'internal_note' => null,
+            'internal_note' => $evaluation->internal_note,
             'submitted_at' => optional($evaluation->submitted_at ?? $evaluation->created_at)?->toDateTimeString(),
-            'locked' => false,
+            'locked' => $evaluation->submitted_at !== null,
         ];
     }
 
@@ -266,7 +268,37 @@ class EvaluationController extends Controller
         ];
     }
 
-    private function applicationDetailPayload(Application $application, ?Evaluation $currentEvaluation, Collection $commissionMembers, ?int $currentCommissionMemberId = null): array
+    private function resolveFormFields(Application $application, Request $request): array
+    {
+        $call = $application->call;
+        if ($call === null) {
+            return [];
+        }
+
+        $langHeader = strtolower((string) $request->header('X-Locale', 'sk'));
+        if (! in_array($langHeader, ['sk', 'en'], true)) {
+            $langHeader = 'sk';
+        }
+
+        $language = Language::query()->where('name', $langHeader)->first()
+            ?? Language::query()->where('name', 'sk')->first();
+
+        $schema = CallFormSchema::build($call, $language, $langHeader);
+        $fields = $schema['fields'] ?? [];
+
+        return array_map(function ($field) {
+            return [
+                'name' => isset($field['name']) ? (string) $field['name'] : '',
+                'label' => isset($field['label']) ? (string) $field['label'] : (isset($field['name']) ? (string) $field['name'] : ''),
+                'type' => isset($field['type']) ? (string) $field['type'] : 'text',
+                'placeholder' => isset($field['placeholder']) ? (string) $field['placeholder'] : null,
+                'description' => isset($field['description']) ? (string) $field['description'] : null,
+                'options' => $field['options'] ?? null,
+            ];
+        }, $fields);
+    }
+
+    private function applicationDetailPayload(Request $request, Application $application, ?Evaluation $currentEvaluation, Collection $commissionMembers, ?int $currentCommissionMemberId = null): array
     {
         $application->loadMissing([
             'call.program.typeOfProgram:id,name',
@@ -326,6 +358,8 @@ class EvaluationController extends Controller
                     ?? $application->category->slug,
             ] : null,
             'description' => $application->call?->description ?? '',
+            'form_data' => $application->form_data ?? [],
+            'form_fields' => $this->resolveFormFields($application, $request),
             'documents' => $application->documents->map(function ($document) {
                 $latest = $document->versions->sortByDesc('id')->first();
 
@@ -355,13 +389,22 @@ class EvaluationController extends Controller
             'evaluation' => $currentEvaluation ? $this->evaluationPayload($currentEvaluation, $callCriteria) : null,
             'call' => $application->call ? $this->callPayload($application->call, $currentCommissionMemberId) : null,
             'teamMembers' => $application->team?->members?->map(function ($member) use ($teamRoleMap) {
+                $student = $member->student;
+                $record = $student?->academicRecord;
+
                 return [
                     'id' => $member->id,
+                    'student_id' => $student?->id,
                     'name' => trim(($member->name ?? '').' '.($member->surname ?? '')),
                     'role' => $teamRoleMap->get((int) $member->pivot->team_role_id, 'Člen tímu'),
+                    'honor_declaration' => (bool) ($record?->honor_declaration ?? false),
+                    'honor_declaration_signed_at' => optional($record?->honor_declaration_signed_at)?->toDateTimeString(),
+                    'transcript_file' => $record?->transcript_file ? Storage::url($record->transcript_file) : null,
+                    'school' => $student?->university?->name ?? null,
+                    'study_program' => $student?->studyProgram?->studyProgramTranslations?->first()?->name ?? $student?->studyProgram?->name ?? null,
+                    'study_year' => $student?->studyYear?->studyYearTranslations?->first()?->name ?? null,
                 ];
             })->values() ?? [],
-            'academic_record' => $this->resolveAcademicRecord($application),
             'commissionMembers' => $commissionMembers->map(function (CommissionMember $commissionMember) use ($scoreMap) {
                 $user = $commissionMember->user;
 
@@ -433,10 +476,12 @@ class EvaluationController extends Controller
                     'commission_member_id' => $commissionMember->id,
                     'decision_id' => $decisionId,
                     'submitted_at' => now(),
+                    'internal_note' => $validated['internal_note'] ?? null,
                 ]);
 
             $evaluation->update([
                 'decision_id' => $decisionId,
+                'internal_note' => $validated['internal_note'] ?? null,
             ]);
 
             EvaluationScore::query()->where('evaluation_id', $evaluation->id)->delete();
@@ -675,7 +720,7 @@ class EvaluationController extends Controller
                 ->first()
             : null;
 
-        return response()->json($this->applicationDetailPayload($application, $currentEvaluation, $commissionMembers, $currentCommissionMember?->id));
+        return response()->json($this->applicationDetailPayload($request, $application, $currentEvaluation, $commissionMembers, $currentCommissionMember?->id));
     }
 
     public function index(Request $request, int $applicationId): JsonResponse

@@ -28,6 +28,7 @@ class IdentityAccessDatabaseSeeder extends Seeder
             DemoStudentUserSeeder::class,
             DemoMentorUserSeeder::class,
             DemoEvaluatorUserSeeder::class,
+            DemoCommissionChairUserSeeder::class,
         ]);
     }
 }
