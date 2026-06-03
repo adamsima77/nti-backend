@@ -6,6 +6,7 @@ use Modules\Programs\Http\Controllers\CallWorkflowController;
 use Modules\Programs\Http\Controllers\CriterionController;
 use Modules\Programs\Http\Controllers\FormSchemaController;
 use Modules\Programs\Http\Controllers\ProgramsController;
+use Modules\Programs\Http\Controllers\QualificationStackController;
 use Modules\Programs\Http\Controllers\StatusOfCallController;
 use Modules\Programs\Http\Controllers\TypeOfProgramController;
 use Modules\Reporting\Http\Controllers\ExportController;
@@ -17,7 +18,7 @@ Route::get('/calls/lang/{lang}',      [CallController::class, 'fetchCallByLang']
 Route::get('calls',                   [CallController::class, 'index']);
 Route::get('calls/{id}',              [CallController::class, 'show'])->whereNumber('id');
 Route::get('calls/{id}/pdf',          [ExportController::class, 'callPdf'])->name('calls.pdf')->whereNumber('id');
-
+Route::get('/qualification-stacks/lang/{lang}', [QualificationStackController::class, 'fetchStacksByLang']);
 // ── Authenticated routes (Sanctum protected) ───────────────────────────
 Route::middleware(['auth:sanctum'])->group(function () {
 

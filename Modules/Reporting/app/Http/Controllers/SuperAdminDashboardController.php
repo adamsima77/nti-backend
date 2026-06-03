@@ -31,6 +31,7 @@ class SuperAdminDashboardController extends Controller
         return response()->json(['count' => $users], Response::HTTP_OK);
     }
 
+    //Fetch logs for last 48 hours
 public function fetchLogs(Request $request)
     {
         $this->authorize('fetchLogs', SuperAdminDashboardPolicy::class);
@@ -41,7 +42,7 @@ public function fetchLogs(Request $request)
 
         $systemEvents = SystemEvent::with('user:id,email')
             ->whereIn('event_type', [EventType::SYSTEM_ERROR, EventType::SECURITY_ALERT])
-            ->get()
+            ->where('created_at', '>', now()->subHours(48))->get()
             ->map(fn(SystemEvent $e) => (object) [
                 'id'          => $e->id,
                 'source'      => 'system_event',
@@ -59,7 +60,7 @@ public function fetchLogs(Request $request)
             ]);
 
         $auditEvents = AuditCompliance::with('actor:id,email')
-            ->get()
+            ->where('time_of_action', '>', now()->subHours(48))->get()
             ->map(fn(AuditCompliance $e) => (object) [
                 'id'          => $e->id,
                 'source'      => 'audit_event',
@@ -88,6 +89,129 @@ public function fetchLogs(Request $request)
             perPage:     $perPage,
             currentPage: $page,
             options:     [
+                'path'  => $request->url(),
+                'query' => $request->query(),
+            ],
+        );
+
+        return response()->json($paginated);
+    }
+
+    public function fetchAllLogs(Request $request)
+    {
+        $this->authorize('fetchLogs', SuperAdminDashboardPolicy::class);
+
+        $perPage = (int) $request->input('per_page', 15);
+        $page    = (int) $request->input('page', 1);
+
+        $year = $request->filled('year')
+            ? (int) $request->input('year')
+            : null;
+
+        $day = $request->input('day');
+
+        $timeFrom = $request->input('time_from');
+        $timeTo   = $request->input('time_to');
+
+        $applyFilters = function (
+            $query,
+            string $column
+        ) use (
+            $request,
+            $year,
+            $day,
+            $timeFrom,
+            $timeTo
+        ) {
+
+            if ($request->filled('year')) {
+                $query->whereYear($column, $year);
+            }
+
+            if ($request->filled('day')) {
+                $query->whereDate($column, $day);
+            }
+
+            if ($request->filled('time_from')) {
+                $query->whereTime($column, '>=', $timeFrom);
+            }
+
+            if ($request->filled('time_to')) {
+                $query->whereTime($column, '<=', $timeTo);
+            }
+
+            return $query;
+        };
+
+
+        $systemEventsQuery = SystemEvent::with('user:id,email')
+            ->whereIn('event_type', [
+                EventType::SYSTEM_ERROR,
+                EventType::SECURITY_ALERT,
+            ]);
+
+        $applyFilters($systemEventsQuery, 'created_at');
+
+        $systemEvents = $systemEventsQuery
+            ->get()
+            ->map(fn (SystemEvent $e) => (object) [
+                'id'          => $e->id,
+                'source'      => 'system_event',
+                'type'        => $e->event_type,
+                'severity'    => $e->severity,
+                'message'     => $e->message,
+                'action'      => null,
+                'object_type' => null,
+                'object_id'   => null,
+                'ip'          => $e->ip_address,
+                'created_at'  => $e->created_at,
+                'user'        => $e->user
+                    ? [
+                        'id'    => $e->user->id,
+                        'email' => $e->user->email,
+                    ]
+                    : null,
+            ]);
+
+        $auditEventsQuery = AuditCompliance::with('actor:id,email');
+
+        $applyFilters($auditEventsQuery, 'time_of_action');
+
+        $auditEvents = $auditEventsQuery
+            ->get()
+            ->map(fn (AuditCompliance $e) => (object) [
+                'id'          => $e->id,
+                'source'      => 'audit_event',
+                'type'        => 'AUDIT',
+                'severity'    => $e->result,
+                'message'     => $e->action,
+                'action'      => $e->action,
+                'object_type' => $e->object_type,
+                'object_id'   => $e->object_id,
+                'ip'          => $e->ip,
+                'created_at'  => $e->time_of_action,
+                'user'        => $e->actor
+                    ? [
+                        'id'    => $e->actor->id,
+                        'email' => $e->actor->email,
+                    ]
+                    : null,
+            ]);
+
+
+        $merged = $systemEvents
+            ->merge($auditEvents)
+            ->sortByDesc('created_at')
+            ->values();
+
+        $paginated = new LengthAwarePaginator(
+            items: $merged
+                ->slice(($page - 1) * $perPage, $perPage)
+                ->values(),
+            total: $merged->count(),
+            perPage: $perPage,
+            currentPage: $page,
+            options: [
                 'path'  => $request->url(),
                 'query' => $request->query(),
             ],

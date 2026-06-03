@@ -21,7 +21,6 @@ class RoleSeeder extends Seeder
         Role::firstOrCreate(['name' => 'evaluator']);
         Role::firstOrCreate(['name' => 'predseda_komisie']);
         Role::firstOrCreate(['name' => 'cms_editor']);
-        Role::firstOrCreate(['name' => 'content-manager']);
         Role::firstOrCreate(['name' => 'nti_admin']);
         Role::firstOrCreate(['name' => 'nti_superadmin']);
     }

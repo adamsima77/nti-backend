@@ -134,6 +134,7 @@ class NewsController extends Controller
             'language_id' => ['required', 'exists:languages,id'],
             'status_id'   => ['nullable', 'exists:cms_statuses,id'],
             'image'       => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:4096'],
+            'main_description' => ['nullable', 'string']
         ]);
 
         try {
@@ -159,6 +160,7 @@ class NewsController extends Controller
                 'title'       => $validated['title'],
                 'description' => $validated['description'],
                 'language_id' => $validated['language_id'],
+                'main_description' => $validated['main_description']
             ]);
 
             DB::commit();
@@ -190,6 +192,7 @@ class NewsController extends Controller
             'language_id' => ['required', 'exists:languages,id'],
             'status_id'   => ['nullable', 'exists:cms_statuses,id'],
             'image'       => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:4096'],
+            'main_description' => ['nullable', 'string']
         ]);
 
         try {
@@ -219,6 +222,7 @@ class NewsController extends Controller
             $translation->update([
                 'title'       => $validated['title'],
                 'description' => $validated['description'],
+                'main_description' => $validated['main_description']
             ]);
 
             DB::commit();

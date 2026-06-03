@@ -15,6 +15,16 @@ class RolePolicy
         return $user->isAdmin() || $user->isSuperAdmin();
     }
 
+    public function syncPermissions(User $user, Role $role): bool
+    {
+        return $user->isAdmin() || $user->isSuperAdmin();
+    }
+
+    public function fetchRolesPermissions(User $user): bool
+    {
+        return $user->isAdmin() || $user->isSuperAdmin();
+    }
+
     public function view(User $user, Role $role): bool
     {
         return $user->isAdmin() || $user->isSuperAdmin();

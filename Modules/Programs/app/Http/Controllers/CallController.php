@@ -39,6 +39,9 @@ use Modules\Programs\Support\CallFormSchema;
  * regardless of application_deadline. Reversible — admin can
  * toggle it back to false to re-open (if deadline still future).
  *
+ * qualification_stack_id (FK on Call)
+ * └─ Optional qualification stack assigned to the call.
+ *
  * Mentors / Teams / Doc-signal scoring → separate modules (not here).
  * ────────────────────────────────────────────────────────────────────────────
  */
@@ -76,6 +79,7 @@ class CallController extends Controller
                 'currentStatusHistory.status:id,name',
                 'callTranslations.language:id,name',
                 'callCriteria',
+                'qualificationStack.translations:id,name',
             ]);
 
         if ($request->filled('status') && $request->query('status') !== 'all') {
@@ -152,7 +156,7 @@ class CallController extends Controller
                 'callCriteria' => function ($query) {
                     $query->withPivot('weight', 'is_academic_signal');
                 },
-                'callTranslations.language:id,name',
+                'callTranslations.language:id,name'
             ])
             ->findOrFail($id);
 
@@ -172,14 +176,98 @@ class CallController extends Controller
             ->with([
                 'program.typeOfProgram:id,name',
                 'organization:id,name',
-                'callType:id,name',
-                'currentStatusHistory.status:id,name',
-                'callCriteria.criterionTranslations:id,criterion_id,language_id,name',
                 'callTranslations.language:id,name',
+                'callType:id,name',
+                'qualificationStack:id',
+                'qualificationStack.translations:id,name,language_id',
+                'currentStatusHistory.status:id,name',
+                'callCriteria',
+                'callCriteria.criterionTranslations:id,criterion_id,language_id,name,description',
             ])
             ->findOrFail($id);
 
-        return response()->json(new CallResource($call));
+        $currentStatus = $call->currentStatusHistory?->status;
+
+        // Build call_translations array (all languages)
+        $callTranslations = $call->callTranslations->map(fn ($tr) => [
+            'language_id' => $tr->language_id,
+            'name'        => $tr->name,
+            'description' => $tr->description ?? '',
+        ])->values();
+
+        // Build call_criteria with translations keyed by language_id
+        $criteria = $call->callCriteria->map(function ($criterion) {
+            $translations = [];
+            foreach ($criterion->criterionTranslations as $tr) {
+                $translations[$tr->language_id] = [
+                    'name'        => $tr->name,
+                    'description' => $tr->description ?? '',
+                ];
+            }
+
+            return [
+                'id'           => $criterion->id,
+                'name'         => $criterion->name,
+                'translations' => $translations,
+                'pivot'        => [
+                    'weight'             => $criterion->pivot?->weight ?? 1,
+                    'is_academic_signal' => (bool) ($criterion->pivot?->is_academic_signal ?? false),
+                ],
+            ];
+        })->values();
+
+        // Build qualification_stack object with translations array
+        $qualificationStack = null;
+        if ($call->qualificationStack) {
+            $qualificationStack = [
+                'id'           => $call->qualificationStack->id,
+                'translations' => $call->qualificationStack->translations->map(fn ($tr) => [
+                    'language_id' => $tr->language_id,
+                    'name'        => $tr->name,
+                ])->values(),
+            ];
+        }
+
+        return response()->json([
+            'id'                       => $call->id,
+            'name'                     => $call->name,
+            'description'              => $call->description,
+            'application_start'        => $call->application_start,
+            'application_deadline'     => $call->application_deadline,
+            'project_start'            => $call->project_start,
+            'project_end'              => $call->project_end,
+            'force_closed'             => (bool) $call->force_closed,
+            'is_open'                  => !$call->force_closed && (
+                $call->application_deadline
+                    ? now()->lt($call->application_deadline)
+                    : false
+                ),
+            'applicants_count'         => $call->applications_count ?? 0,
+
+            'status'                   => [
+                'id'   => $currentStatus?->id,
+                'name' => $currentStatus?->name,
+            ],
+
+            'program'                  => [
+                'id'   => $call->program?->id,
+                'name' => $call->program?->typeOfProgram?->name,
+            ],
+
+            'organization'             => [
+                'id'   => $call->organization?->id,
+                'name' => $call->organization?->name,
+            ],
+
+            'program_id'               => $call->program_id,
+            'status_id'                => $currentStatus?->id,
+            'qualification_stack_id'   => $call->qualification_stack_id,
+
+            'call_translations'        => $callTranslations,
+            'call_criteria'            => $criteria,
+            'qualification_stack'      => $qualificationStack,
+            'application_form_schema'  => $call->application_form_schema,
+        ]);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -200,6 +288,9 @@ class CallController extends Controller
             'program_id'              => ['required', 'integer', 'exists:program,id'],
             'status_id'               => ['nullable', 'integer', 'exists:status_of_call,id'],
             'language_id'             => ['required', 'integer', 'exists:languages,id'],
+
+            // ── NEW: qualification stack ──────────────────────────────────
+            'qualification_stack_id'  => ['nullable', 'integer', 'exists:qualification_stacks,id'],
 
             // Form schema
             'application_form_schema'                      => ['nullable', 'array'],
@@ -254,6 +345,8 @@ class CallController extends Controller
                 'organization_id'         => null,
                 'call_type_id'            => $programTypeA->id,
                 'application_form_schema' => $formSchema,
+                // ── NEW ───────────────────────────────────────────────────
+                'qualification_stack_id'  => $validated['qualification_stack_id'] ?? null,
             ]);
 
             $call->callTranslations()->create([
@@ -307,6 +400,9 @@ class CallController extends Controller
             // Manual close override — reversible, admin can set back to false
             'force_closed'            => ['sometimes', 'boolean'],
 
+            // ── NEW: qualification stack ──────────────────────────────────
+            'qualification_stack_id'  => ['sometimes', 'nullable', 'integer', 'exists:qualification_stacks,id'],
+
             'application_form_schema'                      => ['nullable', 'array'],
             'application_form_schema.fields'               => ['required_with:application_form_schema', 'array'],
             'application_form_schema.fields.*.id'          => ['required', 'string', 'max:100'],
@@ -351,6 +447,8 @@ class CallController extends Controller
                         'application_deadline', 'project_start', 'project_end',
                         'program_id', 'application_form_schema',
                         'force_closed',
+                        // ── NEW ───────────────────────────────────────────
+                        'qualification_stack_id',
                     ])
                     ->toArray()
             );
@@ -433,17 +531,12 @@ class CallController extends Controller
             ->paginate(15);
 
         $calls->getCollection()->transform(function ($call) use ($language, $lang) {
-            // 1. Capture the structural state flags from the original Eloquent model
             $isOpen = (bool) $call->is_open;
             $forceClosed = (bool) $call->force_closed;
 
-            // 2. Run your existing language formatter
             $formatted = $this->formatCallForLang($call, $language, $lang);
 
-            // 3. Convert to array if it's an object/stdClass to safely drop/add keys
             $formattedArray = (array) $formatted;
-
-            // 4. Inject the states and strip the sensitive schema
             $formattedArray['is_open'] = $isOpen;
             $formattedArray['force_closed'] = $forceClosed;
             unset($formattedArray['formSchema'], $formattedArray['form_schema']);
@@ -475,14 +568,11 @@ class CallController extends Controller
             )
             ->findOrFail($id);
 
-        // 1. Capture the structural state flags from the original Eloquent model
         $isOpen = (bool) $call->is_open;
         $forceClosed = (bool) $call->force_closed;
 
-        // 2. Run your existing language formatter
         $formatted = $this->formatCallForLang($call, $language, $lang);
 
-        // 3. Convert to array, inject state, and remove schema
         $formattedArray = (array) $formatted;
         $formattedArray['is_open'] = $isOpen;
         $formattedArray['force_closed'] = $forceClosed;

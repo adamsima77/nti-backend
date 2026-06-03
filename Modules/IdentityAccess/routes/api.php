@@ -33,6 +33,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/roles-permissions', [RoleController::class, 'fetchRolesPermissions']);
+    Route::post('/sync-permissions/{role}/permissions', [RoleController::class, 'syncPermissions']);
     Route::get('profile', [UserController::class, 'profile']);
     Route::match(['put', 'patch'], 'profile', [UserController::class, 'updateProfile']);
     Route::post('profile/avatar', [UserController::class, 'uploadCurrentAvatar']);

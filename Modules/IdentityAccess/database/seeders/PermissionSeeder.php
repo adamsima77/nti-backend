@@ -305,22 +305,6 @@ class PermissionSeeder extends Seeder
                 'notifications.manage_templates',
             ],
 
-            // ─── content-manager (alias of cms_editor) ─────────────────────
-            'content-manager' => [
-                'content.view',
-                'content.create',
-                'content.edit_own',
-                'content.edit_any',
-                'content.delete_own',
-                'content.delete_any',
-                'content.publish',
-                'content.manage_media',
-                'notifications.view_own',
-                'notifications.manage_own',
-                'notifications.send',
-                'notifications.manage_templates',
-            ],
-
             // ─── nti_admin ───────────────────────────────────────────────────
             'nti_admin' => [
                 'identityaccess.users.view',

@@ -14,6 +14,7 @@ class NewsTranslation extends Model
     protected $fillable = [
         'title',
         'description',
+        'main_description',
         'news_id',
         'language_id'
     ];

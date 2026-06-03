@@ -56,5 +56,5 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/gdpr-prune', [SuperAdminDashboardController::class, 'fetchGdprPrune']);
         Route::get('/status-of-services', [SuperAdminDashboardController::class, 'fetchStatusOfServices']);
         Route::get('/logs', [SuperAdminDashboardController::class, 'fetchLogs']);
-
+        Route::get('/fetch-all-logs', [SuperAdminDashboardController::class, 'fetchAllLogs']);
 });
