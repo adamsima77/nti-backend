@@ -4,6 +4,7 @@ namespace Modules\Applications\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\IdentityAccess\Models\User;
 
 class ApplicationStatusHistory extends Model
 {
@@ -13,6 +14,7 @@ class ApplicationStatusHistory extends Model
         'status_of_application_id',
         'application_id',
         'note',
+        'changed_by',
     ];
 
     public function application(): BelongsTo
@@ -23,5 +25,10 @@ class ApplicationStatusHistory extends Model
     public function status(): BelongsTo
     {
         return $this->belongsTo(StatusOfApplication::class, 'status_of_application_id');
+    }
+
+    public function changedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'changed_by');
     }
 }

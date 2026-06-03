@@ -41,6 +41,7 @@ class ApplicationWorkflowService
                 'status_of_application_id' => $status->id,
                 'application_id' => $application->id,
                 'note' => $note,
+                'changed_by' => $changedBy?->id,
             ]);
         });
 

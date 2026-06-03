@@ -280,6 +280,7 @@ class EvaluationController extends Controller
             'team.members.student.studyYear.studyYearTranslations',
             'documents.versions',
             'statusHistory.status:id,name',
+            'statusHistory.changedBy:id,first_name,last_name',
             'status:id,name',
             'category.categoryTranslations:id,category_id,language_id,name',
         ]);
@@ -339,7 +340,16 @@ class EvaluationController extends Controller
                 return [
                     'status' => $this->normalizeApplicationStatus($history->status?->name),
                     'changed_at' => optional($history->created_at)?->toDateTimeString(),
-                    'changed_by' => $history->note ?? '',
+                    'changed_by' => $history->changedBy ? trim(($history->changedBy->first_name ?? '').' '.($history->changedBy->last_name ?? '')) : 'Systém',
+                    'note' => $history->note ?? '',
+                ];
+            })->values(),
+            'status_history' => $application->statusHistory->map(function ($history) {
+                return [
+                    'status' => $this->normalizeApplicationStatus($history->status?->name),
+                    'changed_at' => optional($history->created_at)?->toDateTimeString(),
+                    'changed_by' => $history->changedBy ? trim(($history->changedBy->first_name ?? '').' '.($history->changedBy->last_name ?? '')) : 'Systém',
+                    'note' => $history->note ?? '',
                 ];
             })->values(),
             'evaluation' => $currentEvaluation ? $this->evaluationPayload($currentEvaluation, $callCriteria) : null,
