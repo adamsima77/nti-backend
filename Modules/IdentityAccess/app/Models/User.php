@@ -156,6 +156,16 @@ class User extends Authenticatable
         return $this->roles()->where('name', 'mentor')->exists();
     }
 
+    public function mentorshipsAsMentor(): HasMany
+    {
+        return $this->hasMany(\Modules\Mentorship\Models\Mentorship::class, 'mentor_user_id');
+    }
+
+    public function commissionMemberships(): HasMany
+    {
+        return $this->hasMany(\Modules\Evaluation\Models\CommissionMember::class, 'user_id');
+    }
+
     public function isEvaluator(): bool
     {
         return $this->roles()->where('name', 'evaluator')->exists();

@@ -386,6 +386,7 @@ class PermissionSeeder extends Seeder
                 'notifications.manage_own',
                 'notifications.send',
                 'notifications.manage_templates',
+                'notifications.send_bulk_email_messages',
                 'notifications.view_log',
                 'content.view',
                 'content.create',

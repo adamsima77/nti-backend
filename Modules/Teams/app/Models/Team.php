@@ -34,6 +34,11 @@ class Team extends Model
             ->withPivot('team_role_id');
     }
 
+    public function applications(): HasMany
+    {
+        return $this->hasMany(\Modules\Applications\Models\Application::class, 'team_id');
+    }
+
     public function invitations(): HasMany
     {
         return $this->hasMany(TeamInvitation::class, 'team_id');

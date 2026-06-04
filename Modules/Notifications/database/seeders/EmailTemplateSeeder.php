@@ -12,11 +12,77 @@ class EmailTemplateSeeder extends Seeder
      */
     public function run(): void
     {
+        $link = config('app.frontend_url');
+
         $templates = [
+            [
+                'slug'       => 'bulk_call_2024_open',
+                'subject'    => 'Ahoj {{ $userName }}, výzva 2024 je otvorená',
+                'type'       => 'bulk',
+                'is_active'  => true,
+                'body_html'  => '<h2 style="margin:0 0 8px; font-size:22px; font-weight:600; color:#0a1628;">
+    Hi, {{ $userName }}!
+</h2>
+
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    We have an important update for you regarding the NTI grant portal.
+    Please read the following information carefully.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:24px;">
+    <tr>
+        <td style="background:#f0fdf4; border-left:4px solid #16a34a; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:#0a1628;">
+                🚀 Call for Applications 2024 is Open
+            </p>
+            <p style="margin:0; font-size:14px; color:#64748b; line-height:1.6;">
+                Team registration has started. The application deadline is
+                <strong style="color:#0a1628;">July 31, 2024</strong>.
+                Projects can receive support up to €50,000.
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:24px;">
+    <tr>
+        <td style="background:#f1f5f9; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 12px; font-size:14px; font-weight:600; color:#0a1628;">
+                What you need to apply:
+            </p>
+            <p style="margin:0; font-size:14px; color:#64748b; line-height:2.2;">
+                👥 Team of 2 to 5 members<br>
+                📄 Project proposal (max. 5 pages)<br>
+                📊 Preliminary budget<br>
+                🏫 At least one member with student status
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td align="center">
+           <a href="'.$link.'" target="_blank"
+               style="display:inline-block; background:#0a1628; color:#ffffff; text-decoration:none;
+                      font-size:15px; font-weight:600; padding:14px 32px; border-radius:8px;">
+                Go to Portal →
+            </a>
+        </td>
+    </tr>
+</table>
+
+<p style="margin:0; font-size:12px; color:#94a3b8; line-height:1.6;">
+    This email was sent to the address associated with your account.
+    If you think you received it by mistake, please contact us at
+    <a href="mailto:support@nti.sk" style="color:#64748b;">support@nti.sk</a>.
+</p>'
+            ], // <-- Tu bolo predtým nesprávne uzatvorenie ] a chýbal začiatok nového poľa
             [
                 'slug'    => 'organization_onboarded',
                 'subject' => 'Thank you, {{ $organizationName }}!',
                 'body_html' => '
+
 <h1 style="margin:0 0 16px; font-size:24px;">Thank you, {{ $organizationName }}! 🎉</h1>
 <p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
     Your organization has been successfully registered on the NTI platform.
@@ -79,7 +145,7 @@ class EmailTemplateSeeder extends Seeder
 <table role="presentation" cellspacing="0" cellpadding="0">
     <tr>
         <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-            <a href="{{ config(\'app.frontend_url\') }}/student" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Go to Dashboard</a>
+            <a href="'.$link.'/student" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Go to Dashboard</a>
         </td>
     </tr>
 </table>
@@ -153,7 +219,7 @@ class EmailTemplateSeeder extends Seeder
 <table role="presentation" cellspacing="0" cellpadding="0">
     <tr>
         <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-            <a href="{{ config(\'app.frontend_url\') }}/auth/onboarding" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Complete Onboarding</a>
+            <a href="'.$link.'/auth/onboarding" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Complete Onboarding</a>
         </td>
     </tr>
 </table>',
@@ -246,7 +312,7 @@ class EmailTemplateSeeder extends Seeder
 <table role="presentation" cellspacing="0" cellpadding="0">
     <tr>
         <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-            <a href="{{ config(\'app.frontend_url\') }}/projekt/{{ $projectId }}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Zobraziť projekt</a>
+            <a href="'.$link.'/projekt/{{ $projectId }}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Zobraziť projekt</a>
         </td>
     </tr>
 </table>',
@@ -293,7 +359,7 @@ class EmailTemplateSeeder extends Seeder
 <table role="presentation" cellspacing="0" cellpadding="0">
     <tr>
         <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-            <a href="{{ config(\'app.frontend_url\') }}"
+            <a href="'.$link.'"
                target="_blank"
                style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">
                 Visit NTI Platform
@@ -400,7 +466,7 @@ class EmailTemplateSeeder extends Seeder
                         <table role="presentation" cellspacing="0" cellpadding="0">
                             <tr>
                                 <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-                                    <a href="{{ config(\'app.frontend_url\') }}/admin/organizations/{{ $organizationId }}"
+                                    <a href="'.$link.'/admin/organizations/{{ $organizationId }}"
                                        target="_blank"
                                        style="
                                             display:inline-block;
@@ -491,7 +557,7 @@ class EmailTemplateSeeder extends Seeder
                         <table role="presentation" cellspacing="0" cellpadding="0">
                             <tr>
                                 <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-                                    <a href="{{ config(\'app.frontend_url\') }}/firma"
+                                    <a href="'.$link.'/firma"
                                        target="_blank"
                                        style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">
                                         Go to Dashboard
