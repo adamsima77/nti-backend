@@ -56,7 +56,7 @@ class OrganizationPolicy
             ->wherePivot('organization_role', function ($query) {
                 $query->select('id')
                     ->from('organization_role')
-                    ->where('name', 'admin');
+                    ->where('name', 'org_admin');
             })
             ->exists();
     }

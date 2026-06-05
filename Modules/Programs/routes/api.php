@@ -17,6 +17,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('v1')->group(function () {
         Route::apiResource('programs', ProgramsController::class)->names('programs');
+        Route::get('calls', [CallController::class, 'index']);
+        Route::get('calls/{call}', [CallController::class, 'show']);
         Route::apiResource('calls', CallController::class)->except('index', 'show')->names('calls');
 
         Route::get('calls/{call}/workflow', [CallWorkflowController::class, 'show']);

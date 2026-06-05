@@ -56,12 +56,26 @@ class CallResource extends JsonResource
 
             'name' => $translation?->name ?? $this->name,
             'description' => $translation?->description ?? $this->description,
+            'budget' => $this->budget ? (float) $this->budget : null,
+            'budget_type' => $this->budget_type,
+            'tech_spec' => $this->tech_spec,
+            'tech_tags' => $this->tech_tags ?? [],
+            'max_teams' => $this->max_teams,
+            'po_user_id' => $this->po_user_id,
+            'product_owner' => [
+                'id' => $this->productOwner?->id,
+                'name' => $this->productOwner?->name,
+                'email' => $this->productOwner?->email,
+            ],
 
             'application_start' => $this->application_start,
             'application_deadline' => $this->application_deadline,
 
             'project_start' => $this->project_start,
             'project_end' => $this->project_end,
+
+            'created_at' => $this->created_at?->toDateTimeString(),
+            'updated_at' => $this->updated_at?->toDateTimeString(),
 
             'is_open' => $this->application_deadline
                 ? now()->lt($this->application_deadline)
@@ -79,6 +93,11 @@ class CallResource extends JsonResource
                 'name' => $this->program?->typeOfProgram?->name,
             ],
 
+            'call_type' => [
+                'id' => $this->callType?->id,
+                'name' => $this->callType?->name,
+            ],
+
             'organization' => [
                 'id' => $this->organization?->id,
                 'name' => $this->organization?->name,
@@ -87,6 +106,17 @@ class CallResource extends JsonResource
             'call_criteria' => $criteria,
 
             'form_schema' => $formSchema,
+            'applications' => $this->whenLoaded('applications', function () {
+                return $this->applications->map(function ($application) {
+                    return [
+                        'id' => $application->id,
+                        'teamName' => $application->team?->name,
+                        'submittedAt' => $application->submitted_at,
+                        'status' => $application->status?->name,
+                        'summary' => null,
+                    ];
+                })->values();
+            }),
         ];
     }
 }

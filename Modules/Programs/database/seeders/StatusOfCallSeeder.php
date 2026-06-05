@@ -16,6 +16,7 @@ class StatusOfCallSeeder extends Seeder
             ['name' => 'Pridelené'],
             ['name' => 'V realizácii'],
             ['name' => 'Uzavreté'],
+            ['name' => 'Čaká na schválenie'],
         ];
 
         foreach ($items as $item) {

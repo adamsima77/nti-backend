@@ -7,6 +7,9 @@ use Modules\Organizations\Http\Controllers\SectorController;
 Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('organizations', OrganizationController::class);
     Route::get('organizations/{organization}/backlog', [OrganizationController::class, 'backlog']);
+    Route::post('organizations/{organization}/members', [OrganizationController::class, 'inviteMember']);
+    Route::patch('organizations/{organization}/members/{user}', [OrganizationController::class, 'updateMember']);
+    Route::delete('organizations/{organization}/members/{user}', [OrganizationController::class, 'removeMember']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {

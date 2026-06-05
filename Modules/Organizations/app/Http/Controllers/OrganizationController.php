@@ -7,6 +7,8 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Modules\Content\Models\Language;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\IdentityAccess\Models\User;
@@ -67,15 +69,6 @@ class OrganizationController extends Controller
         return view('organizations::create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * When an admin creates an organization on behalf of a partner user they
-     * pass `partner_user_id`. The organization is then attached to that user
-     * instead of to the authenticated admin. When `partner_user_id` is absent
-     * (e.g. a partner self-registering) the authenticated user is attached,
-     * preserving the original self-registration flow.
-     */
     public function store(Request $request)
     {
         $this->authorize('create', Organization::class);
@@ -112,9 +105,8 @@ class OrganizationController extends Controller
                 $organization->sectors()->attach($validated['sectors']);
             }
 
-            $adminRole = OrganizationRole::where('name', 'admin')->firstOrFail();
+            $adminRole = OrganizationRole::where('name', 'org_admin')->firstOrFail();
 
-            // Self-registration: attach org to the authenticated user
             $request->user()->organizations()->attach($organization->id, [
                 'organization_role' => $adminRole->id,
             ]);
@@ -135,8 +127,41 @@ class OrganizationController extends Controller
     {
         $this->authorize('view', $organization);
 
+        $organization->load('address', 'sectors.sectorTranslations', 'users.roles');
+
+        $roleIds = $organization->users
+            ->pluck('pivot.organization_role')
+            ->filter()
+            ->unique()
+            ->all();
+
+        $roleLabels = OrganizationRole::whereIn('id', $roleIds)
+            ->pluck('name', 'id')
+            ->toArray();
+
+        $members = $organization->users->map(function ($user) use ($roleLabels) {
+            $pivotRole = $user->pivot->organization_role;
+            $roleName = $roleLabels[$pivotRole] ?? null;
+
+            return [
+                'id' => $user->id,
+                'name' => trim(sprintf('%s %s', $user->name, $user->surname)),
+                'email' => $user->email,
+                'status' => $user->status_id === UserStatus::ACTIVE->value ? 'active' : 'pending',
+                'role' => match ($roleName) {
+                    'org_admin' => 'admin',
+                    'org_product_owner' => 'po',
+                    default => 'member',
+                },
+                'addedAt' => $user->created_at?->toDateString(),
+            ];
+        });
+
         return response()->json([
-            'organization' => $organization->load('address', 'sectors.sectorTranslations', 'users'),
+            'organization' => $organization->only(['id', 'name', 'phone', 'ico', 'web_url', 'description']),
+            'address' => $organization->address,
+            'sectors' => $organization->sectors,
+            'members' => $members,
         ], Response::HTTP_OK);
     }
 
@@ -214,20 +239,137 @@ class OrganizationController extends Controller
         ], Response::HTTP_OK);
     }
 
+    public function inviteMember(Request $request, Organization $organization)
+    {
+        $this->authorize('update', $organization);
+
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+            'role' => ['required', 'string', 'in:admin,member,po'],
+        ]);
+
+        $roleMap = [
+            'admin' => 'org_admin',
+            'member' => 'org_member',
+            'po' => 'org_product_owner',
+        ];
+
+        $organizationRole = OrganizationRole::where('name', $roleMap[$validated['role']])->firstOrFail();
+
+        $user = User::where('email', $validated['email'])->first();
+
+        if ($user && $organization->users()->where('users.id', $user->id)->exists()) {
+            return response()->json([
+                'message' => 'Už existuje člen s touto e-mailovou adresou v organizácii.',
+            ], Response::HTTP_CONFLICT);
+        }
+
+        if (! $user) {
+            $user = User::create([
+                'name' => preg_replace('/@.*$/', '', $validated['email']),
+                'surname' => '',
+                'email' => $validated['email'],
+                'password' => Hash::make(Str::random(32)),
+                'status_id' => UserStatus::PENDING_EMAIL->value,
+            ]);
+
+            if (method_exists($user, 'sendEmailVerificationNotification')) {
+                $user->sendEmailVerificationNotification();
+            }
+        }
+
+        $organization->users()->attach($user->id, [
+            'organization_role' => $organizationRole->id,
+        ]);
+
+        return response()->json([
+            'message' => 'Pozvánka bola odoslaná.',
+            'member' => [
+                'id' => $user->id,
+                'name' => trim(sprintf('%s %s', $user->name, $user->surname)),
+                'email' => $user->email,
+                'status' => $user->status_id === UserStatus::ACTIVE->value ? 'active' : 'pending',
+                'role' => $validated['role'],
+                'addedAt' => $user->created_at?->toDateString(),
+            ],
+        ], Response::HTTP_CREATED);
+    }
+
+    public function updateMember(Request $request, Organization $organization, User $user)
+    {
+        $this->authorize('update', $organization);
+
+        if (! $organization->users()->where('users.id', $user->id)->exists()) {
+            abort(Response::HTTP_NOT_FOUND);
+        }
+
+        $validated = $request->validate([
+            'role' => ['required', 'string', 'in:admin,member,po'],
+        ]);
+
+        $roleMap = [
+            'admin' => 'org_admin',
+            'member' => 'org_member',
+            'po' => 'org_product_owner',
+        ];
+
+        $organizationRole = OrganizationRole::where('name', $roleMap[$validated['role']])->firstOrFail();
+
+        $organization->users()->updateExistingPivot($user->id, [
+            'organization_role' => $organizationRole->id,
+        ]);
+
+        return response()->json([
+            'message' => 'Role člena bola aktualizovaná.',
+        ], Response::HTTP_OK);
+    }
+
+    public function removeMember(Organization $organization, User $user)
+    {
+        $this->authorize('update', $organization);
+
+        if (! $organization->users()->where('users.id', $user->id)->exists()) {
+            abort(Response::HTTP_NOT_FOUND);
+        }
+
+        $organization->users()->detach($user->id);
+
+        return response()->json([
+            'message' => 'Člen bol odstránený z organizácie.',
+        ], Response::HTTP_OK);
+    }
+
     public function backlog(Organization $organization)
     {
         $this->authorize('view', $organization);
 
         $backlog = $organization->calls()
-            ->with('statusHistory.status', 'callType')
-            ->whereHas('statusHistory', function ($query) {
-                $query->whereIn('status_of_call_id', function ($sub) {
-                    $sub->select('id')
-                        ->from('status_of_call')
-                        ->whereIn('name', ['published', 'matching', 'assigned', 'in_progress']);
-                })->latest()->limit(1);
-            })
-            ->get();
+            ->with(['currentStatusHistory.status', 'callType', 'program.typeOfProgram'])
+            ->withCount('applications')
+            ->latest('id')
+            ->get()
+            ->map(function ($call) {
+                return [
+                    'id' => $call->id,
+                    'name' => $call->name,
+                    'description' => $call->description,
+                    'created_at' => $call->created_at?->toDateTimeString(),
+                    'application_deadline' => $call->application_deadline?->toDateTimeString(),
+                    'program' => [
+                        'id' => $call->program?->id,
+                        'name' => $call->program?->typeOfProgram?->name,
+                    ],
+                    'call_type' => [
+                        'id' => $call->callType?->id,
+                        'name' => $call->callType?->name,
+                    ],
+                    'status' => [
+                        'id' => $call->currentStatusHistory?->status?->id,
+                        'name' => $call->currentStatusHistory?->status?->name,
+                    ],
+                    'applications_count' => $call->applications_count,
+                ];
+            });
 
         return response()->json([
             'backlog' => $backlog,

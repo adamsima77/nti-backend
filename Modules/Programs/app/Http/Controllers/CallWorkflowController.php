@@ -7,7 +7,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Modules\Programs\Models\Call;
-use Modules\Programs\StateMachine\CallStateMachine;
+use Modules\Programs\StateMachines\CallStateMachine;
 
 class CallWorkflowController extends Controller
 {

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Modules\Applications\Models\Application;
+use Modules\IdentityAccess\Models\User;
 use Modules\Organizations\Models\Organization;
 
 class Call extends Model
@@ -24,11 +25,20 @@ class Call extends Model
         'program_id',
         'organization_id',
         'call_type_id',
-        'application_start'
+        'application_start',
+        'budget',
+        'tech_spec',
+        'tech_tags',
+        'max_teams',
+        'budget_type',
+        'po_user_id'
     ];
 
     protected $casts = [
         'application_form_schema' => 'array',
+        'tech_tags' => 'array',
+        'budget' => 'decimal:2',
+        'max_teams' => 'integer',
     ];
 
     public function program(): BelongsTo
@@ -78,5 +88,10 @@ class Call extends Model
     public function formSchemas(): HasMany
     {
         return $this->hasMany(FormSchema::class, 'call_id');
+    }
+
+    public function productOwner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'po_user_id');
     }
 }
