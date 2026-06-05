@@ -12,6 +12,7 @@ return new class extends Migration {
     {
         Schema::create('criterion', function (Blueprint $table) {
             $table->id();
+            $table->string('code', 64)->nullable()->unique()->after('id');
             $table->timestamps();
         });
     }

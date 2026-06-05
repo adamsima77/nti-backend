@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Modules\IdentityAccess\Models\User;
+use Modules\Notifications\Events\BulkEmail;
 use Modules\Notifications\Models\Notifications;
 
 class NotificationController extends Controller
@@ -14,11 +17,10 @@ class NotificationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Notifications::class);
         $user = $request->user();
 
         abort_if($user === null, 401);
-
-        $this->authorize('viewAny', Notifications::class);
 
         $notifications = Notifications::query()
             ->with('category:id,slug,icon,color')
@@ -43,6 +45,25 @@ class NotificationController extends Controller
         return response()->json($notifications);
     }
 
+    public function sendBulkEmail(Request $request){
+        $this->authorize('sendBulkEmail', Notifications::class);
+        $validate = $request->validate([
+           'call_id' => ['nullable', 'exists:call,id'],
+            'role_id' => ['nullable', 'exists:roles,id'],
+            'subject' => ['required', 'string', 'max:2000'],
+            'email_id' => ['required', 'exists:email_template,id']
+        ]);
+
+        event(new BulkEmail(
+            $validate['call_id'] ?? null,
+            $validate['role_id'] ?? null,
+            $validate['subject'],
+            $validate['email_id']
+        ));
+
+        return response()->json(['message' => 'Email queued !'], Response::HTTP_OK);
+    }
+
     public function markRead(Request $request, int $notification): JsonResponse
     {
         $user = $request->user();
@@ -54,7 +75,7 @@ class NotificationController extends Controller
             ->where('user_id', $user->id)
             ->firstOrFail();
 
-        $this->authorize('update', $model);
+        $this->authorize('markRead', $model);
 
         $model->markAsRead();
 
@@ -67,7 +88,7 @@ class NotificationController extends Controller
 
         abort_if($user === null, 401);
 
-        $this->authorize('viewAny', Notifications::class);
+        $this->authorize('markAllRead', Notifications::class);
 
         Notifications::query()
             ->where('user_id', $user->id)

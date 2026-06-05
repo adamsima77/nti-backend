@@ -22,6 +22,12 @@ class EmailTemplateController extends Controller
         return response()->json($templates, Response::HTTP_OK);
     }
 
+    public function fetchAll(){
+        $this->authorize('fetchAll', EmailTemplate::class);
+        $templates = EmailTemplate::where('type', 'bulk')->get();
+        return response()->json($templates, Response::HTTP_OK);
+    }
+
     public function show($id)
     {
         $template = EmailTemplate::with('translations')->findOrFail($id);

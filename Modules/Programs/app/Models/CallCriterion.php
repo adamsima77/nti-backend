@@ -2,5 +2,7 @@
 
 namespace Modules\Programs\Models;
 
-class CallCriterion extends Criterion {}
+class CallCriterion extends Criterion {
+
+}
 

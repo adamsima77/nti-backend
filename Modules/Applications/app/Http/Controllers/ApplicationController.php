@@ -4,6 +4,7 @@ namespace Modules\Applications\Http\Controllers;
 
 use App\Services\Exports\QueuedExportService;
 use App\Http\Controllers\Controller;
+use App\Services\ApplicationWorkflowService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -15,7 +16,6 @@ use Modules\Applications\Http\Resources\ApplicationResource;
 use Modules\Applications\Models\Application;
 use Modules\Applications\Models\ApplicationAnswer;
 use Modules\Applications\Models\Applications;
-use Modules\Applications\Models\ApplicationStatusHistory;
 use Modules\Applications\Models\StatusOfApplication;
 use Modules\Applications\Models\TypeOfApplication;
 use Modules\Content\Models\Language;
@@ -28,6 +28,11 @@ class ApplicationController extends Controller
 {
     use AuthorizesRequests;
 
+    private function workflowService(): ApplicationWorkflowService
+    {
+        return app(ApplicationWorkflowService::class);
+    }
+
     public function index(Request $request)
     {
         $this->authorize('viewAny', Applications::class);
@@ -39,7 +44,9 @@ class ApplicationController extends Controller
                 'call:id,name',
                 'status:id,name',
                 'team:id,name',
+                'team.members.student.academicFlags',
                 'documents:id',
+                'category.categoryTranslations:id,category_id,language_id,name',
             ])
             ->where('created_by', $request->user()->id)
             ->when(
@@ -63,10 +70,12 @@ class ApplicationController extends Controller
                 'call:id,name',
                 'status:id,name',
                 'team:id,name',
+                'team.members.student.academicFlags',
                 'documents:id',
                 'documents.versions',
                 'statusHistory.status:id,name',
                 'milestones',
+                'category.categoryTranslations:id,category_id,language_id,name',
             ])
             ->findOrFail($id);
 
@@ -81,6 +90,8 @@ class ApplicationController extends Controller
             ->with([
                 'call:id,name',
                 'status:id,name',
+                'team:id,name',
+                'team.members.student.academicFlags',
                 'documents:id',
                 'statusHistory.status:id,name',
             ])
@@ -101,6 +112,8 @@ class ApplicationController extends Controller
                     'relations' => [
                         'call:id,name',
                         'status:id,name',
+                        'team:id,name',
+                        'team.members.student.academicFlags',
                         'documents:id',
                         'statusHistory.status:id,name',
                     ],
@@ -248,31 +261,164 @@ class ApplicationController extends Controller
                 ['type_of_application_id' => $defaultType->id]
             );
 
-            ApplicationStatusHistory::query()->create([
-                'status_of_application_id' => $status->id,
-                'application_id' => $application->id,
-                'note' => 'Automaticky nastavene pri odoslani prihlasky.',
-            ]);
-
             return $application->load([
                 'call:id,name',
                 'status:id,name',
                 'team:id,name',
+                'team.members.student.academicFlags',
                 'documents:id',
                 'documents.versions',
             ]);
         });
+
+        $application = $this->workflowService()->submitApplication(
+            $application,
+            $request->user(),
+            'Automaticky nastavene pri odoslani prihlasky.'
+        );
 
         return (new ApplicationResource($application))
             ->response()
             ->setStatusCode(201);
     }
 
+    public function update(Request $request, int $id): ApplicationResource
+    {
+        $application = Application::query()->with(['status'])->findOrFail($id);
+        $this->authorize('update', $application);
+
+        // Only allow edit when status is 'Vyžiadané doplnenie' (pending supplement)
+        $statusName = mb_strtolower((string) $application->status?->name);
+        if (! str_contains($statusName, 'dopl')) {
+            abort(403, 'Uprava je povolena len pri stave vyziadane doplnenie.');
+        }
+
+        $validated = $request->validate([
+            'document_ids' => ['required', 'array', 'min:1'],
+            'document_ids.*' => ['integer', 'distinct', 'exists:document,id'],
+            'form_data' => ['nullable', 'array'],
+            'form_data.*' => ['nullable', 'string', 'max:20000'],
+        ]);
+
+        $application = DB::transaction(function () use ($validated, $application, $request) {
+            $application->loadMissing([
+                'call.callCriteria.criterionTranslations:id,criterion_id,language_id,name',
+            ]);
+
+            $langHeader = strtolower((string) $request->header('X-Locale', 'sk'));
+            if (! in_array($langHeader, ['sk', 'en'], true)) {
+                $langHeader = 'sk';
+            }
+
+            $language = Language::query()->where('name', $langHeader)->first()
+                ?? Language::query()->where('name', 'sk')->first();
+            $storedFormData = [];
+
+            if (! empty($validated['form_data'])) {
+                $storedFormData = CallFormSchema::normalizeStoredFormAnswers(
+                    $application->call,
+                    $language,
+                    $langHeader,
+                    $validated['form_data'] ?? []
+                );
+
+                $unionIds = CallFormSchema::collectDocumentIdsFromStoredAnswers(
+                    $storedFormData,
+                    $application->call,
+                    $language,
+                    $langHeader
+                );
+
+                $requestIds = array_values(array_unique(array_map('intval', $validated['document_ids'])));
+                sort($requestIds);
+
+                if ($unionIds !== $requestIds) {
+                    throw ValidationException::withMessages([
+                        'document_ids' => ['Zoznam príloh musí presne zodpovedať súborom priradeným v poliach formulára.'],
+                    ]);
+                }
+            }
+
+            $application->update([
+                'form_data' => $storedFormData === [] ? null : $storedFormData,
+                'last_update' => now(),
+            ]);
+
+            // Sync documents
+            if (! empty($validated['document_ids'])) {
+                $defaultType = TypeOfApplication::query()->firstOrCreate([
+                    'name' => 'Príloha prihlášky',
+                ]);
+
+                $application->documents()->syncWithPivotValues(
+                    $validated['document_ids'], 
+                    ['type_of_application_id' => $defaultType->id]
+                );
+            }
+
+            if ($application->call !== null) {
+                $publishedSchema = FormSchema::publishedLatestForCall((int) $application->call_id);
+                if ($publishedSchema !== null) {
+                    ApplicationAnswer::query()->where('application_id', $application->id)->delete();
+                    foreach ($publishedSchema->formFields as $formField) {
+                        $key = $formField->name;
+                        if (! array_key_exists($key, $storedFormData)) {
+                            continue;
+                        }
+
+                        ApplicationAnswer::query()->create([
+                            'application_id' => $application->id,
+                            'form_field_id' => $formField->id,
+                            'value' => $storedFormData[$key],
+                        ]);
+                    }
+                }
+            }
+
+            return $application->load([
+                'call:id,name',
+                'status:id,name',
+                'team:id,name',
+                'team.members.student.academicFlags',
+                'documents:id',
+                'statusHistory.status:id,name',
+            ]);
+        });
+
+        return new ApplicationResource($application);
+    }
+
+    public function submit(Request $request, int $id): ApplicationResource
+    {
+        $application = Application::query()->with(['status'])->findOrFail($id);
+        $this->authorize('update', $application);
+
+        $statusName = mb_strtolower((string) $application->status?->name);
+        if (! str_contains($statusName, 'dopl')) {
+            abort(403, 'Aplikacia moze byt znovu odoslana len po vyziadani doplnenia.');
+        }
+
+        $application = $this->workflowService()->submitApplication(
+            $application,
+            $request->user(),
+            'Opätovné odoslanie prihlášky po doplnení.'
+        );
+
+        return new ApplicationResource($application->load([
+            'call:id,name',
+            'status:id,name',
+            'team:id,name',
+            'team.members.student.academicFlags',
+            'documents:id',
+            'statusHistory.status:id,name',
+        ]));
+    }
+
     public function updateStatus(Request $request, int $id): ApplicationResource
     {
         $application = Application::findOrFail($id);
 
-        $this->authorize('update', $application);
+        $this->authorize('changeStatus', $application);
 
         $validated = $request->validate([
             'status_id' => ['nullable', 'integer', 'exists:status_of_application,id', 'required_without:status_name'],
@@ -280,37 +426,13 @@ class ApplicationController extends Controller
             'note' => ['nullable', 'string'],
         ]);
 
-        $application = DB::transaction(function () use ($validated, $application) {
-
-            $status = null;
-            if (! empty($validated['status_id'])) {
-                $status = StatusOfApplication::query()->findOrFail((int) $validated['status_id']);
-            }
-
-            if ($status === null && ! empty($validated['status_name'])) {
-                $status = StatusOfApplication::query()->firstOrCreate([
-                    'name' => $validated['status_name'],
-                ]);
-            }
-
-            $application->update([
-                'active_status' => $status->id,
-                'last_update' => now(),
-            ]);
-
-            ApplicationStatusHistory::query()->create([
-                'status_of_application_id' => $status->id,
-                'application_id' => $application->id,
-                'note' => $validated['note'] ?? null,
-            ]);
-
-            return $application->load([
-                'call:id,name',
-                'status:id,name',
-                'documents:id',
-                'statusHistory.status:id,name',
-            ]);
-        });
+        $application = $this->workflowService()->changeStatus(
+            $application,
+            $validated['status_id'] ?? null,
+            $validated['status_name'] ?? null,
+            $validated['note'] ?? null,
+            $request->user()
+        );
 
         return new ApplicationResource($application);
     }

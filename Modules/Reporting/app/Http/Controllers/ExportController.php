@@ -12,6 +12,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Maatwebsite\Excel\Facades\Excel;
 use Modules\Applications\Models\Application;
 use Modules\Applications\Models\Applications;
+use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\IdentityAccess\Models\User;
 use Modules\Programs\Models\Call;
 use Modules\Reporting\Exports\ApplicationExport;
@@ -46,13 +47,37 @@ class ExportController extends Controller
         return Excel::download(new ApplicationExport(), $fileName, $writerType);
     }
 
-    public function users(Request $request, string $format = 'xlsx', QueuedExportService $queuedExportService)
+    public function users(Request $request, string $format = 'xlsx', QueuedExportService $queuedExportService, PdfService $pdfService)
     {
         $this->authorize('export', User::class);
 
         $format = strtolower($format ?: 'xlsx');
         $fileName = 'users.' . $format;
         $writerType = $format === 'csv' ? \Maatwebsite\Excel\Excel::CSV : \Maatwebsite\Excel\Excel::XLSX;
+
+        $filters = [
+            'search' => $request->input('search'),
+            'role'   => $request->input('role'),
+            'status' => $request->input('status'),
+        ];
+
+        if ($format === 'pdf') {
+            $query = $this->buildUserExportQuery($filters);
+            $users = $query->get();
+
+            if ($request->boolean('async')) {
+                return $this->queuePdfViewResponse(
+                    $request,
+                    $queuedExportService,
+                    'users',
+                    $fileName,
+                    'reporting::users_export',
+                    ['users' => $users->map(fn ($user) => (object) $user->toArray())->all()]
+                );
+            }
+
+            return $pdfService->download('reporting::users_export', ['users' => $users], $fileName);
+        }
 
         if ($request->boolean('async')) {
             return $this->queueExcelResponse(
@@ -61,18 +86,44 @@ class ExportController extends Controller
                 'users',
                 $fileName,
                 UserExport::class,
-                $writerType
+                $writerType,
+                [$filters]
             );
         }
 
-        return Excel::download(new UserExport(), $fileName, $writerType);
+        return Excel::download(new UserExport($filters), $fileName, $writerType);
     }
 
-    public function calls(Request $request, string $format = 'xlsx', QueuedExportService $queuedExportService)
+    public function calls(Request $request, string $format = 'xlsx', QueuedExportService $queuedExportService, PdfService $pdfService)
     {
         $this->authorize('export', Call::class);
 
         $format = strtolower($format ?: 'xlsx');
+        $filters = [
+            'status'        => $request->input('status'),
+            'deadline_from' => $request->input('deadline_from'),
+            'deadline_to'   => $request->input('deadline_to'),
+        ];
+
+        if ($format === 'pdf') {
+            $fileName = 'calls.pdf';
+            $query = $this->buildCallExportQuery($filters);
+            $calls = $query->get();
+
+            if ($request->boolean('async')) {
+                return $this->queuePdfViewResponse(
+                    $request,
+                    $queuedExportService,
+                    'calls',
+                    $fileName,
+                    'reporting::calls_export',
+                    ['calls' => $calls->map(fn ($call) => (object) $call->toArray())->all()]
+                );
+            }
+
+            return $pdfService->download('reporting::calls_export', ['calls' => $calls], $fileName);
+        }
+
         $fileName = 'calls.' . $format;
         $writerType = $format === 'csv' ? \Maatwebsite\Excel\Excel::CSV : \Maatwebsite\Excel\Excel::XLSX;
 
@@ -83,11 +134,95 @@ class ExportController extends Controller
                 'calls',
                 $fileName,
                 CallExport::class,
-                $writerType
+                $writerType,
+                [$filters]
             );
         }
 
-        return Excel::download(new CallExport(), $fileName, $writerType);
+        return Excel::download(new CallExport($filters), $fileName, $writerType);
+    }
+
+    protected function buildCallExportQuery(array $filters)
+    {
+        $query = Call::query();
+
+        if (! empty($filters['status'])) {
+            $mainTable = $query->getModel()->getTable();
+
+            $query->whereHas('statusHistory', function ($q) use ($filters, $mainTable) {
+                $q->whereHas('status', function ($statusQuery) use ($filters) {
+                    $statusQuery->where('name', $filters['status']);
+                })
+                    ->where('id', function ($subQuery) use ($mainTable) {
+                        $subQuery->select('id')
+                            ->from('status_of_call_has_call')
+                            ->whereColumn('call_id', $mainTable . '.id')
+                            ->latest()
+                            ->limit(1);
+                    });
+            });
+        }
+
+        if (! empty($filters['deadline_from'])) {
+            $query->whereDate('application_deadline', '>=', $filters['deadline_from']);
+        }
+
+        if (! empty($filters['deadline_to'])) {
+            $query->whereDate('application_deadline', '<=', $filters['deadline_to']);
+        }
+
+        return $query;
+    }
+
+    protected function buildUserExportQuery(array $filters)
+    {
+        $query = User::query()
+            ->with('status')
+            ->where('status_id', '!=', UserStatus::ANONYMIZED->value)
+            ->orderByDesc('created_at');
+
+        if (! empty($filters['search'])) {
+            $query->where(function ($q) use ($filters) {
+                $q->where('name', 'like', '%' . $filters['search'] . '%')
+                    ->orWhere('surname', 'like', '%' . $filters['search'] . '%')
+                    ->orWhere('email', 'like', '%' . $filters['search'] . '%');
+            });
+        }
+
+        if (! empty($filters['role'])) {
+            $query->whereHas('roles', fn ($q) => $q->where('name', $filters['role']));
+        }
+
+        if (! empty($filters['status'])) {
+            $query->where('status_id', $filters['status']);
+        }
+
+        return $query;
+    }
+
+    protected function queuePdfViewResponse(
+        Request $request,
+        QueuedExportService $queuedExportService,
+        string $exportKey,
+        string $fileName,
+        string $view,
+        array $viewData,
+        array $options = []
+    ): JsonResponse {
+        $exportRequest = $queuedExportService->queue(
+            (int) $request->user()->id,
+            $exportKey,
+            'pdf',
+            'pdf',
+            $fileName,
+            [
+                'view' => $view,
+                'view_data' => $viewData,
+                'options' => $options,
+            ]
+        );
+
+        return $this->queuedExportResponse($request, $exportRequest);
     }
 
     public function applicationPdf(Request $request, int $id, PdfService $pdfService, QueuedExportService $queuedExportService)
@@ -155,7 +290,7 @@ class ExportController extends Controller
         );
     }
 
-    public function callPdf(int $id, Request $request, PdfService $pdfService, QueuedExportService $queuedExportService)
+    public function callPdf($id, Request $request, PdfService $pdfService, QueuedExportService $queuedExportService)
     {
         $call = Call::query()
             ->with([
@@ -248,18 +383,25 @@ class ExportController extends Controller
         string $exportKey,
         string $fileName,
         string $exportClass,
-        string $writerType
+        string $writerType,
+        ?array $exportArgs = null
     ): JsonResponse {
+        $meta = [
+            'export_class' => $exportClass,
+            'writer_type' => $writerType,
+        ];
+
+        if ($exportArgs !== null) {
+            $meta['export_args'] = $exportArgs;
+        }
+
         $exportRequest = $queuedExportService->queue(
             (int) $request->user()->id,
             $exportKey,
             'excel',
             pathinfo($fileName, PATHINFO_EXTENSION),
             $fileName,
-            [
-                'export_class' => $exportClass,
-                'writer_type' => $writerType,
-            ]
+            $meta
         );
 
         return $this->queuedExportResponse($request, $exportRequest);

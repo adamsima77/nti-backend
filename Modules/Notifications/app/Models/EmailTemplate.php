@@ -29,6 +29,7 @@ class EmailTemplate extends Model
         'body_html',
         'notification_category_id',
         'is_active',
+        'type'
     ];
 
     protected function casts(): array
@@ -36,6 +37,11 @@ class EmailTemplate extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    public function scopeBulk($query)
+    {
+        return $query->where('type', 'bulk');
     }
 
     public function category(): BelongsTo
@@ -67,7 +73,10 @@ class EmailTemplate extends Model
             return '';
         }
 
-        return Blade::render($this->subject, $data);
+        $search  = array_map(fn($key) => '{{ $' . $key . ' }}', array_keys($data));
+        $replace = array_values($data);
+
+        return str_replace($search, $replace, $this->subject);
     }
 
     public function render(array $data = []): string
@@ -76,7 +85,10 @@ class EmailTemplate extends Model
             return '';
         }
 
-        return Blade::render($this->body_html, $data);
+        $search  = array_map(fn($key) => '{{ $' . $key . ' }}', array_keys($data));
+        $replace = array_values($data);
+
+        return str_replace($search, $replace, $this->body_html);
     }
 
     public static function findBySlug(string $slug): ?self

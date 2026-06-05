@@ -33,14 +33,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::get('users/{user}/pdf', [ExportController::class, 'userPdf'])->name('users.pdf');
+    Route::get('/roles-permissions', [RoleController::class, 'fetchRolesPermissions']);
+    Route::post('/sync-permissions/{role}/permissions', [RoleController::class, 'syncPermissions']);
+    Route::get('profile', [UserController::class, 'profile']);
+    Route::match(['put', 'patch'], 'profile', [UserController::class, 'updateProfile']);
+    Route::post('profile/avatar', [UserController::class, 'uploadCurrentAvatar']);
     Route::get('users/export/{format?}', [ExportController::class, 'users'])->name('users.export');
+    Route::get('users/{user}/pdf', [ExportController::class, 'userPdf'])->name('users.pdf')->whereNumber('user');
     // POST: multipart súborov — PUT s FormData v PHP často nevyplní $_FILES; profilová fotka ide cez túto cestu.
-    Route::post('users/{user}/avatar',       [UserController::class, 'uploadAvatar']);
-    Route::post('users/{user}/student',      [UserController::class, 'createStudentProfile']);
-    Route::post('users/{user}/organization', [UserController::class, 'createOrganizationProfile']);
+    Route::post('users/{user}/avatar',       [UserController::class, 'uploadAvatar'])->whereNumber('user');
+    Route::post('users/{user}/student',      [UserController::class, 'createStudentProfile'])->whereNumber('user');
+    Route::post('users/{user}/organization', [UserController::class, 'createOrganizationProfile'])->whereNumber('user');
     Route::post('/users/anonymize-user/{id}', [UserController::class, 'anonymizeUser']);
-    Route::apiResource('users', UserController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+    Route::apiResource('users', UserController::class)->only(['index', 'store', 'show', 'update', 'destroy'])->whereNumber('user');
     Route::apiResource('consent-types', ConsentTypeController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::apiResource('roles', RoleController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::apiResource('statuses', StatusController::class)->only(['index', 'show', 'store', 'update', 'destroy']);

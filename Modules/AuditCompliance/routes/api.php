@@ -14,7 +14,6 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/gdpr-reports/{report}/download', [GdprReportController::class, 'download'])
         ->name('gdpr-reports.download');
-
 });
 
 

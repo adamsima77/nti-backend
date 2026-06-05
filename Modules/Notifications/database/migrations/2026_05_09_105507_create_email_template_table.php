@@ -23,6 +23,9 @@ return new class extends Migration
             $table->foreign('notification_category_id')
                 ->references('id')
                 ->on('notification_category');
+
+            $table->enum('type', ['transactional', 'bulk'])
+                ->default('transactional')->nullable();
         });
     }
 

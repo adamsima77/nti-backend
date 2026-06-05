@@ -3,49 +3,56 @@
 namespace Modules\Reporting\Exports;
 
 use Modules\Programs\Models\Call;
-use Maatwebsite\Excel\Concerns\FromQuery;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithMapping;
+use Illuminate\Contracts\View\View;
+use Maatwebsite\Excel\Concerns\FromView;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 
-class CallExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithEvents
+class CallExport implements FromView, ShouldAutoSize, WithEvents
 {
-    protected $query;
+    protected ?array $filters;
 
-    public function __construct($query = null)
+    public function __construct(?array $filters = null)
     {
-        $this->query = $query;
+        $this->filters = $filters;
     }
 
-    public function query()
+    public function view(): View
     {
-        return $this->query ?? Call::query()->select(['id', 'name', 'description', 'application_deadline', 'project_start', 'project_end']);
-    }
+        $query = Call::query();
+        $status       = $this->filters['status'] ?? request('status');
+        $deadlineFrom = $this->filters['deadline_from'] ?? request('deadline_from');
+        $deadlineTo   = $this->filters['deadline_to'] ?? request('deadline_to');
 
-    public function headings(): array
-    {
-        return [
-            'ID',
-            'Názov',
-            'Popis',
-            'Deadline prihlášok',
-            'Začiatok projektu',
-            'Koniec projektu'
-        ];
-    }
+        if (!empty($status)) {
+            $mainTable = $query->getModel()->getTable();
 
-    public function map($call): array
-    {
-        return [
-            $call->id,
-            $call->name,
-            strip_tags(substr($call->description ?? '', 0, 200)),
-            $call->application_deadline?->toDateTimeString(),
-            $call->project_start?->toDateTimeString(),
-            $call->project_end?->toDateTimeString(),
-        ];
+            $query->whereHas('statusHistory', function ($q) use ($status, $mainTable) {
+                $q->whereHas('status', function ($statusQuery) use ($status) {
+                    $statusQuery->where('name', $status);
+                })
+                    ->where('id', function ($subQuery) use ($mainTable) {
+                        $subQuery->select('id')
+                            ->from('status_of_call_has_call')
+                            ->whereColumn('call_id', $mainTable . '.id')
+                            ->latest()
+                            ->limit(1);
+                    });
+            });
+        }
+
+        if (!empty($deadlineFrom)) {
+            $query->whereDate('application_deadline', '>=', $deadlineFrom);
+        }
+
+        if (!empty($deadlineTo)) {
+            $query->whereDate('application_deadline', '<=', $deadlineTo);
+        }
+
+        return view('reporting::calls_export', [
+            'calls' => $query->get(),
+        ]);
     }
 
     public function registerEvents(): array

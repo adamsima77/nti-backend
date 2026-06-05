@@ -279,24 +279,18 @@ class PermissionSeeder extends Seeder
                 'content.view',
             ],
 
-            // ─── cms_editor ──────────────────────────────────────────────────
-            'cms_editor' => [
-                'content.view',
-                'content.create',
-                'content.edit_own',
-                'content.edit_any',
-                'content.delete_own',
-                'content.delete_any',
-                'content.publish',
-                'content.manage_media',
+            'predseda_komisie' => [
+                'programs.view',
+                'applications.view_any',
+                'applications.change_status',
+                'evaluation.view_any',
                 'notifications.view_own',
                 'notifications.manage_own',
-                'notifications.send',
-                'notifications.manage_templates',
+                'content.view',
             ],
 
-            // ─── content-manager (alias of cms_editor) ─────────────────────
-            'content-manager' => [
+            // ─── cms_editor ──────────────────────────────────────────────────
+            'cms_editor' => [
                 'content.view',
                 'content.create',
                 'content.edit_own',
@@ -392,6 +386,7 @@ class PermissionSeeder extends Seeder
                 'notifications.manage_own',
                 'notifications.send',
                 'notifications.manage_templates',
+                'notifications.send_bulk_email_messages',
                 'notifications.view_log',
                 'content.view',
                 'content.create',

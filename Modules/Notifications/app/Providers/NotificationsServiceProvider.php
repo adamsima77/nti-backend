@@ -4,6 +4,7 @@ namespace Modules\Notifications\Providers;
 
 use Illuminate\Support\Facades\Gate;
 use Modules\Notifications\Models\Notifications;
+use Modules\Notifications\Policies\NotificationPolicy;
 use Modules\Notifications\Policies\NotificationsPolicy;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
@@ -17,11 +18,15 @@ class NotificationsServiceProvider extends ModuleServiceProvider
         RouteServiceProvider::class,
     ];
 
+    protected array $policies = [
+        Notifications::class => NotificationPolicy::class,
+    ];
+
     public function boot(): void
     {
         parent::boot();
 
         $this->loadViewsFrom(module_path($this->name, '/Resources/views'), $this->nameLower);
-        Gate::policy(Notifications::class, NotificationsPolicy::class);
+        Gate::policy(Notifications::class, NotificationPolicy::class);
     }
 }

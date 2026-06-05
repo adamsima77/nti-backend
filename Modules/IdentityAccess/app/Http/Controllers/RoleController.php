@@ -27,6 +27,24 @@ class RoleController extends Controller
         return response()->json(['roles' => $roles], Response::HTTP_OK);
     }
 
+    public function fetchRolesPermissions(Request $request){
+        $this->authorize('fetchRolesPermissions', Role::class);
+        $roles = Role::with(['permissions'])->whereNotIn('name', ['nti_superadmin',
+            'guest', 'team_leader'] )->get();
+        return response()->json(['roles' => $roles], Response::HTTP_OK);
+    }
+
+    public function syncPermissions(Request $request, Role $role){
+        $this->authorize('syncPermissions', $role);
+        $validated = $request->validate([
+            'permissions' => ['required', 'array'],
+            'permissions.*' => ['exists:permissions,id']
+        ]);
+
+        $role->permissions()->sync($validated['permissions']);
+        return response()->json(['message' => 'Permissions synced !'], Response::HTTP_OK);
+    }
+
     public function fetchForSuperAdmin(){
         $this->authorize('viewAny', Role::class);
         $roles = Role::whereNotIn('name',[

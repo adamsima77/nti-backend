@@ -5,6 +5,7 @@ namespace Modules\Evaluation\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\IdentityAccess\Models\User;
 
 class CommissionMember extends Model
@@ -23,6 +24,11 @@ class CommissionMember extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function evaluations(): HasMany
+    {
+        return $this->hasMany(Evaluation::class, 'commission_member_id');
     }
 
     public function commission(): BelongsTo

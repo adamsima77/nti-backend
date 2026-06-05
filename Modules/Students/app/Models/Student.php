@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Modules\IdentityAccess\Models\User;
 use Modules\Students\Database\Factories\StudentFactory;
 
@@ -61,6 +62,11 @@ class Student extends Model
             'student_id',
             'academic_flags_id'
         );
+    }
+
+    public function academicRecord(): HasOne
+    {
+        return $this->hasOne(AcademicRecord::class, 'student_id');
     }
 
     protected static function newFactory(): StudentFactory

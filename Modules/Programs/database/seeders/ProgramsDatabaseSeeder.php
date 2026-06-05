@@ -12,6 +12,7 @@ class ProgramsDatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            QualificationStackSeeder::class,
             TypeOfProgramSeeder::class,
             ProgramSeeder::class,
             CallTypeSeeder::class,

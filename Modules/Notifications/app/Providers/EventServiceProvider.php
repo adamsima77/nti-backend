@@ -11,7 +11,9 @@ use Modules\IdentityAccess\Events\StudentOnboarded;
 use Modules\IdentityAccess\Events\UserBanned;
 use Modules\IdentityAccess\Events\UserRegistered;
 use Modules\Mentorship\Events\MilestoneStatusChanged;
+use Modules\Notifications\Events\BulkEmail;
 use Modules\Notifications\Listeners\SendBannedEmail;
+use Modules\Notifications\Listeners\SendBulkEmail;
 use Modules\Notifications\Listeners\SendContactConfirmationEmail;
 use Modules\Notifications\Listeners\SendEmailToAdminWhenOrganizationOnboarded;
 use Modules\Notifications\Listeners\SendPasswordChangeConfirmation;
@@ -37,6 +39,10 @@ class EventServiceProvider extends ServiceProvider
         UserRegistered::class => [
             SendWelcomeEmail::class,
         ],
+
+      BulkEmail::class => [
+          SendBulkEmail::class
+      ],
 
         OrganizationOnboarded::class => [
             SendWelcomeAfterOnboardOrganization::class,

@@ -19,7 +19,10 @@ class ApplicationsController extends Controller
     {
         $this->authorize('viewAny', Applications::class);
 
-        $query = Applications::with('user');
+        $query = Applications::with([
+            'user',
+            'team.members.student.academicFlags',
+        ]);
 
         // Filter by status if provided
         if ($request->has('status')) {
@@ -55,7 +58,10 @@ class ApplicationsController extends Controller
             'submitted_at' => now(),
         ]);
 
-        return response()->json($application->load('user'), 201);
+        return response()->json($application->load([
+            'user',
+            'team.members.student.academicFlags',
+        ]), 201);
     }
 
     /**
@@ -65,7 +71,10 @@ class ApplicationsController extends Controller
     {
         $this->authorize('view', $application);
 
-        return response()->json($application->load('user'));
+        return response()->json($application->load([
+            'user',
+            'team.members.student.academicFlags',
+        ]));
     }
 
     /**
@@ -83,7 +92,10 @@ class ApplicationsController extends Controller
 
         $application->update($validated);
 
-        return response()->json($application->load('user'));
+        return response()->json($application->load([
+            'user',
+            'team.members.student.academicFlags',
+        ]));
     }
 
     /**
@@ -107,7 +119,10 @@ class ApplicationsController extends Controller
 
         $application->update(['status' => 'approved']);
 
-        return response()->json($application->load('user'));
+        return response()->json($application->load([
+            'user',
+            'team.members.student.academicFlags',
+        ]));
     }
 
     /**
@@ -119,6 +134,9 @@ class ApplicationsController extends Controller
 
         $application->update(['status' => 'rejected']);
 
-        return response()->json($application->load('user'));
+        return response()->json($application->load([
+            'user',
+            'team.members.student.academicFlags',
+        ]));
     }
 }

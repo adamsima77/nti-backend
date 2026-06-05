@@ -2,6 +2,8 @@
 
 namespace Modules\Programs\Providers;
 
+use Modules\Programs\Models\Criterion;
+use Modules\Programs\Policies\CriterionPolicy;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Gate;
@@ -60,11 +62,12 @@ class ProgramsServiceProvider extends ModuleServiceProvider
         Gate::policy(Program::class, ProgramPolicy::class);
         Gate::policy(Programs::class, ProgramPolicy::class);
         Gate::policy(Call::class, CallPolicy::class);
+        Gate::policy(Criterion::class, CriterionPolicy::class);
     }
 
     /**
      * Define module schedules.
-     * 
+     *
      * @param $schedule
      */
     // protected function configureSchedules(Schedule $schedule): void

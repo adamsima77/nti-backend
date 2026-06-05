@@ -5,6 +5,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Modules\AuditCompliance\Models\SystemEvent;
 use Modules\Content\Models\NewsTranslation;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -80,6 +81,10 @@ class User extends Authenticatable
         return $this->belongsTo(Status::class);
     }
 
+    public function systemEvents(): HasMany{
+        return $this->hasMany(SystemEvent::class);
+    }
+
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class);
@@ -151,9 +156,24 @@ class User extends Authenticatable
         return $this->roles()->where('name', 'mentor')->exists();
     }
 
+    public function mentorshipsAsMentor(): HasMany
+    {
+        return $this->hasMany(\Modules\Mentorship\Models\Mentorship::class, 'mentor_user_id');
+    }
+
+    public function commissionMemberships(): HasMany
+    {
+        return $this->hasMany(\Modules\Evaluation\Models\CommissionMember::class, 'user_id');
+    }
+
     public function isEvaluator(): bool
     {
         return $this->roles()->where('name', 'evaluator')->exists();
+    }
+
+    public function isCommissionChair(): bool
+    {
+        return $this->roles()->where('name', 'predseda_komisie')->exists();
     }
 
     public function isCMSEditor(): bool

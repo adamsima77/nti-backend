@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('audit_event', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('user_id')->nullable();
             $table->string('action', 255);
             $table->string('object_type', 255);
             $table->unsignedBigInteger('object_id');

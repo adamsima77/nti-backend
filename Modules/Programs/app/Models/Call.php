@@ -26,20 +26,30 @@ class Call extends Model
         'organization_id',
         'call_type_id',
         'application_start',
+        'force_closed',
+        'qualification_stack_id',
         'budget',
+        'budget_type',
         'tech_spec',
         'tech_tags',
         'max_teams',
-        'budget_type',
-        'po_user_id'
+        'po_user_id',
     ];
 
     protected $casts = [
+        'force_closed' => 'boolean',
         'application_form_schema' => 'array',
+        'application_start' => 'datetime',
+        'application_deadline' => 'datetime',
+        'project_start' => 'datetime',
+        'project_end' => 'datetime',
         'tech_tags' => 'array',
         'budget' => 'decimal:2',
-        'max_teams' => 'integer',
     ];
+
+    public function qualificationStack(): BelongsTo{
+        return $this->belongsTo(QualificationStack::class);
+    }
 
     public function program(): BelongsTo
     {
@@ -49,6 +59,11 @@ class Call extends Model
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'organization_id');
+    }
+
+    public function productOwner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'po_user_id');
     }
 
     public function callTranslations(): HasMany{
@@ -77,7 +92,8 @@ class Call extends Model
             'call_has_criterion',
             'call_id',
             'criterion_id'
-        );
+        )->withPivot(['weight', 'is_academic_signal']);
+        // No withTimestamps() — the pivot table has none.
     }
 
     public function applications(): HasMany
@@ -88,10 +104,5 @@ class Call extends Model
     public function formSchemas(): HasMany
     {
         return $this->hasMany(FormSchema::class, 'call_id');
-    }
-
-    public function productOwner(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'po_user_id');
     }
 }

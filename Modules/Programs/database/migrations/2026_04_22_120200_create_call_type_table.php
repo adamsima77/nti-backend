@@ -12,6 +12,7 @@ return new class extends Migration {
     {
         Schema::create('call_type', function (Blueprint $table) {
             $table->id();
+            $table->string('code', 32)->nullable()->unique()->after('id');
             $table->string('name');
             $table->timestamps();
         });

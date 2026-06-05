@@ -29,21 +29,25 @@ class CallResource extends JsonResource
     public function toArray(Request $request): array
     {
         $currentStatus = $this->currentStatusHistory?->status;
-        $translation = $this->getTranslation($request);
-        $localeCode = $this->resolveLocaleCode($request);
-        $language = Language::query()->where('name', $localeCode)->first();
+        $translation   = $this->getTranslation($request);
+        $localeCode    = $this->resolveLocaleCode($request);
+        $language      = Language::query()->where('name', $localeCode)->first();
 
         $criteria = collect($this->callCriteria)->map(function ($criterion) use ($language) {
             $name = $criterion->name;
             if ($language) {
-                $tr = $criterion->criterionTranslations
+                $tr   = $criterion->criterionTranslations
                     ?->firstWhere('language_id', $language->id);
                 $name = $tr?->name ?? $criterion->name;
             }
 
             return [
-                'id' => $criterion->id,
+                'id'   => $criterion->id,
                 'name' => $name,
+                'pivot' => [
+                    'weight'             => $criterion->pivot?->weight ?? 1,
+                    'is_academic_signal' => (bool) ($criterion->pivot?->is_academic_signal ?? false),
+                ],
             ];
         })->values();
 
@@ -54,66 +58,74 @@ class CallResource extends JsonResource
         return [
             'id' => $this->id,
 
-            'name' => $translation?->name ?? $this->name,
+            'name'        => $translation?->name        ?? $this->name,
             'description' => $translation?->description ?? $this->description,
-            'budget' => $this->budget ? (float) $this->budget : null,
+
+            'budget'      => $this->budget ? (float) $this->budget : null,
             'budget_type' => $this->budget_type,
-            'tech_spec' => $this->tech_spec,
-            'tech_tags' => $this->tech_tags ?? [],
-            'max_teams' => $this->max_teams,
-            'po_user_id' => $this->po_user_id,
+            'tech_spec'   => $this->tech_spec,
+            'tech_tags'   => $this->tech_tags ?? [],
+            'max_teams'   => $this->max_teams,
+            'po_user_id'  => $this->po_user_id,
             'product_owner' => [
-                'id' => $this->productOwner?->id,
-                'name' => $this->productOwner?->name,
+                'id'    => $this->productOwner?->id,
+                'name'  => $this->productOwner?->name,
                 'email' => $this->productOwner?->email,
             ],
 
-            'application_start' => $this->application_start,
+            'application_start'    => $this->application_start,
             'application_deadline' => $this->application_deadline,
 
             'project_start' => $this->project_start,
-            'project_end' => $this->project_end,
+            'project_end'   => $this->project_end,
 
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
 
-            'is_open' => $this->application_deadline
-                ? now()->lt($this->application_deadline)
-                : false,
+            // is_open respects both the deadline AND the manual override.
+            // Admin can force-close even before the deadline, or re-open by
+            // toggling force_closed back to false (if deadline still in future).
+            'force_closed' => (bool) $this->force_closed,
+            'is_open'      => !$this->force_closed && (
+                $this->application_deadline
+                    ? now()->lt($this->application_deadline)
+                    : false
+                ),
 
             'applicants_count' => $this->applications_count ?? 0,
 
             'status' => [
-                'id' => $currentStatus?->id,
+                'id'   => $currentStatus?->id,
                 'name' => $currentStatus?->name,
             ],
 
             'program' => [
-                'id' => $this->program?->id,
+                'id'   => $this->program?->id,
                 'name' => $this->program?->typeOfProgram?->name,
             ],
 
             'call_type' => [
-                'id' => $this->callType?->id,
+                'id'   => $this->callType?->id,
                 'name' => $this->callType?->name,
             ],
 
             'organization' => [
-                'id' => $this->organization?->id,
+                'id'   => $this->organization?->id,
                 'name' => $this->organization?->name,
             ],
 
             'call_criteria' => $criteria,
 
             'form_schema' => $formSchema,
+
             'applications' => $this->whenLoaded('applications', function () {
                 return $this->applications->map(function ($application) {
                     return [
-                        'id' => $application->id,
-                        'teamName' => $application->team?->name,
+                        'id'          => $application->id,
+                        'teamName'    => $application->team?->name,
                         'submittedAt' => $application->submitted_at,
-                        'status' => $application->status?->name,
-                        'summary' => null,
+                        'status'      => $application->status?->name,
+                        'summary'     => null,
                     ];
                 })->values();
             }),

@@ -19,6 +19,11 @@ class EmailTemplatePolicy
         return null;
     }
 
+    public function fetchAll(User $user): bool
+    {
+        return $user->isAdmin() || $user->isSuperAdmin();
+    }
+
     public function viewAny(User $user): bool
     {
         return $this->hasPermission($user, 'content.view');

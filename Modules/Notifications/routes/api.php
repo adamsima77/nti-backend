@@ -9,6 +9,8 @@ Route::get('/email-templates/lang/{lang}', [EmailTemplateController::class, 'fet
 Route::get('/email-templates/cms/{id}',    [EmailTemplateController::class, 'showCms']);
 
 Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/fetch-all-templates', [EmailTemplateController::class, 'fetchAll']);
+    Route::post('/send-bulk-email', [NotificationController::class, 'sendBulkEmail']);
     Route::apiResource('email-templates', EmailTemplateController::class)
         ->only(['index', 'show', 'update']);
 

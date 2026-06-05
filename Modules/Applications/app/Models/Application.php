@@ -15,6 +15,7 @@ use Modules\Programs\Models\FormSchema;
 use Modules\Reporting\Models\ProjectKpi;
 use Modules\Reporting\Models\ProjectOutput;
 use Modules\Teams\Models\Team;
+use Modules\Content\Models\Category;
 
 class Application extends Model
 {
@@ -31,6 +32,7 @@ class Application extends Model
         'team_id',
         'created_by',
         'active_status',
+        'category_id',
         'form_data',
         'form_schema_id',
     ];
@@ -39,6 +41,10 @@ class Application extends Model
         'submitted_at' => 'datetime',
         'last_update' => 'datetime',
         'form_data' => 'array',
+    ];
+
+    protected $appends = [
+        'academic_flag',
     ];
 
     public function status(): BelongsTo
@@ -64,6 +70,11 @@ class Application extends Model
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class, 'team_id');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class, 'category_id');
     }
 
     public function creator(): BelongsTo
@@ -106,5 +117,33 @@ class Application extends Model
     public function outputs(): HasMany
     {
         return $this->hasMany(ProjectOutput::class, 'application_id');
+    }
+
+    public function getAcademicFlagAttribute(): ?bool
+    {
+        $this->loadMissing(['team.members.student.academicFlags']);
+
+        $members = $this->team?->members;
+
+        if ($members === null || $members->isEmpty()) {
+            return null;
+        }
+
+        $hasUnknown = false;
+
+        foreach ($members as $member) {
+            $student = $member->student;
+
+            if ($student === null) {
+                $hasUnknown = true;
+                continue;
+            }
+
+            if ($student->academicFlags->isEmpty()) {
+                return false;
+            }
+        }
+
+        return $hasUnknown ? null : true;
     }
 }

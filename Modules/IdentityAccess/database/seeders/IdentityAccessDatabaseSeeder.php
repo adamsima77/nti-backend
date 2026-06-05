@@ -27,6 +27,8 @@ class IdentityAccessDatabaseSeeder extends Seeder
         $this->call([
             DemoStudentUserSeeder::class,
             DemoMentorUserSeeder::class,
+            DemoEvaluatorUserSeeder::class,
+            DemoCommissionChairUserSeeder::class,
         ]);
     }
 }

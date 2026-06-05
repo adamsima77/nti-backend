@@ -19,7 +19,8 @@ class CriterionTranslation extends Model
     protected $fillable = [
         'name',
         'language_id',
-        'criterion_id'
+        'criterion_id',
+        'description'
     ];
 
     public function criterion(): BelongsTo{

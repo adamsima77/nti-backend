@@ -13,6 +13,7 @@ class EmailTemplateTranslationSeeder extends Seeder
      */
     public function run(): void
     {
+        $link = config('app.frontend_url');
         $translations = [
             'organization_onboarded' => [
                 'subject'   => 'Ďakujeme, {{ $organizationName }}!',
@@ -78,7 +79,7 @@ class EmailTemplateTranslationSeeder extends Seeder
 <table role="presentation" cellspacing="0" cellpadding="0">
     <tr>
         <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-            <a href="{{ config(\'app.frontend_url\') }}/student" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Prejsť na dashboard</a>
+            <a href="'.$link.'/student" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Prejsť na dashboard</a>
         </td>
     </tr>
 </table>
@@ -114,7 +115,7 @@ class EmailTemplateTranslationSeeder extends Seeder
 <table role="presentation" cellspacing="0" cellpadding="0">
     <tr>
         <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-            <a href="{{ config(\'app.frontend_url\') }}/auth/onboarding" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Dokončiť onboarding</a>
+            <a href="'.$link.'/auth/onboarding" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Dokončiť onboarding</a>
         </td>
     </tr>
 </table>',
@@ -206,7 +207,7 @@ class EmailTemplateTranslationSeeder extends Seeder
 <table role="presentation" cellspacing="0" cellpadding="0">
     <tr>
         <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-            <a href="{{ config(\'app.frontend_url\') }}/projekt/{{ $projectId }}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Zobraziť projekt</a>
+            <a href="'.$link.'/projekt/{{ $projectId }}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">Zobraziť projekt</a>
         </td>
     </tr>
 </table>',
@@ -275,7 +276,7 @@ class EmailTemplateTranslationSeeder extends Seeder
 <table role="presentation" cellspacing="0" cellpadding="0">
     <tr>
         <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-             <a href="{{ config(\'app.frontend_url\') }}" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">
+             <a href="'.$link.'" target="_blank" style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">
              Navštíviť NTI platformu</a>
         </td>
     </tr>
@@ -385,7 +386,7 @@ class EmailTemplateTranslationSeeder extends Seeder
                         <table role="presentation" cellspacing="0" cellpadding="0">
                             <tr>
                                 <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-                                    <a href="{{ config(\'app.frontend_url\') }}/admin/organizations/{{ $organizationId }}"
+                                    <a href="'.$link.'/admin/organizations/{{ $organizationId }}"
                                        target="_blank"
                                        style="
                                             display:inline-block;
@@ -485,7 +486,7 @@ class EmailTemplateTranslationSeeder extends Seeder
                         <table role="presentation" cellspacing="0" cellpadding="0">
                             <tr>
                                 <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
-                                    <a href="{{ config(\'app.frontend_url\') }}/firma"
+                                    <a href="'.$link.'/firma"
                                        target="_blank"
                                        style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">
                                         Prejsť do dashboardu

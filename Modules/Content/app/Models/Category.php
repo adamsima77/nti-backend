@@ -24,6 +24,11 @@ class Category extends Model
         return $this->hasMany(CategoryTranslation::class);
     }
 
+    public function applications(): HasMany
+    {
+        return $this->hasMany(\Modules\Applications\Models\Application::class, 'category_id');
+    }
+
     // protected static function newFactory(): CategoryFactory
     // {
     //     // return CategoryFactory::new();

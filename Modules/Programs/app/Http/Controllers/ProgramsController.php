@@ -3,12 +3,15 @@
 namespace Modules\Programs\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Modules\Content\Models\Language;
 use Modules\Programs\Models\Program;
 use Illuminate\Http\Response;
 class ProgramsController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
@@ -19,23 +22,37 @@ class ProgramsController extends Controller
         return view('programs::index');
     }
 
-    public function getProgramByLang($lang){
-        $languageId = Language::where('name', $lang)->value('id');
+    public function getProgramByLang($lang)
+    {
+        $cacheKey = "programs:lang:{$lang}";
 
-        if (!$languageId) {
+        $programs = Cache::remember($cacheKey, 300, function () use ($lang) {
+
+            $languageId = Language::where('name', $lang)->value('id');
+
+            if (!$languageId) {
+                return null;
+            }
+
+            return Program::whereHas('programTranslations', function ($q) use ($languageId) {
+                $q->where('language_id', $languageId);
+            })
+                ->with([
+                    'programTranslations' => function ($q) use ($languageId) {
+                        $q->where('language_id', $languageId);
+                    }
+                ])
+                ->get();
+        });
+
+        if (!$programs) {
             return response()->json([
                 'message' => 'Language not found!'
             ], Response::HTTP_NOT_FOUND);
         }
 
-        $programs = Program::with([
-            'programTranslations' => fn ($q) =>
-            $q->where('language_id', $languageId)
-        ])->get();
-
         return response()->json($programs, Response::HTTP_OK);
     }
-
     /**
      * Show the form for creating a new resource.
      */
