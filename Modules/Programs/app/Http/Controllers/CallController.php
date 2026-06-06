@@ -71,6 +71,9 @@ class CallController extends Controller
     {
         $this->authorize('viewAny', Call::class);
 
+        /** @var \Modules\IdentityAccess\Models\User $user */
+        $user = auth()->user();
+
         $query = Call::query()
             ->withCount('applications')
             ->with([
@@ -80,7 +83,15 @@ class CallController extends Controller
                 'callTranslations.language:id,name',
                 'callCriteria',
                 'qualificationStack.translations:id,name',
+                'productOwner:id,name,email',
             ]);
+
+        if (auth()->user()->isPartner()) {
+            $orgId = $user->organizations()->value('organization_id');
+            if ($orgId) {
+                $query->where('organization_id', $orgId);
+            }
+        }
 
         if ($request->filled('status') && $request->query('status') !== 'all') {
             $query->whereHas('currentStatusHistory.status', fn ($q) =>
@@ -278,6 +289,11 @@ class CallController extends Controller
             'call_criteria'            => $criteria,
             'qualification_stack'      => $qualificationStack,
             'application_form_schema'  => $call->application_form_schema,
+
+            'call_type' => [
+                'id'   => $call->callType?->id,
+                'name' => $call->callType?->name,
+            ],
         ]);
     }
 
@@ -298,6 +314,7 @@ class CallController extends Controller
             'tech_tags'               => ['nullable', 'array'],
             'max_teams'               => ['nullable', 'integer'],
             'po_user_id'              => ['nullable', 'integer'],
+            'po_email'                => ['nullable', 'email'],
             'organization_id'         => ['nullable', 'integer'],
             'application_start'       => ['required', 'date'],
             'application_deadline'    => ['required', 'date', 'after_or_equal:application_start'],
@@ -346,13 +363,23 @@ class CallController extends Controller
             }
         }
 
+        if (empty($validated['organization_id']) && $request->user()) {
+            $validated['organization_id'] = $request->user()->organizations()->value('organization_id');
+        }
+
+        if ($request->filled('po_email')) {
+            $poUser = \Modules\IdentityAccess\Models\User::where('email', $request->po_email)->first();
+            $validated['po_user_id'] = $poUser?->id;
+        }
+
         //$programTypeA = $this->resolveTypeACallType();
 
         return DB::transaction(function () use ($validated): JsonResponse {
 
             $formSchema = $validated['application_form_schema'] ?? null;
 
-            $callTypeId = $validated['call_type_id'] ?? $this->resolveTypeACallType()->id;
+            $callTypeId = $validated['call_type_id']
+                ?? $this->resolveCallTypeByProgram($validated['program_id'])->id;
 
             $call = Call::create([
                 'name'                    => $validated['name'],
@@ -421,6 +448,7 @@ class CallController extends Controller
             'tech_tags'               => ['nullable', 'array'],
             'max_teams'               => ['nullable', 'integer'],
             'po_user_id'              => ['nullable', 'integer'],
+            'po_email'                => ['nullable', 'email'],
             'application_start'       => ['sometimes', 'date'],
             'application_deadline'    => ['sometimes', 'date', 'after_or_equal:application_start'],
             'project_start'           => ['sometimes', 'date'],
@@ -470,6 +498,11 @@ class CallController extends Controller
             }
         }
 
+        if ($request->filled('po_email')) {
+            $poUser = \Modules\IdentityAccess\Models\User::where('email', $request->po_email)->first();
+            $validated['po_user_id'] = $poUser?->id;
+        }
+
         return DB::transaction(function () use ($validated, $call): JsonResponse {
 
             $call->update(
@@ -479,6 +512,11 @@ class CallController extends Controller
                         'application_deadline', 'project_start', 'project_end',
                         'program_id', 'application_form_schema',
                         'force_closed',
+
+                        'budget', 'budget_type',
+                        'tech_spec', 'tech_tags',
+                        'max_teams', 'po_user_id',
+                        'organization_id',
                         // ── NEW ───────────────────────────────────────────
                         'qualification_stack_id',
                     ])
@@ -528,9 +566,9 @@ class CallController extends Controller
         $this->authorize('delete', $call);
         //$this->assertTypeA($call);
 
-        return DB::transaction(function () use ($call, $id): JsonResponse {
-            DB::table('status_of_call_has_call')->where('call_id', $id)->delete();
-            $call->callTranslations()->delete();
+        return DB::transaction(function () use ($call): JsonResponse {
+            DB::table('call_translations')->where('call_id', $call->id)->delete();
+            DB::table('status_of_call_has_call')->where('call_id', $call->id)->delete();
             $call->callCriteria()->detach();
             $call->delete();
 
@@ -662,6 +700,26 @@ class CallController extends Controller
         return $type;
     }
 
+    private function resolveCallTypeByProgram(int $programId): CallType
+    {
+        $program = \Modules\Programs\Models\Program::find($programId);
+        $programName = $program?->typeOfProgram?->name ?? '';
+
+        if (str_contains(strtolower($programName), 'b') || str_contains(strtolower($programName), 'prax')) {
+            $type = CallType::where('code', 'program_b')
+                ->orWhere('name', 'Firemné zadanie')
+                ->first();
+        } else {
+            $type = CallType::where('code', 'program_a')
+                ->orWhere('name', 'Program A')
+                ->first();
+        }
+
+        abort_if(!$type, Response::HTTP_UNPROCESSABLE_ENTITY, 'Typ výzvy nebol nájdený.');
+
+        return $type;
+    }
+
     private function assertTypeA(Call $call): void
     {
         $typeA = $this->resolveTypeACallType();
@@ -672,10 +730,17 @@ class CallController extends Controller
 
     private function setInitialStatus(Call $call, ?int $statusId): void
     {
-        if (!empty($statusId)) {
+        $id = $statusId;
+
+        if (empty($id)) {
+            $draft = \Modules\Programs\Models\StatusOfCall::where('name', 'Draft')->first();
+            $id = $draft?->id;
+        }
+
+        if ($id) {
             \Modules\Programs\Models\StatusOfCallHasCall::create([
                 'call_id'           => $call->id,
-                'status_of_call_id' => (int) $statusId,
+                'status_of_call_id' => $id,
                 'note'              => 'Inicializácia výzvy',
             ]);
         }
