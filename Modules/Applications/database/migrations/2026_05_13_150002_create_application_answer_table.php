@@ -10,13 +10,9 @@ return new class extends Migration
     {
         Schema::create('application_answer', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('application_id');
-            $table->unsignedBigInteger('form_field_id');
-            $table->longText('value');
-
-            $table->foreign('application_id')->references('id')->on('application')->cascadeOnDelete();
-            $table->foreign('form_field_id')->references('id')->on('form_field')->restrictOnDelete();
-            $table->unique(['application_id', 'form_field_id']);
+            $table->foreignId('application_id')->constrained('application');
+            $table->json('answer');
+            $table->timestamps();
         });
     }
 

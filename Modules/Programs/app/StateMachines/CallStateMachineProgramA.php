@@ -6,22 +6,16 @@ use Modules\Programs\Models\Call;
 use Modules\Programs\Models\StatusOfCall;
 use Modules\Programs\Models\StatusOfCallHasCall;
 
-class CallStateMachine
+class CallStateMachineProgramA
 {
     public const STATE_DRAFT       = 'Draft';
     public const STATE_PUBLISHED   = 'Publikované';
-    public const STATE_MATCHING    = 'V párovaní';
-    public const STATE_ASSIGNED    = 'Pridelené';
     public const STATE_IN_PROGRESS = 'V realizácii';
     public const STATE_CLOSED      = 'Uzavreté';
-    public const STATE_PENDING = 'Čaká na schválenie';
 
     private const TRANSITIONS = [
-        self::STATE_DRAFT       => [self::STATE_PENDING],
-        self::STATE_PENDING     => [self::STATE_PUBLISHED, self::STATE_DRAFT],
-        self::STATE_PUBLISHED   => [self::STATE_MATCHING],
-        self::STATE_MATCHING    => [self::STATE_ASSIGNED],
-        self::STATE_ASSIGNED    => [self::STATE_IN_PROGRESS],
+        self::STATE_DRAFT       => [self::STATE_PUBLISHED],
+        self::STATE_PUBLISHED => [self::STATE_IN_PROGRESS],
         self::STATE_IN_PROGRESS => [self::STATE_CLOSED],
         self::STATE_CLOSED      => [],
     ];
@@ -33,11 +27,8 @@ class CallStateMachine
             'application_deadline',
             'project_start',
             'project_end',
-            'organization_id',
             'call_type_id',
         ],
-        self::STATE_MATCHING    => [],
-        self::STATE_ASSIGNED    => [],
         self::STATE_IN_PROGRESS => [],
         self::STATE_CLOSED      => [],
     ];
@@ -65,6 +56,10 @@ class CallStateMachine
     public function missingFields(string $targetState): array
     {
         $required = self::REQUIRED_FIELDS[$targetState] ?? [];
+
+        if($this->call->program_id == 1){
+            $required = array_diff($required, ['organization_id']);
+        }
 
         return collect($required)
             ->filter(fn($field) => empty($this->call->$field))

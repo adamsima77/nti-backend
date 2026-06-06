@@ -15,7 +15,7 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('application_id');
             $table->unsignedBigInteger('commission_member_id');
-            $table->unsignedBigInteger('decision_id');
+            $table->unsignedBigInteger('decision_id')->nullable();
             $table->timestamps();
 
             $table->index('application_id', 'idx_eval_app');

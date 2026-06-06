@@ -28,6 +28,7 @@ use Modules\IdentityAccess\Rules\TurnstileRule;
 use Modules\Organizations\Models\Address;
 use Modules\Organizations\Models\Organization;
 use Modules\Organizations\Models\OrganizationRole;
+use Modules\Students\Models\AcademicRecord;
 use Modules\Students\Models\Student;
 use Illuminate\Support\Str;
 
@@ -183,6 +184,9 @@ class AuthController extends Controller
             'cv'            => ['required', 'file', 'mimes:pdf,docx'],
             'year_of_study' => ['required', 'integer', 'exists:study_years,id'],
             'portfolio_url' => ['nullable', 'string', 'max:255'],
+            //Academic record
+            'honor_declaration' => ['required', 'boolean'],
+            'transcript_file' => ['required', 'file', 'mimes:pdf', 'max:5120']
         ]);
 
         try {
@@ -211,7 +215,7 @@ class AuthController extends Controller
                 'file_path'   => $filePath,
             ]);
 
-            Student::create([
+            $student = Student::create([
                 'user_id'          => $request->user()->id,
                 'study_program_id' => $validated['study_program'],
                 'study_field_id'   => $validated['study_field'],
@@ -219,6 +223,32 @@ class AuthController extends Controller
                 'study_year_id'    => $validated['year_of_study'],
                 'portfolio_url'    => $validated['portfolio_url'] ?? null,
                 'cv_document_id'   => $document->id,
+            ]);
+
+            if(!$validated['honor_declaration']) {
+                throw new \Exception('Honor declaration is required.');
+            }
+
+            $uploadedTranscript = $validated['transcript_file'];
+            $fileNameTranscript = $uploadedTranscript->getClientOriginalName();
+            $storedTranscriptName = Str::uuid() . '_' . $fileNameTranscript;
+            $filePath = Storage::disk('local')->putFileAs('documents', $uploadedTranscript, $storedTranscriptName);
+
+            $doc = Document::create([
+                'owner_id'              => $request->user()->id,
+                'security_classification_id' => $securityClassification->id,
+            ]);
+
+            DocumentVersion::create([
+                'document_id' => $doc->id,
+                'file_name'   => $fileNameTranscript,
+                'file_path'   => $filePath,
+            ]);
+
+            AcademicRecord::create([
+                'student_id' => $student->id,
+                'transcript_file' => $doc->id,
+                'honor_declaration' => $validated['honor_declaration'],
             ]);
 
             $consentTypes = ConsentType::whereIn('name', [

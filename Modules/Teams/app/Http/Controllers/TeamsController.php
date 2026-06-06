@@ -156,40 +156,78 @@ class TeamsController extends Controller
             }
         }
 
-        $team = DB::transaction(function () use ($validated, $request, $invitedUsers) {
+        // Determine the user's preferred language for the upcoming emails
+        $lang = (string) ($request->header('X-Locale') ?? $request->query('lang', 'sk'));
+        if (! in_array($lang, ['sk', 'en'], true)) {
+            $lang = 'sk';
+        }
+
+        $team = DB::transaction(function () use ($validated, $request, $invitedUsers, $lang) {
+            // 1. Create the team
             $team = Team::create([
                 'name' => $validated['name'],
             ]);
 
+            // 2. Set the creator as the Team Leader
             $teamleader = TeamRole::where('name', 'Vedúci tímu')->firstOrFail();
+            $creator = $request->user();
 
-            $request->user()->teams()->attach($team->id, [
+            $creator->teams()->attach($team->id, [
                 'team_role_id' => $teamleader->id,
             ]);
 
+            // 3. Process invitations for the validated users
             if ($invitedUsers->isNotEmpty()) {
                 $memberRole = TeamRole::query()->where('name', 'Člen tímu')->firstOrFail();
-                $creatorId = (int) $request->user()->id;
+                $inviterName = trim($creator->name . ' ' . ($creator->surname ?? ''));
+                $inviterDisplayName = $inviterName !== '' ? $inviterName : (string) $creator->email;
 
                 foreach ($invitedUsers as $invitedUser) {
-                    if ((int) $invitedUser->id === $creatorId) {
+                    // Skip if the user accidentally invited themselves
+                    if ((int) $invitedUser->id === (int) $creator->id) {
                         continue;
                     }
 
-                    $team->members()->syncWithoutDetaching([
-                        (int) $invitedUser->id => ['team_role_id' => $memberRole->id],
+                    // Clean up any stale, unaccepted invitations for this specific team/email
+                    TeamInvitation::query()
+                        ->where('team_id', $team->id)
+                        ->where('email', $invitedUser->email)
+                        ->whereNull('accepted_at')
+                        ->delete();
+
+                    // Generate secure invitation token
+                    $token = \Str::random(64);
+
+                    // Create invitation record
+                    TeamInvitation::query()->create([
+                        'team_id'      => $team->id,
+                        'email'        => $invitedUser->email,
+                        'token'        => $token,
+                        'team_role_id' => $memberRole->id,
+                        'invited_by'   => (int) $creator->id,
+                        'expires_at'   => now()->addDays(14),
                     ]);
+
+                    // Dispatch the email invitation immediately
+                    \Mail::to($invitedUser->email)->send(new TeamInviteMail(
+                        $team,
+                        $inviterDisplayName,
+                        $invitedUser->email,
+                        $token,
+                        $lang,
+                    ));
                 }
             }
 
             return $team;
         });
 
+        // Load members (this will now only return the team leader initially since members are pending invitation)
         $team->load('members');
         $roleMap = TeamRole::query()->pluck('name', 'id');
 
         return response()->json([
-            'message' => 'Tím bol úspešne vytvorený.',
+            'message' => 'Tím bol úspešne vytvorený a pozvánky boli odoslané.',
             'team'    => $this->formatTeamForStudent($team, $roleMap, (int) $request->user()->id),
         ], Response::HTTP_CREATED);
     }

@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Evaluation\Models\Evaluation;
 use Modules\Mentorship\Models\Milestone;
 use Modules\Mentorship\Models\Mentorship;
 use Modules\IdentityAccess\Models\User;
@@ -19,7 +21,7 @@ use Modules\Content\Models\Category;
 
 class Application extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'application';
 
@@ -35,6 +37,7 @@ class Application extends Model
         'category_id',
         'form_data',
         'form_schema_id',
+        'reference'
     ];
 
     protected $casts = [
@@ -47,9 +50,16 @@ class Application extends Model
         'academic_flag',
     ];
 
+
     public function status(): BelongsTo
     {
         return $this->belongsTo(StatusOfApplication::class, 'active_status');
+    }
+
+    public function evaluations(): HasMany
+    {
+
+        return $this->hasMany(Evaluation::class, 'application_id');
     }
 
     public function call(): BelongsTo
@@ -121,7 +131,10 @@ class Application extends Model
 
     public function getAcademicFlagAttribute(): ?bool
     {
-        $this->loadMissing(['team.members.student.academicFlags']);
+
+        if (!$this->relationLoaded('team')) {
+            return null;
+        }
 
         $members = $this->team?->members;
 
@@ -139,7 +152,7 @@ class Application extends Model
                 continue;
             }
 
-            if ($student->academicFlags->isEmpty()) {
+            if (!$student->relationLoaded('academicFlags') || $student->academicFlags->isEmpty()) {
                 return false;
             }
         }

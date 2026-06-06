@@ -20,6 +20,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('study-field', StudyFieldController::class);
     Route::apiResource('study-program', StudyProgramController::class);
     Route::apiResource('study-year', StudyYearController::class)->only(['index']);
+    Route::get('/get-academic-record/{document}', [StudentsController::class, 'downloadRecord']);
 });
 Route::get('/study-fields-public/lang/{lang}', [StudyFieldController::class, 'fetchByLangPublic']);
 Route::get('/study-years-public/lang/{lang}', [StudyYearController::class, 'fetchByLangPublic']);

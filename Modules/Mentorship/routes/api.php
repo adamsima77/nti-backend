@@ -14,7 +14,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('projects/{project}/consultations', [MentorshipController::class, 'projectConsultations']);
         Route::post('projects/{project}/consultations', [MentorshipController::class, 'storeConsultation']);
         Route::post('projects/{project}/feedback', [MentorshipController::class, 'storeFeedback']);
+        Route::post('/admin/applications/{application}/mentors/{user}', [MentorshipController::class, 'assignMentor']);
     });
+
+    Route::get('/mentors', [MentorshipController::class, 'fetchMentors']);
 
     Route::apiResource('milestones', MilestoneController::class);
 });

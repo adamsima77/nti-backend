@@ -9,6 +9,7 @@ return new class extends Migration {
     {
         Schema::create('application', function (Blueprint $table) {
             $table->id();
+            $table->string('reference')->nullable()->unique();
             $table->timestamp('submitted_at');
             $table->timestamp('last_update');
             $table->unsignedBigInteger('call_id');
@@ -20,6 +21,8 @@ return new class extends Migration {
             $table->foreign('team_id')->references('id')->on('team');
             $table->foreign('created_by')->references('id')->on('users');
             $table->foreign('active_status')->references('id')->on('status_of_application');
+
+            $table->softDeletes();
         });
     }
 

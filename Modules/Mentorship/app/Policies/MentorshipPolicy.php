@@ -18,6 +18,10 @@ class MentorshipPolicy
 
         return null;
     }
+    public function assignMentor(User $user): bool
+    {
+        return $this->hasPermission($user, 'mentorship.assign');
+    }
 
     public function viewAny(User $user): bool
     {

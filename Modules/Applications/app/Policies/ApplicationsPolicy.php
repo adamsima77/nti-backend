@@ -18,6 +18,10 @@ class ApplicationsPolicy
         return true; // Allow all authenticated users to view applications
     }
 
+     public function addCommittee(User $user, Application $application): bool{
+        return $user->isSuperAdmin() || $user->isAdmin();
+     }
+
     /**
      * Determine whether the user can view the application.
      */

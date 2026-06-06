@@ -16,6 +16,10 @@ class StatusOfApplicationSeeder extends Seeder
             ['name' => 'Vyžiadané doplnenie'],
             ['name' => 'Schválené'],
             ['name' => 'Zamietnuté'],
+            ['name' => 'Pozastavené'],
+            ['name' => 'Onboarding'],
+            ['name' => 'Aktívny projekt'],
+            ['name' => 'Ukončené'],
         ];
 
         foreach ($items as $item) {

@@ -9,7 +9,7 @@ return new class extends Migration {
     {
         Schema::create('document_version', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('document_id')->constrained('document');
+            $table->foreignId('document_id')->constrained('document')->onDelete('cascade');
             $table->string('file_name');
             $table->string('file_path');
             $table->timestamps();

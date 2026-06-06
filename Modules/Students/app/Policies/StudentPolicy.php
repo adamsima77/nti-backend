@@ -3,6 +3,7 @@
 namespace Modules\Students\Policies;
 
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Modules\Applications\Models\Document;
 use Modules\IdentityAccess\Models\User;
 use Modules\Students\Models\Student;
 
@@ -17,6 +18,10 @@ class StudentPolicy
         }
 
         return null;
+    }
+
+    public function downloadRecord(User $user, Document $document): bool{
+        return $user->id == $document->owner_id;
     }
 
     public function viewAny(User $user): bool

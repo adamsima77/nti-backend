@@ -2,6 +2,9 @@
 
 namespace Modules\Applications\Providers;
 
+use Modules\Applications\Models\StatusOfApplication;
+use Modules\Applications\Observers\ApplicationObserver;
+use Modules\Applications\Policies\StatusOfApplicationPolicy;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Support\Facades\Gate;
 use Modules\Applications\Models\Application;
@@ -24,6 +27,8 @@ class ApplicationsServiceProvider extends ModuleServiceProvider
     {
         parent::boot();
 
+        Application::observe(ApplicationObserver::class);
+
         $this->loadViewsFrom(module_path($this->name, '/resources/views'), $this->nameLower);
     }
 
@@ -38,5 +43,6 @@ class ApplicationsServiceProvider extends ModuleServiceProvider
         Gate::policy(Application::class, ApplicationsPolicy::class);
         Gate::policy(Applications::class, ApplicationsPolicy::class);
         Gate::policy(Document::class, DocumentPolicy::class);
+        Gate::policy(StatusOfApplication::class, StatusOfApplicationPolicy::class);
     }
 }

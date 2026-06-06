@@ -14,17 +14,20 @@ class ApplicationAnswer extends Model
 
     protected $fillable = [
         'application_id',
-        'form_field_id',
-        'value',
+        'answer'
     ];
+
+    protected $guarded = [];
+
+    protected function casts()
+    {
+        return [
+            'answer' => 'array'
+        ];
+    }
 
     public function application(): BelongsTo
     {
         return $this->belongsTo(Application::class, 'application_id');
-    }
-
-    public function formField(): BelongsTo
-    {
-        return $this->belongsTo(FormField::class, 'form_field_id');
     }
 }

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Services\ApplicationWorkflowService;
 use Modules\Applications\Models\Application;
+use Modules\Evaluation\Models\Commission;
 use Modules\Evaluation\Models\CommissionMember;
 use Modules\Evaluation\Models\Decision;
 use Modules\Evaluation\Models\Evaluation;
@@ -26,6 +27,50 @@ use Modules\Teams\Models\TeamRole;
 class EvaluationController extends Controller
 {
     use AuthorizesRequests;
+
+    public function fetchCommittes(Request $request){
+        $this->authorize('viewAny', Evaluation::class);
+        $com = Commission::all();
+        return response()->json(['commissions' => $com], Response::HTTP_OK);
+    }
+
+
+
+    public function assignCommission(Request $request, Application $application)
+    {
+        // 1. Očakávame ID komisie, ktorú chce admin prihláške priradiť
+        $request->validate([
+            'commission_id' => 'required|exists:commission,id',
+        ]);
+
+        $commissionId = $request->input('commission_id');
+
+        // 2. Autorizácia
+        $this->authorize('viewAny', Evaluation::class);
+
+        // 3. Spustíme transakciu a vygenerujeme hárky pre každého člena tejto komisie
+        DB::transaction(function () use ($application, $commissionId) {
+
+            // Vytiahneme všetkých členov, ktorí patria do vybranej komisie
+            $members = CommissionMember::where('commission_id', $commissionId)->get();
+
+            foreach ($members as $member) {
+                // Vytvoríme riadok v tabuľke evaluation presne tak, ako ho máš v nti=# SELECT * FROM evaluation
+                Evaluation::firstOrCreate([
+                    'application_id'       => $application->id,
+                    'commission_member_id' => $member->id, // Prepája to na komisiu cez člena
+                ], [
+                    'decision_id'          => null,
+                    'submitted_at'         => null,
+                    'internal_note'        => null,
+                ]);
+            }
+        });
+
+        return response()->json([
+            'message' => 'Komisia bola úspešne priradená a hodnotiace hárky boli vygenerované.'
+        ], 200);
+    }
 
     private function normalizeProgramLabel(?string $programName): string
     {

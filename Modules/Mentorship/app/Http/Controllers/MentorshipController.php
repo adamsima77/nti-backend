@@ -3,8 +3,10 @@
 namespace Modules\Mentorship\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Modules\Applications\Models\Application;
@@ -17,6 +19,27 @@ use Modules\Teams\Models\Team;
 
 class MentorshipController extends Controller
 {
+    use AuthorizesRequests;
+    public function assignMentor(Request $request, Application $application, User $user)
+    {
+        $this->authorize('assignMentor', Mentorship::class);
+
+        // Zápis výhradne do prepájacej tabuľky mentorship
+        Mentorship::firstOrCreate([
+            'mentor_user_id' => $user->id,
+            'application_id' => $application->id,
+        ]);
+
+        return response()->json(['message' => 'Mentor assigned successfully.'], Response::HTTP_OK);
+    }
+    public function fetchMentors(Request $request)
+    {
+        $mentors = User::whereHas('roles', function ($query) {
+            $query->where('name', 'mentor');
+        })->get();
+
+        return response()->json(['mentors' => $mentors], Response::HTTP_OK);
+    }
     public function dashboard(Request $request): JsonResponse
     {
         $mentor = $this->currentMentor($request);

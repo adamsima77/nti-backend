@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('academic_records', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('student_id')->unique();
-            $table->string('transcript_file', 255)->nullable();
+            $table->foreignId('transcript_file')->constrained('document');
             $table->boolean('honor_declaration')->default(false);
             $table->timestamp('honor_declaration_signed_at')->nullable();
             $table->timestamps();

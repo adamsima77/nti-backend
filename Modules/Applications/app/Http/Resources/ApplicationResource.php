@@ -54,6 +54,26 @@ class ApplicationResource extends JsonResource
             'submitted_at'   => $this->submitted_at,
             'last_update'    => $this->last_update,
             'academic_flag'  => $this->academic_flag,
+            'reference' => $this->reference,
+            'team_members' => $this->whenLoaded('team', function () {
+                return $this->team?->members->map(function ($member) {
+                    return [
+                        'user_id'   => $member->id,
+                        'name'      => $member->name,
+                        'surname'   => $member->surname,
+                        'role_id'   => $member->pivot?->team_role_id,
+                        'role_name' => match($member->pivot?->team_role_id) {
+                            1 => 'Vedúci tímu',
+                            2 => 'Člen',
+                            default => null,
+                        },
+                        'student'   => $member->student ? [
+                            'id'             => $member->student->id,
+                            'academic_flags' => $member->student->academicFlags,
+                        ] : null,
+                    ];
+                });
+            }),
             'call'           => [
                 'id'   => $this->call?->id,
                 'name' => $this->call?->name,
@@ -117,6 +137,45 @@ class ApplicationResource extends JsonResource
                         'status'       => $ui,
                         'description'  => $milestone->comments,
                         'completed_at' => $ui === 'completed' ? $milestone->updated_at?->format('Y-m-d') : null,
+                    ];
+                })->values();
+            }),
+            // OPRAVA: Pridané mapovanie mentorships pre frontend vrátane detailov priradeného mentora
+            'mentorships'    => $this->whenLoaded('mentorships', function () {
+                return $this->mentorships->map(function ($mentorship) {
+                    return [
+                        'id'     => $mentorship->id,
+                        'mentor' => $mentorship->mentor ? [
+                            'id'      => $mentorship->mentor->id,
+                            'name'    => $mentorship->mentor->name,
+                            'surname' => $mentorship->mentor->surname,
+                        ] : null,
+
+                        'commission' => $this->whenLoaded('evaluations', function () {
+                            // Vytiahneme prvé hodnotenie, z neho člena a z neho komisiu
+                            $firstEvaluation = $this->evaluations->first();
+                            $commission = $firstEvaluation?->commissionMember?->commission;
+
+                            if (!$commission) {
+                                return null;
+                            }
+
+                            return [
+                                'id'   => $commission->id,
+                                'name' => $commission->name,
+                                // Zoberieme všetky načítané evaluácie a spravíme z nich zoznam členov pre frontend
+                                'members' => $this->evaluations->map(function ($evaluation) {
+                                    $member = $evaluation->commissionMember;
+                                    return [
+                                        'id'           => $member?->id,
+                                        'user_id'      => $member?->user_id,
+                                        'name'         => $member?->user?->name,
+                                        'surname'      => $member?->user?->surname,
+                                        'submitted_at' => $evaluation->submitted_at, // Frontend hneď vidí status
+                                    ];
+                                }),
+                            ];
+                        }),
                     ];
                 })->values();
             }),

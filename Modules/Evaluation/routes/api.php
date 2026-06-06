@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Applications\Http\Controllers\ApplicationController;
 use Modules\Evaluation\Http\Controllers\EvaluationController;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -16,5 +17,7 @@ Route::middleware('auth:sanctum')->group(function () {
 		Route::post('applications/{applicationId}/evaluations', [EvaluationController::class, 'storeEvaluatorEvaluation']);
 		Route::patch('applications/{applicationId}/evaluations/{evaluationId}', [EvaluationController::class, 'updateEvaluatorEvaluation']);
 		Route::post('applications/{applicationId}/supplement-request', [EvaluationController::class, 'requestSupplement']);
-	});
+        Route::post('/admin/applications/{application}/commissions', [EvaluationController::class, 'assignCommission']);
+       Route::get('/fetch-commissions', [EvaluationController::class, 'fetchCommittes']);
+    });
 });

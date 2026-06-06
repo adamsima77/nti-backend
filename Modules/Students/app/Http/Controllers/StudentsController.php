@@ -9,6 +9,10 @@ use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Modules\Applications\Models\Document;
+use Modules\Applications\Models\DocumentVersion;
+use Modules\Applications\Models\SecurityClassification;
 use Modules\Content\Models\Language;
 use Modules\IdentityAccess\Models\User;
 use Modules\Students\Models\AcademicRecord;
@@ -74,31 +78,117 @@ class StudentsController extends Controller
 
         $this->authorize('update', $student);
 
+        // Check if a transcript already exists to adjust validation rules
+        $hasExistingDocument = $student->academicRecord?->transcript_file !== null;
+
         $validated = $request->validate([
-            'honor_declaration' => ['required', 'boolean'],
-            'transcript_file' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'honor_declaration' => ['required', 'boolean', 'accepted'],
+            'transcript_file' => $hasExistingDocument
+                ? ['nullable', 'file', 'mimes:pdf', 'max:5120']
+                : ['required', 'file', 'mimes:pdf', 'max:5120'],
         ]);
 
-        $transcriptPath = $student->academicRecord?->transcript_file ?? null;
-        if ($request->hasFile('transcript_file')) {
-            /** @var UploadedFile $file */
-            $file = $request->file('transcript_file');
-            $filename = sprintf('%s_%s.%s', $student->id, uniqid('', true), $file->getClientOriginalExtension());
-            $transcriptPath = $file->storeAs('transcripts', $filename, 'local');
+        // Use a transaction to ensure database and storage stay in sync
+        return DB::transaction(function () use ($request, $student, $validated, $hasExistingDocument) {
+
+            // 1. If a new file is uploaded, replace the old one (GDPR compliance)
+            if ($request->hasFile('transcript_file')) {
+                if ($hasExistingDocument) {
+                    $oldDoc = Document::find($student->academicRecord->transcript_file);
+
+                    if ($oldDoc) {
+                        // Delete actual files from disk
+                        foreach ($oldDoc->versions as $version) {
+                            Storage::disk('local')->delete($version->file_path);
+                        }
+                        // Cascade delete will automatically remove entries in document_version
+                        $oldDoc->delete();
+                    }
+                }
+
+                // 2. Process the new file
+                $uploadedTranscript = $request->file('transcript_file');
+                $storedName = Str::uuid() . '_' . $uploadedTranscript->getClientOriginalName();
+                $filePath = $uploadedTranscript->storeAs('documents', $storedName, 'local');
+
+                $securityClassification = SecurityClassification::where('name', 'internal')->firstOrFail();
+
+                // 3. Create new document and version records
+                $doc = Document::create([
+                    'owner_id'                   => $request->user()->id,
+                    'security_classification_id' => $securityClassification->id,
+                ]);
+
+                DocumentVersion::create([
+                    'document_id' => $doc->id,
+                    'file_name'   => $uploadedTranscript->getClientOriginalName(),
+                    'file_path'   => $filePath,
+                ]);
+
+                // 4. Update the AcademicRecord with the new document ID
+                $student->academicRecord()->updateOrCreate(
+                    ['student_id' => $student->id],
+                    [
+                        'transcript_file'             => $doc->id,
+                        'honor_declaration'           => $validated['honor_declaration'],
+                        'honor_declaration_signed_at' => now(),
+                    ]
+                );
+            } else {
+                // If just updating the declaration without a new file
+                $student->academicRecord()->updateOrCreate(
+                    ['student_id' => $student->id],
+                    [
+                        'honor_declaration'           => $validated['honor_declaration'],
+                        'honor_declaration_signed_at' => now(),
+                    ]
+                );
+            }
+
+            return response()->json([
+                'message' => 'Academic record processed successfully!',
+            ], Response::HTTP_OK);
+        });
+    }
+
+    public function downloadRecord(Request $request, Document $document)
+    {
+        $doc = Document::with([
+            'securityClassification',
+            'versions' => function ($query) {
+
+                $query->latest();
+            }
+        ])->findOrFail($document->id);
+
+
+        if ((int)$doc->owner_id !== (int)$request->user()->id) {
+            return response()->json([
+                'message' => 'Nemáte oprávnenie na stiahnutie tohto dokumentu.'
+            ], Response::HTTP_FORBIDDEN);
         }
 
-        $academicRecord = AcademicRecord::updateOrCreate(
-            ['student_id' => $student->id],
-            [
-                'transcript_file' => $transcriptPath,
-                'honor_declaration' => $validated['honor_declaration'],
-                'honor_declaration_signed_at' => $validated['honor_declaration'] ? now() : null,
-            ]
-        );
 
-        return response()->json([
-            'academic_record' => $academicRecord,
-        ], Response::HTTP_OK);
+        $latestVersion = $doc->versions->first();
+
+        if (!$latestVersion || !$latestVersion->file_path) {
+            return response()->json([
+                'message' => 'Súbor dokumentu sa nenašiel.'
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+
+        if (!Storage::disk('local')->exists($latestVersion->file_path)) {
+            return response()->json([
+                'message' => 'Fyzický súbor na úložisku chýba.'
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+
+        return Storage::disk('local')->download(
+            $latestVersion->file_path,
+            $latestVersion->file_name
+        );
     }
 
     /**
