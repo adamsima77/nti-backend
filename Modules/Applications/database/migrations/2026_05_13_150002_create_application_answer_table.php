@@ -12,7 +12,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('application_id')->constrained('application');
             $table->json('answer');
-            $table->timestamps();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
         });
     }
 

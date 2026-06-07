@@ -27,16 +27,57 @@ class ExportController extends Controller
 {
     use AuthorizesRequests;
 
-    public function applications(Request $request, string $format = 'xlsx', QueuedExportService $queuedExportService)
-    {
+    public function applications(
+        Request $request,
+        string $format = 'xlsx',
+        QueuedExportService $queuedExportService,
+        PdfService $pdfService,
+    ){
         $this->authorize('export', Applications::class);
 
         $format = strtolower($format ?: 'xlsx');
-        $fileName = 'applications.' . $format;
-        $writerType = $format === 'csv' ? \Maatwebsite\Excel\Excel::CSV : \Maatwebsite\Excel\Excel::XLSX;
+
         $filters = [
-            'call_id' => $request->input('call_id'),
+            'call_id'        => $request->input('call_id'),
+            'active_status'      => $request->input('status_id'),
+            'submitted_from' => $request->input('submitted_from'),
+            'submitted_to'   => $request->input('submitted_to'),
         ];
+
+        // ── PDF ────────────────────────────────────────────────────────────────
+        if ($format === 'pdf') {
+            $fileName     = 'applications.pdf';
+            $applications = $this->buildApplicationExportQuery($filters)->get();
+
+            $serialised = json_decode(json_encode(
+                $applications->map(fn ($a) => $a->toArray())->all()
+            ));
+
+            $viewData = [
+                'applications' => $serialised,
+                'filters'      => $filters,
+                'generatedAt'  => now()->format('d.m.Y H:i'),
+            ];
+
+            if ($request->boolean('async')) {
+                return $this->queuePdfViewResponse(
+                    $request,
+                    $queuedExportService,
+                    'applications',
+                    $fileName,
+                    'reporting::applications_export',
+                    $viewData,
+                );
+            }
+
+            return $pdfService->download('reporting::applications_export', $viewData, $fileName);
+        }
+
+        // ── XLSX / CSV ─────────────────────────────────────────────────────────
+        $fileName   = 'applications.' . $format;
+        $writerType = $format === 'csv'
+            ? \Maatwebsite\Excel\Excel::CSV
+            : \Maatwebsite\Excel\Excel::XLSX;
 
         if ($request->boolean('async')) {
             return $this->queueExcelResponse(
@@ -46,11 +87,42 @@ class ExportController extends Controller
                 $fileName,
                 ApplicationExport::class,
                 $writerType,
-                [$filters]
+                [$filters],
             );
         }
 
         return Excel::download(new ApplicationExport($filters), $fileName, $writerType);
+    }
+
+
+    private function buildApplicationExportQuery(array $filters)
+    {
+        $query = Application::query()
+            ->with([
+                'team',
+                'call',
+                'status',
+                'mentorships.mentor',
+                'creator',
+            ]);
+
+        if (! empty($filters['call_id'])) {
+            $query->where('call_id', $filters['call_id']);
+        }
+
+        if (! empty($filters['active_status'])) {
+            $query->where('active_status', $filters['active_status']);
+        }
+
+        if (! empty($filters['submitted_from'])) {
+            $query->whereDate('submitted_at', '>=', $filters['submitted_from']);
+        }
+
+        if (! empty($filters['submitted_to'])) {
+            $query->whereDate('submitted_at', '<=', $filters['submitted_to']);
+        }
+
+        return $query->orderByDesc('submitted_at');
     }
 
     public function evaluations(Request $request, string $format = 'xlsx', QueuedExportService $queuedExportService)
