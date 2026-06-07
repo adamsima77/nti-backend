@@ -16,6 +16,8 @@ use Modules\Programs\Http\Resources\CallResource;
 use Modules\Programs\Models\Call;
 use Modules\Programs\Models\CallType;
 use Modules\Programs\Models\StatusOfCall;
+use Illuminate\Support\Facades\Log;
+
 
 
 use Modules\Programs\Models\TypeOfProgram;
@@ -187,6 +189,7 @@ class CallController extends Controller
 
     public function adminShow(int $id): JsonResponse
     {
+        Log::info('adminShow called', ['id' => $id, 'user' => auth()->id()]);
         $this->authorize('view', Call::class);
 
         $call = Call::query()
@@ -201,6 +204,8 @@ class CallController extends Controller
                 'currentStatusHistory.status:id,name',
                 'callCriteria',
                 'callCriteria.criterionTranslations:id,criterion_id,language_id,name,description',
+                'productOwner:id,name,email',
+                'documents.versions',
             ])
             ->findOrFail($id);
 
@@ -245,6 +250,12 @@ class CallController extends Controller
                 ])->values(),
             ];
         }
+
+        $documents = $call->documents->map(fn ($doc) => [
+            'id'   => $doc->id,
+            'name' => $doc->versions()->latest('id')->first()?->file_name,
+            'url'  => '/api/documents/' . $doc->id . '/download',
+        ])->values();
 
         return response()->json([
             'id'                       => $call->id,
@@ -301,11 +312,12 @@ class CallController extends Controller
                 'id'   => $call->callType?->id,
                 'name' => $call->callType?->name,
             ],
+            'documents'                => $documents,
         ]);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  STORE — Program A ONLY
+    //  STORE
     // ─────────────────────────────────────────────────────────────────────────
 
     public function store(Request $request): JsonResponse
@@ -330,6 +342,8 @@ class CallController extends Controller
             'program_id'              => ['required', 'integer', 'exists:program,id'],
             'status_id'               => ['nullable', 'integer', 'exists:status_of_call,id'],
             'language_id'             => ['required', 'integer', 'exists:languages,id'],
+            'document_ids'            => ['nullable', 'array'],
+            'document_ids.*'          => ['integer', 'exists:document,id'],
 
             // ── NEW: qualification stack ──────────────────────────────────
             'qualification_stack_id'  => ['nullable', 'integer', 'exists:qualification_stacks,id'],
@@ -374,23 +388,35 @@ class CallController extends Controller
             $validated['organization_id'] = $request->user()->organizations()->value('organization_id');
         }
 
-        $programTypeA = TypeOfProgram::where('name', 'Program A')->firstOrFail();
-
         try {
-            return DB::transaction(function () use ($validated, $programTypeA): JsonResponse {
+            return DB::transaction(function () use ($validated, $request): JsonResponse {
 
                 $formSchema = $validated['application_form_schema'] ?? null;
+
+                $callTypeId = $validated['call_type_id']
+                    ?? $this->resolveCallTypeByProgram($validated['program_id'])->id;
+
+                if ($request->filled('po_email')) {
+                    $poUser = \Modules\IdentityAccess\Models\User::where('email', $request->po_email)->first();
+                    $validated['po_user_id'] = $poUser?->id;
+                }
 
                 $call = Call::create([
                     'name'                    => $validated['name'],
                     'description'             => $validated['description'] ?? null,
+                    'budget'                  => $validated['budget'] ?? null,
+                    'budget_type'             => $validated['budget_type'] ?? null,
+                    'tech_spec'               => $validated['tech_spec'] ?? null,
+                    'tech_tags'               => $validated['tech_tags'] ?? [],
+                    'max_teams'               => $validated['max_teams'] ?? 1,
+                    'po_user_id'              => $validated['po_user_id'] ?? null,
                     'application_start'       => $validated['application_start'],
                     'application_deadline'    => $validated['application_deadline'],
                     'project_start'           => $validated['project_start'],
                     'project_end'             => $validated['project_end'],
                     'program_id'              => $validated['program_id'],
-                    'organization_id'         => null,
-                    'call_type_id'            => $programTypeA->id,
+                    'organization_id'         => $validated['organization_id'] ?? null,
+                    'call_type_id'            => $callTypeId,
                     'application_form_schema' => $formSchema,
                     'qualification_stack_id'  => $validated['qualification_stack_id'] ?? null,
                 ]);
@@ -414,6 +440,10 @@ class CallController extends Controller
                     );
                 }
 
+                if (!empty($validated['document_ids'])) {
+                    $call->documents()->sync($validated['document_ids']);
+                }
+
                 $draftStatus = StatusOfCall::where('name', CallStateMachineProgramA::STATE_DRAFT)->firstOrFail();
                 $call->statusHistory()->create([
                     'status_of_call_id' => $draftStatus->id,
@@ -424,7 +454,10 @@ class CallController extends Controller
 
                 if ($targetStatusModel) {
                     $targetStateName = $targetStatusModel->name;
-                    $callMachine = new CallStateMachineProgramA($call);
+
+                    $callMachine = $validated['program_id'] == 1
+                        ? new CallStateMachineProgramA($call)
+                        : new CallStateMachine($call);
 
                     if ($targetStateName !== CallStateMachineProgramA::STATE_DRAFT) {
                         $callMachine->transitionTo($targetStateName, 'Automatický prechod pri vytvorení.');
@@ -473,6 +506,8 @@ class CallController extends Controller
             'program_id'              => ['sometimes', 'integer', 'exists:program,id'],
             'status_id'               => ['nullable', 'integer', 'exists:status_of_call,id'],
             'language_id'             => ['required', 'integer', 'exists:languages,id'],
+            'document_ids'            => ['nullable', 'array'],
+            'document_ids.*'          => ['integer', 'exists:document,id'],
 
             // Manual close override — reversible, admin can set back to false
             'force_closed'            => ['sometimes', 'boolean'],
@@ -571,6 +606,10 @@ class CallController extends Controller
                 );
             }
 
+            if (array_key_exists('document_ids', $validated)) {
+                $call->documents()->sync($validated['document_ids'] ?? []);
+            }
+
             return response()->json(
                 $call->load(['callTranslations', 'callCriteria'])
             );
@@ -595,6 +634,7 @@ class CallController extends Controller
         //$this->assertTypeA($call);
 
         return DB::transaction(function () use ($call): JsonResponse {
+            $call->documents()->detach();
             DB::table('call_translations')->where('call_id', $call->id)->delete();
             DB::table('status_of_call_has_call')->where('call_id', $call->id)->delete();
             $call->callCriteria()->detach();

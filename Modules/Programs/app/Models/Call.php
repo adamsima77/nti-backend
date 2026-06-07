@@ -105,4 +105,14 @@ class Call extends Model
     {
         return $this->hasMany(FormSchema::class, 'call_id');
     }
+
+    public function documents(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \Modules\Applications\Models\Document::class,
+            'document_has_call',
+            'call_id',
+            'document_id'
+        );
+    }
 }
