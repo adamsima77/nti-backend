@@ -18,6 +18,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('exports/{exportRequest}', [ExportController::class, 'showExportRequest'])->name('exports.show');
     Route::get('exports/{exportRequest}/download', [ExportController::class, 'downloadExportRequest'])->name('exports.download');
+    Route::get('evaluations/export/{format?}', [ExportController::class, 'evaluations'])->name('evaluations.export');
 
     // ProjectKpi routes
     Route::prefix('applications/{applicationId}/kpis')->group(function () {

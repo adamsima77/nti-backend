@@ -13,15 +13,32 @@ use Maatwebsite\Excel\Events\AfterSheet;
 class ApplicationExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithEvents
 {
     protected $query;
+    protected $filters;
 
     public function __construct($query = null)
     {
-        $this->query = $query;
+        if (is_array($query)) {
+            $this->filters = $query;
+            $this->query = null;
+        } else {
+            $this->query = $query;
+            $this->filters = null;
+        }
     }
 
     public function query()
     {
-        return $this->query ?? Application::query()->select(['id', 'call_id', 'team_id', 'created_by', 'submitted_at']);
+        if ($this->query !== null) {
+            return $this->query;
+        }
+
+        $query = Application::query()->select(['id', 'call_id', 'team_id', 'created_by', 'submitted_at']);
+
+        if (! empty($this->filters['call_id'])) {
+            $query->where('call_id', $this->filters['call_id']);
+        }
+
+        return $query;
     }
 
     public function headings(): array

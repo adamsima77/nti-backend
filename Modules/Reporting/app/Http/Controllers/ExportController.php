@@ -12,11 +12,13 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Maatwebsite\Excel\Facades\Excel;
 use Modules\Applications\Models\Application;
 use Modules\Applications\Models\Applications;
+use Modules\Evaluation\Models\Evaluation;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\IdentityAccess\Models\User;
 use Modules\Programs\Models\Call;
 use Modules\Reporting\Exports\ApplicationExport;
 use Modules\Reporting\Exports\CallExport;
+use Modules\Reporting\Exports\EvaluationExport;
 use Modules\Reporting\Exports\UserExport;
 use Modules\Reporting\Models\ExportRequest;
 use Modules\Teams\Models\Team;
@@ -32,6 +34,9 @@ class ExportController extends Controller
         $format = strtolower($format ?: 'xlsx');
         $fileName = 'applications.' . $format;
         $writerType = $format === 'csv' ? \Maatwebsite\Excel\Excel::CSV : \Maatwebsite\Excel\Excel::XLSX;
+        $filters = [
+            'call_id' => $request->input('call_id'),
+        ];
 
         if ($request->boolean('async')) {
             return $this->queueExcelResponse(
@@ -40,11 +45,38 @@ class ExportController extends Controller
                 'applications',
                 $fileName,
                 ApplicationExport::class,
-                $writerType
+                $writerType,
+                [$filters]
             );
         }
 
-        return Excel::download(new ApplicationExport(), $fileName, $writerType);
+        return Excel::download(new ApplicationExport($filters), $fileName, $writerType);
+    }
+
+    public function evaluations(Request $request, string $format = 'xlsx', QueuedExportService $queuedExportService)
+    {
+        $this->authorize('viewAny', Evaluation::class);
+
+        $format = strtolower($format ?: 'xlsx');
+        $fileName = 'evaluations.' . $format;
+        $writerType = $format === 'csv' ? \Maatwebsite\Excel\Excel::CSV : \Maatwebsite\Excel\Excel::XLSX;
+        $filters = [
+            'call_id' => $request->input('call_id'),
+        ];
+
+        if ($request->boolean('async')) {
+            return $this->queueExcelResponse(
+                $request,
+                $queuedExportService,
+                'evaluations',
+                $fileName,
+                EvaluationExport::class,
+                $writerType,
+                [$filters]
+            );
+        }
+
+        return Excel::download(new EvaluationExport($filters), $fileName, $writerType);
     }
 
     public function users(Request $request, string $format = 'xlsx', QueuedExportService $queuedExportService, PdfService $pdfService)
