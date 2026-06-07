@@ -15,6 +15,10 @@ use App\Services\Pdf\PdfService;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\IdentityAccess\Models\Role;
 use Modules\IdentityAccess\Models\User;
+use Modules\Applications\Models\Application;
+use Modules\Applications\Models\Document;
+use Modules\AuditCompliance\Models\AuditCompliance;
+use Modules\Evaluation\Models\CommissionMember;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Modules\Organizations\Models\Address;
@@ -116,6 +120,68 @@ class UserController extends Controller
         }
 
         $user->roles()->detach();
+
+        foreach (Application::where('created_by', $user->id)->cursor() as $application) {
+            $application->delete();
+        }
+        AuditCompliance::create([
+            'user_id' => null,
+            'action' => 'gdpr.anonymize.applications',
+            'object_type' => 'User',
+            'object_id' => $user->id,
+            'ip' => 'system',
+            'result' => 'success',
+            'result_payload' => [
+                'actor' => 'system',
+                'object' => 'User:' . $user->id,
+            ],
+            'time_of_action' => now(),
+        ]);
+
+        $user->teams()->detach();
+        AuditCompliance::create([
+            'user_id' => null,
+            'action' => 'gdpr.anonymize.team_members',
+            'object_type' => 'User',
+            'object_id' => $user->id,
+            'ip' => 'system',
+            'result' => 'success',
+            'result_payload' => [
+                'actor' => 'system',
+                'object' => 'User:' . $user->id,
+            ],
+            'time_of_action' => now(),
+        ]);
+
+        Document::where('owner_id', $user->id)->update(['owner_id' => null]);
+        AuditCompliance::create([
+            'user_id' => null,
+            'action' => 'gdpr.anonymize.documents',
+            'object_type' => 'User',
+            'object_id' => $user->id,
+            'ip' => 'system',
+            'result' => 'success',
+            'result_payload' => [
+                'actor' => 'system',
+                'object' => 'User:' . $user->id,
+            ],
+            'time_of_action' => now(),
+        ]);
+
+        CommissionMember::where('user_id', $user->id)->update(['user_id' => null]);
+        AuditCompliance::create([
+            'user_id' => null,
+            'action' => 'gdpr.anonymize.evaluations',
+            'object_type' => 'User',
+            'object_id' => $user->id,
+            'ip' => 'system',
+            'result' => 'success',
+            'result_payload' => [
+                'actor' => 'system',
+                'object' => 'User:' . $user->id,
+            ],
+            'time_of_action' => now(),
+        ]);
 
         return response()->json(['message' => 'User was successfully anonymized'], Response::HTTP_OK);
     }
