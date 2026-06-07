@@ -3,6 +3,9 @@
 namespace Modules\Applications\Observers;
 
 use Modules\Applications\Models\Application;
+use Modules\Applications\Models\StatusOfApplication;
+use Modules\Programs\Models\Call;
+use Modules\Programs\StateMachines\CallStateMachine;
 
 class ApplicationObserver
 {
@@ -17,7 +20,32 @@ class ApplicationObserver
     /**
      * Handle the Application "updated" event.
      */
-    public function updated(Application $application): void {}
+    public function updated(Application $application): void
+    {
+        if (!$application->wasChanged('active_status')) {
+            return;
+        }
+
+        $submittedStatus = StatusOfApplication::where('name', 'Podané')->first();
+        if (!$submittedStatus || $application->active_status != $submittedStatus->id) {
+            return;
+        }
+
+        if (!$application->call_id) {
+            return;
+        }
+
+        $call = Call::find($application->call_id);
+        if (!$call) {
+            return;
+        }
+
+        $sm = new CallStateMachine($call);
+
+        if ($sm->canTransitionTo(CallStateMachine::STATE_MATCHING)) {
+            $sm->transitionTo(CallStateMachine::STATE_MATCHING, 'Automaticky – prvá podaná prihláška');
+        }
+    }
 
     /**
      * Handle the Application "deleted" event.

@@ -19,6 +19,7 @@ use Modules\Evaluation\Models\Evaluation;
 use Modules\Evaluation\Models\EvaluationScore;
 use Modules\Content\Enums\LanguageType;
 use Modules\Content\Models\Language;
+use Modules\Organizations\Models\OrganizationRole;
 use Modules\Programs\Models\Call as ProgramCall;
 use Modules\Programs\Models\Criterion;
 use Modules\Programs\Support\CallFormSchema;
@@ -41,18 +42,21 @@ class EvaluationController extends Controller
         // 1. Očakávame ID komisie, ktorú chce admin prihláške priradiť
         $request->validate([
             'commission_id' => 'required|exists:commission,id',
+            'org_user_id'   => 'nullable|integer|exists:users,id',
         ]);
 
         $commissionId = $request->input('commission_id');
+        $orgUserId    = $request->input('org_user_id');
 
         // 2. Autorizácia
         $this->authorize('viewAny', Evaluation::class);
 
         // 3. Spustíme transakciu a vygenerujeme hárky pre každého člena tejto komisie
-        DB::transaction(function () use ($application, $commissionId) {
+        DB::transaction(function () use ($application, $commissionId, $orgUserId) {
 
-            // Vytiahneme všetkých členov, ktorí patria do vybranej komisie
-            $members = CommissionMember::where('commission_id', $commissionId)->get();
+            $members = CommissionMember::where('commission_id', $commissionId)
+                ->whereNull('call_id')
+                ->get();
 
             foreach ($members as $member) {
                 // Vytvoríme riadok v tabuľke evaluation presne tak, ako ho máš v nti=# SELECT * FROM evaluation
@@ -64,6 +68,29 @@ class EvaluationController extends Controller
                     'submitted_at'         => null,
                     'internal_note'        => null,
                 ]);
+            }
+
+            if ($orgUserId && $application->call_id) {
+                $callOrgId = $application->call?->organization_id
+                    ?? ProgramCall::find($application->call_id)?->organization_id;
+
+                $belongs = \Modules\Organizations\Models\UserOrganization::query()
+                    ->where('user_id', $orgUserId)
+                    ->where('organization_id', $callOrgId)
+                    ->exists();
+
+                if ($belongs) {
+                    $orgMember = CommissionMember::firstOrCreate([
+                        'user_id'       => $orgUserId,
+                        'commission_id' => $commissionId,
+                        'call_id'       => $application->call_id,
+                    ]);
+
+                    Evaluation::firstOrCreate([
+                        'application_id'       => $application->id,
+                        'commission_member_id' => $orgMember->id,
+                    ]);
+                }
             }
         });
 
@@ -107,6 +134,23 @@ class EvaluationController extends Controller
         return CommissionMember::query()
             ->where('user_id', $request->user()->id)
             ->pluck('id');
+    }
+
+    private function isOrgMember(Request $request): bool
+    {
+        return CommissionMember::query()
+            ->where('user_id', $request->user()->id)
+            ->whereNotNull('call_id')
+            ->exists();
+    }
+
+    private function orgMemberCallIds(Request $request): array
+    {
+        return CommissionMember::query()
+            ->where('user_id', $request->user()->id)
+            ->whereNotNull('call_id')
+            ->pluck('call_id')
+            ->toArray();
     }
 
     private function resolveDecisionId(string $recommendation): int
@@ -513,7 +557,7 @@ class EvaluationController extends Controller
 
         $decisionId = $this->resolveDecisionId($validated['recommendation']);
 
-        $evaluation = DB::transaction(function () use ($validated, $application, $commissionMember, $decisionId, $evaluationId) {
+        $evaluation = DB::transaction(function () use ($evaluation, $validated, $application, $commissionMember, $decisionId, $evaluationId) {
             $evaluation = $evaluationId !== null
                 ? $evaluation
                 : Evaluation::query()->create([
@@ -656,7 +700,7 @@ class EvaluationController extends Controller
             return $this->applicationSummary($application, $currentCommissionMemberId);
         })->values();
 
-        $calls = ProgramCall::query()
+        $callQuery = ProgramCall::query()
             ->withCount('applications')
             ->with([
                 'program.typeOfProgram:id,name',
@@ -664,11 +708,17 @@ class EvaluationController extends Controller
                 'callCriteria.criterionTranslations:id,criterion_id,language_id,name',
                 'applications.team.members',
                 'applications.status:id,name',
-            ])
-            ->whereHas('currentStatusHistory.status', function ($query) {
+            ]);
+
+        if ($this->isOrgMember($request)) {
+            $callQuery->whereIn('id', $this->orgMemberCallIds($request));
+        } else {
+            $callQuery->whereHas('currentStatusHistory.status', function ($query) {
                 $query->where('name', 'Publikované');
-            })
-            ->latest('id')
+            });
+        }
+
+        $calls = $callQuery->latest('id')
             ->get()
             ->map(fn (ProgramCall $call) => $this->callPayload($call, $currentCommissionMemberId))
             ->values();
@@ -694,18 +744,24 @@ class EvaluationController extends Controller
         $commissionMemberIds = $this->resolveCommissionMemberIds($request);
         $currentCommissionMemberId = $commissionMemberIds->first();
 
-        $calls = ProgramCall::query()
+        $callQuery = ProgramCall::query()
             ->withCount('applications')
             ->with([
                 'program.typeOfProgram:id,name',
                 'currentStatusHistory.status:id,name',
                 'callCriteria.criterionTranslations:id,criterion_id,language_id,name',
                 'applications.status:id,name',
-            ])
-            ->whereHas('currentStatusHistory.status', function ($query) {
+            ]);
+
+        if ($this->isOrgMember($request)) {
+            $callQuery->whereIn('id', $this->orgMemberCallIds($request));
+        } else {
+            $callQuery->whereHas('currentStatusHistory.status', function ($query) {
                 $query->where('name', 'Publikované');
-            })
-            ->latest('id')
+            });
+        }
+
+        $calls = $callQuery->latest('id')
             ->get()
             ->map(fn (ProgramCall $call) => $this->callPayload($call, $currentCommissionMemberId))
             ->values();

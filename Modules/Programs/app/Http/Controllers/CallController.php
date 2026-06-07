@@ -12,11 +12,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use App\Services\Pdf\PdfService;
 use Modules\Content\Models\Language;
+use Modules\Organizations\Models\OrganizationRole;
 use Modules\Programs\Http\Resources\CallResource;
 use Modules\Programs\Models\Call;
 use Modules\Programs\Models\CallType;
 use Modules\Programs\Models\StatusOfCall;
-use Illuminate\Support\Facades\Log;
 
 
 
@@ -189,7 +189,6 @@ class CallController extends Controller
 
     public function adminShow(int $id): JsonResponse
     {
-        Log::info('adminShow called', ['id' => $id, 'user' => auth()->id()]);
         $this->authorize('view', Call::class);
 
         $call = Call::query()
@@ -464,6 +463,8 @@ class CallController extends Controller
                     }
                 }
 
+                $this->syncPoUserOrgRole($call);
+
                 return response()->json(
                     $call->load(['callTranslations', 'callCriteria']),
                     Response::HTTP_CREATED
@@ -609,6 +610,8 @@ class CallController extends Controller
             if (array_key_exists('document_ids', $validated)) {
                 $call->documents()->sync($validated['document_ids'] ?? []);
             }
+
+            $this->syncPoUserOrgRole($call->fresh());
 
             return response()->json(
                 $call->load(['callTranslations', 'callCriteria'])
@@ -762,6 +765,42 @@ class CallController extends Controller
     // ─────────────────────────────────────────────────────────────────────────
     //  PRIVATE HELPERS
     // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Keď je na calle nastavený po_user_id, automaticky aktualizuje
+     * jeho rolu v user_organization na org_product_owner.
+     */
+    private function syncPoUserOrgRole(Call $call): void
+    {
+        if (! $call->po_user_id || ! $call->organization_id) {
+            return;
+        }
+
+        $poRole = OrganizationRole::where('name', 'org_product_owner')->first();
+        if (! $poRole) {
+            return;
+        }
+
+        $exists = DB::table('user_organization')
+            ->where('user_id', $call->po_user_id)
+            ->where('organization_id', $call->organization_id)
+            ->exists();
+
+        if ($exists) {
+            DB::table('user_organization')
+                ->where('user_id', $call->po_user_id)
+                ->where('organization_id', $call->organization_id)
+                ->update(['organization_role' => $poRole->id]);
+        } else {
+            DB::table('user_organization')->insert([
+                'user_id'           => $call->po_user_id,
+                'organization_id'   => $call->organization_id,
+                'organization_role' => $poRole->id,
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ]);
+        }
+    }
 
     private function buildCriteriaSyncData(array $criteria): array
     {

@@ -19,6 +19,7 @@ class CommissionMember extends Model
     protected $fillable = [
         'user_id',
         'commission_id',
+        'call_id',
     ];
 
     public function user(): BelongsTo

@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Modules\Content\Models\Language;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\IdentityAccess\Models\User;
+use Modules\Applications\Models\Application;
 use Modules\Organizations\Events\OrganizationApproved;
 use Modules\Organizations\Models\Address;
 use Modules\Organizations\Models\Organization;
@@ -336,6 +337,80 @@ class OrganizationController extends Controller
 
         return response()->json([
             'message' => 'Člen bol odstránený z organizácie.',
+        ], Response::HTTP_OK);
+    }
+
+    public function myOrganization(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+
+        $organization = $user->organizations()->first();
+
+        if (! $organization) {
+            return response()->json(['message' => 'Nie ste členom žiadnej organizácie.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $orgRoleId = $organization->pivot->organization_role;
+        $orgRoleName = OrganizationRole::find($orgRoleId)?->name;
+
+        return response()->json([
+            'organization' => $organization->only(['id', 'name', 'phone', 'ico', 'web_url', 'description']),
+            'my_role' => match ($orgRoleName) {
+                'org_admin'          => 'organization_admin',
+                'org_product_owner'  => 'po',
+                default              => 'member',
+            },
+        ], Response::HTTP_OK);
+    }
+
+    public function memberDashboard(Organization $organization): \Illuminate\Http\JsonResponse
+    {
+        $this->authorize('viewDashboard', $organization);
+
+        $calls = $organization->calls()
+            ->with([
+                'currentStatusHistory.status',
+                'callType',
+                'program.typeOfProgram',
+                'applications.team',
+                'applications.status',
+            ])
+            ->withCount('applications')
+            ->latest('id')
+            ->get();
+
+        $callsSummary = $calls->map(function ($call) {
+            $assignedTeam = $call->applications
+                ->first(fn ($app) => in_array($app->status?->name, ['Onboarding', 'Aktívny projekt', 'Ukončené']));
+
+            return [
+                'id'                   => $call->id,
+                'name'                 => $call->name,
+                'description'          => $call->description,
+                'application_deadline' => $call->application_deadline?->toDateString(),
+                'project_start'        => $call->project_start?->toDateString(),
+                'project_end'          => $call->project_end?->toDateString(),
+                'status'               => $call->currentStatusHistory?->status?->name,
+                'call_type'            => $call->callType?->name,
+                'program'              => $call->program?->typeOfProgram?->name,
+                'applications_count'   => $call->applications_count,
+                'assigned_team'        => $assignedTeam ? [
+                    'id'   => $assignedTeam->team?->id,
+                    'name' => $assignedTeam->team?->name,
+                ] : null,
+            ];
+        });
+
+        $stats = [
+            'total_calls'    => $calls->count(),
+            'active_calls'   => $calls->filter(fn ($c) => in_array($c->currentStatusHistory?->status?->name, ['Publikované', 'V párovaní', 'Pridelené', 'V realizácii']))->count(),
+            'in_progress'    => $calls->filter(fn ($c) => $c->currentStatusHistory?->status?->name === 'V realizácii')->count(),
+            'completed'      => $calls->filter(fn ($c) => $c->currentStatusHistory?->status?->name === 'Uzavreté')->count(),
+        ];
+
+        return response()->json([
+            'stats' => $stats,
+            'calls' => $callsSummary,
         ], Response::HTTP_OK);
     }
 

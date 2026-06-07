@@ -49,6 +49,11 @@ class OrganizationPolicy
         return $this->isOrganizationAdmin($user, $organization);
     }
 
+    public function viewDashboard(User $user, Organization $organization): bool
+    {
+        return $this->isOrganizationMember($user, $organization);
+    }
+
     private function isOrganizationAdmin(User $user, Organization $organization): bool
     {
         return $user->organizations()
@@ -58,6 +63,13 @@ class OrganizationPolicy
                     ->from('organization_role')
                     ->where('name', 'org_admin');
             })
+            ->exists();
+    }
+
+    private function isOrganizationMember(User $user, Organization $organization): bool
+    {
+        return $user->organizations()
+            ->wherePivot('organization_id', $organization->id)
             ->exists();
     }
 }
