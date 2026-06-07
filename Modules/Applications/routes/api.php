@@ -30,4 +30,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/remove-committee/{application}', [ApplicationController::class, 'removeCommittee']);
     Route::post('/add-committee/{application}/committee/{committee}', [ApplicationController::class, 'addCommittee']);
     Route::delete('/admin/applications/{application}/mentorships/{mentorship}', [ApplicationController::class, 'deleteMentor']);
+    Route::post('/submit-application', [ApplicationController::class, 'submitApplication']);
+    Route::get('/get-status-admin', [StatusOfApplicationController::class, 'fetchExceptDraftAdmin']);
 });

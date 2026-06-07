@@ -5,6 +5,7 @@ namespace Modules\Applications\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Content\Enums\LanguageType;
+use Modules\IdentityAccess\Models\User;
 use Modules\Mentorship\Models\Milestone;
 
 class ApplicationResource extends JsonResource
@@ -106,8 +107,13 @@ class ApplicationResource extends JsonResource
                 })->values();
             }),
             'status_history' => $this->whenLoaded('statusHistory', function () {
+                $userIds = $this->statusHistory->pluck('changed_by')->unique();
+                $users = User::whereIn('id', $userIds)->get()->keyBy('id');
+
                 return $this->statusHistory
-                    ->map(function ($history) {
+                    ->sortBy('created_at')
+                    ->map(function ($history) use ($users) {
+                        $user = $users->get($history->changed_by);
                         return [
                             'id'         => $history->id,
                             'status'     => [
@@ -116,6 +122,11 @@ class ApplicationResource extends JsonResource
                             ],
                             'note'       => $history->note,
                             'created_at' => $history->created_at,
+                            'changed_by' => [
+                                'id'   => $history->changed_by,
+                                'name' => $user ? $user->name . ' ' . $user->surname : 'Systém',
+                                'updated_at' => $history->updated_at
+                            ],
                         ];
                     })
                     ->values();

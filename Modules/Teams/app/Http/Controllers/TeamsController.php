@@ -57,16 +57,29 @@ class TeamsController extends Controller
      */
     private function formatTeamForStudent(Team $team, Collection $roleMap, int $userId): array
     {
-        $team->loadMissing('members');
+        $team->loadMissing(['members', 'applications']);
 
         $members = $team->members->map(function (User $user) use ($roleMap) {
             $roleName = $roleMap->get((int) $user->pivot->team_role_id, 'Člen tímu');
-
             return [
                 'id'    => $user->id,
                 'name'  => trim($user->name.' '.($user->surname ?? '')),
                 'email' => $user->email,
                 'role'  => $roleName,
+            ];
+        })->values()->all();
+
+
+        $applications = $team->applications->map(function ($app) {
+            return [
+                'id'           => $app->id,
+                'submitted_at' => $app->submitted_at?->format('Y-m-d H:i:s') ?? null,
+
+
+                'status' => $app->status ? [
+                    'id'   => $app->status->id,
+                    'name' => $app->status->name,
+                ] : null,
             ];
         })->values()->all();
 
@@ -80,7 +93,7 @@ class TeamsController extends Controller
             'myRole'       => $myRole ?? '',
             'createdAt'    => $team->created_at?->format('Y-m-d') ?? '',
             'members'      => $members,
-            'applications' => [],
+            'applications' => $applications,
         ];
     }
 
@@ -94,11 +107,12 @@ class TeamsController extends Controller
         $roleMap = TeamRole::query()->pluck('name', 'id');
         $userId = (int) $request->user()->id;
 
+
         if ($request->user()->isAdmin() || $request->user()->isSuperAdmin()) {
-            $teams = Team::query()->with('members')->get();
+            $teams = Team::query()->with(['members', 'applications'])->get();
         } else {
             $teams = Team::query()
-                ->with('members')
+                ->with(['members', 'applications'])
                 ->whereHas('members', fn ($q) => $q->where('user_id', $userId))
                 ->get();
         }

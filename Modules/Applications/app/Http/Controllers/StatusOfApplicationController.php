@@ -20,6 +20,11 @@ class StatusOfApplicationController extends Controller
         return response()->json(['statuses' => $statuses], Response::HTTP_OK);
     }
 
+    public function fetchExceptDraftAdmin(){
+        $statuses = StatusOfApplication::where('name', "!=", "Draft")->get();
+        return response()->json(['statuses' => $statuses], Response::HTTP_OK);
+    }
+
     public function fetchAdminStatuses(){
         $statuses = StatusOfApplication::whereIn('name',[
             'V hodnotení',

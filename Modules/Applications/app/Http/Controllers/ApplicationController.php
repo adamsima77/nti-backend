@@ -116,15 +116,67 @@ class ApplicationController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/applications/draft
-     *
-     * Creates or updates a draft application for call+team.
-     * On every save the existing answer row is replaced (not appended) so the
-     * answers table stays clean — one row per draft application.
-     */
+    public function submitApplication(Request $request): JsonResponse
+    {
+        $this->authorize('submitApplication', Application::class);
+        $validated = $request->validate([
+            'call_id'     => ['required', 'integer', 'exists:call,id'],
+            'team_id'     => ['required', 'integer', 'exists:team,id'],
+            'form_data'   => ['required', 'array'],
+            'form_data.*' => ['required', 'string', 'max:20000'],
+        ]);
+
+        $user = $request->user();
+        $team = Team::query()->findOrFail($validated['team_id']);
+
+        if (! $team->members()->where('user_id', $user->id)->exists()) {
+            abort(403, 'Nie ste členom tohto tímu.');
+        }
+
+        if(!$team->members()->where('team_role_id', 2)->exists()) {
+            abort(403, 'Musíte byť Team Leader !');
+        }
+
+        $application = Application::query()->updateOrCreate(
+            [
+                'call_id' => $validated['call_id'],
+                'team_id' => $validated['team_id'],
+            ],
+            [
+                'created_by'  => $user->id,
+                'last_update' => now(),
+            ]
+        );
+
+        if (! empty($validated['form_data'])) {
+            $application->answers()->updateOrCreate(
+                ['application_id' => $application->id],
+                ['answer' => $validated['form_data']]
+            );
+        }
+
+        try {
+            $stateMachine = new ApplicationStateMachine($application, $user);
+            $stateMachine->transitionTo(
+                ApplicationStateMachine::STATE_SUBMITTED,
+                'Prihláška bola podaná !'
+            );
+
+        } catch (\InvalidArgumentException $e) {
+
+            abort(422, $e->getMessage());
+        }
+
+
+        return response()->json([
+            'message' => 'Application submitted successfully.'
+        ], Response::HTTP_OK);
+    }
+
     public function storeDraft(Request $request): JsonResponse
     {
+        $this->authorize('create', Application::class);
+
         $validated = $request->validate([
             'call_id'     => ['required', 'integer', 'exists:call,id'],
             'team_id'     => ['required', 'integer', 'exists:team,id'],
@@ -135,48 +187,68 @@ class ApplicationController extends Controller
         $user = $request->user();
         $team = Team::query()->findOrFail($validated['team_id']);
 
-        // Guard: current user must be a team member
+
         if (! $team->members()->where('user_id', $user->id)->exists()) {
             abort(403, 'Nie ste členom tohto tímu.');
+        }
+
+        if(!$team->members()->where('team_role_id', 2)->exists()) {
+                   abort(403, 'Musíte byť Team Leader !');
         }
 
         $draftStatus = StatusOfApplication::query()
             ->where('name', ApplicationStateMachine::STATE_DRAFT)
             ->firstOrFail();
 
-        // Block save if a non-draft application already exists for this call+team
-        $alreadySubmitted = Application::query()
+
+        $application = Application::query()
             ->where('call_id', $validated['call_id'])
             ->where('team_id', $validated['team_id'])
-            ->where('active_status', '!=', $draftStatus->id)
-            ->exists();
+            ->first();
 
-        if ($alreadySubmitted) {
-            abort(422, 'Pre túto výzvu už vaša prihláška existuje alebo bola podaná.');
+        if ($application !== null) {
+
+            $stateMachine = new ApplicationStateMachine($application, $user);
+
+            if ($stateMachine->currentState() !== ApplicationStateMachine::STATE_DRAFT) {
+                abort(422, 'Pre túto výzvu už vaša prihláška existuje alebo bola podaná.');
+            }
         }
 
-        $draft = DB::transaction(function () use ($validated, $user, $draftStatus) {
-            // Match on call+team only — not created_by, to avoid duplicate rows when
-            // multiple team members save the same draft.
+        $draft = DB::transaction(function () use ($validated, $user, $draftStatus, $application) {
+            $isNew = ($application === null);
+
+
             $application = Application::query()->updateOrCreate(
                 [
-                    'call_id'       => $validated['call_id'],
-                    'team_id'       => $validated['team_id'],
-                    'active_status' => $draftStatus->id,
+                    'call_id' => $validated['call_id'],
+                    'team_id' => $validated['team_id'],
                 ],
                 [
-                    'created_by'  => $user->id,
-                    'last_update' => now(),
+                    'created_by'    => $isNew ? $user->id : $application->created_by, // Keep original creator if updating
+                    'active_status' => $draftStatus->id,
+                    'last_update'   => now(),
                 ]
             );
 
-            // Replace the answer row entirely — never accumulate rows on every save
-            $application->answers()->delete();
+
+            if ($isNew) {
+                $application->statusHistory()->create([
+                    'status_of_application_id' => $draftStatus->id,
+                    'note'                     => 'Draft bol vytvorený !',
+                    'changed_by'               => $user->id,
+                ]);
+            }
+
 
             if (! empty($validated['form_data'])) {
-                $application->answers()->create([
-                    'answer' => $validated['form_data'],
-                ]);
+                $application->answers()->updateOrCreate(
+                    ['application_id' => $application->id],
+                    ['answer' => $validated['form_data']]
+                );
+            } else {
+
+                $application->answers()->delete();
             }
 
             return $application;
@@ -242,7 +314,7 @@ class ApplicationController extends Controller
             'team:id,name',
             'call:id,name',
             'mentorships.mentor:id,name,surname'
-        ])
+        ])->where('active_status', '!=', 1) //Draft
             ->when(
                 $request->filled('status_id'),
                 fn ($q) => $q->where('active_status', $request->integer('status_id'))
@@ -284,9 +356,12 @@ class ApplicationController extends Controller
                 ?->load('formFields');
         }
 
+        $latestAnswer = $application->answers()->latest()->first();
+
         return response()->json([
             'application' => new ApplicationResource($application),
             'form_schema'  => $formSchema,
+            'answer' => $latestAnswer,
         ]);
     }
 

@@ -18,6 +18,16 @@ class ApplicationsPolicy
         return true; // Allow all authenticated users to view applications
     }
 
+    public function submitApplication(User $user): bool
+    {
+        return $user->hasPermission('applications.submit');
+    }
+
+    public function saveDraft(User $user): bool
+    {
+        return $user->hasPermission('applications.create');
+    }
+
      public function addCommittee(User $user, Application $application): bool{
         return $user->isSuperAdmin() || $user->isAdmin();
      }

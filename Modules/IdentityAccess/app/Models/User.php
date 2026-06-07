@@ -209,4 +209,13 @@ class User extends Authenticatable
     {
         return UserFactory::new();
     }
+
+    public function hasPermission(string $permission): bool
+    {
+        return $this->roles()
+            ->whereHas('permissions', function ($query) use ($permission) {
+                $query->where('name', $permission);
+            })
+            ->exists();
+    }
 }

@@ -404,7 +404,7 @@ class CallController extends Controller
                     'name'                    => $validated['name'],
                     'description'             => $validated['description'] ?? null,
                     'budget'                  => $validated['budget'] ?? null,
-                    'budget_type'             => $validated['budget_type'] ?? null,
+                    'budget_type'             => $validated['budget_type'] ?? 'milestone',
                     'tech_spec'               => $validated['tech_spec'] ?? null,
                     'tech_tags'               => $validated['tech_tags'] ?? [],
                     'max_teams'               => $validated['max_teams'] ?? 1,
