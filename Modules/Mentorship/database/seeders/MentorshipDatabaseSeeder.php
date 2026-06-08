@@ -12,7 +12,15 @@ class MentorshipDatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+
+            MilestoneStatusSeeder::class,
+
             MentorDemoSeeder::class,
+            MentorshipSeeder::class,
+            MentorshipSessionSeeder::class,
+            MilestoneSeeder::class,
+            MilestoneCommentsSeeder::class,
+            DocumentHasMilestoneSeeder::class,
         ]);
     }
 }

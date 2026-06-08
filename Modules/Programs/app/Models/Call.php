@@ -115,16 +115,4 @@ class Call extends Model
             'document_id'
         );
     }
-
-    // Dokumenty nahrané Product Ownerom (priebežné výstupy, prezentácie)
-    // Oddelené od document_has_call kde sú tech. spec. org_admina
-    public function poDocuments(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            \Modules\Applications\Models\Document::class,
-            'po_document',
-            'call_id',
-            'document_id'
-        );
-    }
 }

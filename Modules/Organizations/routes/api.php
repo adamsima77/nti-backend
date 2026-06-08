@@ -20,14 +20,10 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 Route::middleware('auth:sanctum')->prefix('po')->group(function () {
     Route::get('dashboard', [ProductOwnerController::class, 'dashboard']);
-    Route::get('calls/{call}/backlog', [ProductOwnerController::class, 'backlog']);
-    Route::post('calls/{call}/backlog', [ProductOwnerController::class, 'storeBacklogItem']);
-    Route::patch('calls/{call}/backlog/{milestone}', [ProductOwnerController::class, 'updateBacklogItem']);
-    Route::delete('calls/{call}/backlog/{milestone}', [ProductOwnerController::class, 'deleteBacklogItem']);
+    Route::put('calls/{call}', [ProductOwnerController::class, 'updateCall']);
     Route::get('calls/{call}/milestone-approvals', [ProductOwnerController::class, 'milestoneApprovals']);
     Route::patch('calls/{call}/milestone-approvals/{milestone}/approve', [ProductOwnerController::class, 'approveMilestone']);
-    Route::get('calls/{call}/documents', [ProductOwnerController::class, 'documents']);
-    Route::post('calls/{call}/documents', [ProductOwnerController::class, 'uploadDocument']);
+    Route::patch('calls/{call}/milestone-approvals/{milestone}/reject', [ProductOwnerController::class, 'rejectMilestone']);
 });
 
 Route::apiResource('sectors', SectorController::class)->only('index');

@@ -766,10 +766,6 @@ class CallController extends Controller
     //  PRIVATE HELPERS
     // ─────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Keď je na calle nastavený po_user_id, automaticky aktualizuje
-     * jeho rolu v user_organization na org_product_owner.
-     */
     private function syncPoUserOrgRole(Call $call): void
     {
         if (! $call->po_user_id || ! $call->organization_id) {

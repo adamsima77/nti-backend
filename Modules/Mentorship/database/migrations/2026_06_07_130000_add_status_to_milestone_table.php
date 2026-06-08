@@ -9,14 +9,25 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('milestone', function (Blueprint $table) {
-            $table->string('status', 20)->default('open')->after('due_date');
+            $table->unsignedBigInteger('milestone_status_id')->nullable()->after('due_date');
+
+            $table->foreign('milestone_status_id')
+                ->references('id')
+                ->on('milestone_status');
         });
     }
 
     public function down(): void
     {
         Schema::table('milestone', function (Blueprint $table) {
-            $table->dropColumn('status');
+            if (Schema::hasColumn('milestone', 'milestone_status_id')) {
+                $table->dropForeignIfExists('milestone_milestone_status_id_foreign');
+                $table->dropColumn('milestone_status_id');
+            }
+
+            if (Schema::hasColumn('milestone', 'status')) {
+                $table->dropColumn('status');
+            }
         });
     }
 };

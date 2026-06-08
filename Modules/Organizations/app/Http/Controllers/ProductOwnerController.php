@@ -6,12 +6,10 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Storage;
-use Modules\Applications\Models\Application;
-use Modules\Applications\Models\Document;
-use Modules\Applications\Models\DocumentVersion;
-use Modules\Mentorship\Models\Milestone;
 use Modules\Mentorship\Models\CallMilestone;
+use Modules\Mentorship\Models\MilestoneComment;
+use Modules\Mentorship\Models\MilestoneStatus;
+use Modules\Mentorship\StateMachines\MilestoneStateMachine;
 use Modules\Programs\Models\Call;
 
 class ProductOwnerController extends Controller
@@ -28,17 +26,11 @@ class ProductOwnerController extends Controller
                 'organization:id,name',
                 'applications.team.members',
                 'applications.status',
+                'callCriteria',
+                'documents.versions',
             ])
             ->latest('id')
             ->first();
-    }
-
-    private function assignedApplication(Call $call): ?Application
-    {
-        return $call->applications
-            ->first(fn ($app) => in_array($app->status?->name, [
-                'Onboarding', 'Aktívny projekt', 'Ukončené',
-            ]));
     }
 
     // ── Dashboard ──────────────────────────────────────────────────────────
@@ -50,143 +42,94 @@ class ProductOwnerController extends Controller
         if (! $call) {
             return response()->json([
                 'call' => null,
-                'assigned_application' => null,
                 'stats' => [
-                    'total_applications' => 0,
-                    'open_milestones'    => 0,
-                    'done_milestones'    => 0,
-                    'pending_approvals'  => 0,
+                    'open_milestones'   => 0,
+                    'done_milestones'   => 0,
+                    'pending_approvals' => 0,
                 ],
             ]);
         }
 
-        $assignedApp = $this->assignedApplication($call);
+        $openStatusIds = MilestoneStatus::whereIn('name', ['Plánované', 'V riešení'])->pluck('id');
+        $doneStatusIds = MilestoneStatus::whereIn('name', ['Dokončené', 'Schválené'])->pluck('id');
+        $pendingStatusId = MilestoneStatus::where('name', 'Dokončené')->value('id');
 
         $openBacklog = CallMilestone::where('call_id', $call->id)
-            ->where('status', 'open')
+            ->whereIn('milestone_status_id', $openStatusIds)
             ->count();
 
         $doneBacklog = CallMilestone::where('call_id', $call->id)
-            ->where('status', 'done')
+            ->whereIn('milestone_status_id', $doneStatusIds)
             ->count();
 
-        $pendingApprovals = $assignedApp
-            ? Milestone::where('project_id', $assignedApp->id)
-                ->where('status', 'Dokončené')
-                ->count()
-            : 0;
+        $pendingApprovals = CallMilestone::where('call_id', $call->id)
+            ->where('milestone_status_id', $pendingStatusId)
+            ->count();
+
+        $selectedApp = $call->applications->first(fn ($a) => in_array($a->status?->name, [
+            'Onboarding', 'Aktívny projekt', 'Ukončené', 'Schválené',
+        ]));
 
         return response()->json([
+            'team' => $selectedApp?->team ? [
+                'name'    => $selectedApp->team->name,
+                'status'  => $selectedApp->status?->name,
+                'members' => $selectedApp->team->members->map(fn ($m) => trim("{$m->name} {$m->surname}")),
+            ] : null,
             'call' => [
                 'id'                   => $call->id,
                 'name'                 => $call->name,
                 'description'          => $call->description,
+                'tech_spec'            => $call->tech_spec,
+                'tech_tags'            => $call->tech_tags ?? [],
                 'status'               => $call->currentStatusHistory?->status?->name,
+                'application_start'    => $call->application_start?->toDateString(),
                 'application_deadline' => $call->application_deadline?->toDateString(),
                 'project_start'        => $call->project_start?->toDateString(),
                 'project_end'          => $call->project_end?->toDateString(),
                 'call_type'            => $call->callType?->name,
                 'program'              => $call->program?->typeOfProgram?->name,
                 'organization'         => $call->organization?->name,
+                'budget'               => $call->budget,
+                'max_teams'            => $call->max_teams,
+                'budget_type'          => $call->budget_type,
+                'requirements'         => $call->callCriteria?->pluck('name') ?? [],
+                'documents'            => $call->documents?->map(fn ($d) => [
+                    'id'   => $d->id,
+                    'name' => $d->versions->last()?->file_name,
+                ]) ?? [],
             ],
-            'assigned_application' => $assignedApp ? [
-                'id'     => $assignedApp->id,
-                'status' => $assignedApp->status?->name,
-                'team'   => $assignedApp->team ? [
-                    'id'      => $assignedApp->team->id,
-                    'name'    => $assignedApp->team->name,
-                    'members' => $assignedApp->team->members->map(fn ($m) => [
-                        'id'      => $m->id,
-                        'name'    => trim("{$m->name} {$m->surname}"),
-                    ]),
-                ] : null,
-            ] : null,
             'stats' => [
-                'total_applications' => $call->applications->count(),
-                'open_milestones'    => $openBacklog,
-                'done_milestones'    => $doneBacklog,
-                'pending_approvals'  => $pendingApprovals,
+                'open_milestones'   => $openBacklog,
+                'done_milestones'   => $doneBacklog,
+                'pending_approvals' => $pendingApprovals,
             ],
         ]);
     }
 
-    // ── Backlog ───────────────────────
+    // ── Update call (PO only) ──────────────────────────────────────────────
 
-    public function backlog(Request $request, Call $call): JsonResponse
-    {
-        $this->authorizePoCall($request, $call);
-
-        $items = CallMilestone::where('call_id', $call->id)
-            ->orderBy('due_date')
-            ->get()
-            ->map(fn ($m) => [
-                'id'          => $m->id,
-                'name'        => $m->name,
-                'description' => $m->description,
-                'due_date'    => $m->due_date?->toDateString(),
-                'status'      => $m->status ?? 'open',
-            ]);
-
-        return response()->json(['backlog' => $items]);
-    }
-
-    public function storeBacklogItem(Request $request, Call $call): JsonResponse
+    public function updateCall(Request $request, Call $call): JsonResponse
     {
         $this->authorizePoCall($request, $call);
 
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'due_date'    => ['required', 'date'],
+            'name'                 => ['sometimes', 'string', 'max:255'],
+            'description'          => ['nullable', 'string'],
+            'budget'               => ['nullable', 'numeric'],
+            'budget_type'          => ['nullable', 'string'],
+            'tech_spec'            => ['nullable', 'string'],
+            'tech_tags'            => ['nullable', 'array'],
+            'max_teams'            => ['nullable', 'integer'],
+            'application_start'    => ['sometimes', 'nullable', 'date'],
+            'application_deadline' => ['sometimes', 'nullable', 'date'],
+            'project_start'        => ['sometimes', 'nullable', 'date'],
+            'project_end'          => ['sometimes', 'nullable', 'date'],
         ]);
 
-        $item = CallMilestone::create([
-            'call_id'     => $call->id,
-            'name'        => $validated['name'],
-            'description' => $validated['description'] ?? null,
-            'due_date'    => $validated['due_date'],
-        ]);
+        $call->update($validated);
 
-        return response()->json([
-            'id'          => $item->id,
-            'name'        => $item->name,
-            'description' => $item->description,
-            'due_date'    => $item->due_date?->toDateString(),
-            'status'      => $item->status ?? 'open',
-        ], 201);
-    }
-
-    public function updateBacklogItem(Request $request, Call $call, CallMilestone $milestone): JsonResponse
-    {
-        $this->authorizePoCall($request, $call);
-
-        abort_if($milestone->call_id !== $call->id, 404);
-
-        $validated = $request->validate([
-            'name'        => ['sometimes', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'due_date'    => ['sometimes', 'date'],
-        ]);
-
-        $milestone->update($validated);
-
-        return response()->json([
-            'id'          => $milestone->id,
-            'name'        => $milestone->name,
-            'description' => $milestone->description,
-            'due_date'    => $milestone->due_date?->toDateString(),
-            'status'      => $milestone->status ?? 'open',
-        ]);
-    }
-
-    public function deleteBacklogItem(Request $request, Call $call, CallMilestone $milestone): JsonResponse
-    {
-        $this->authorizePoCall($request, $call);
-        abort_if($milestone->call_id !== $call->id, 404);
-
-        $milestone->delete();
-
-        return response()->json(['message' => 'Položka bola odstránená.']);
+        return response()->json(['message' => 'Zadanie bolo aktualizované.', 'data' => $call->fresh()]);
     }
 
     // ── Milestones ────
@@ -195,95 +138,74 @@ class ProductOwnerController extends Controller
     {
         $this->authorizePoCall($request, $call);
 
-        $assignedApp = $this->assignedApplication($call->load([
-            'applications.status',
-            'applications.team',
-        ]));
+        $doneStatusId = MilestoneStatus::where('name', MilestoneStateMachine::STATE_DONE)->value('id');
 
-        if (! $assignedApp) {
-            return response()->json(['milestones' => []]);
-        }
-
-        $milestones = Milestone::where('project_id', $assignedApp->id)
-            ->orderBy('deadline')
+        $milestones = CallMilestone::where('call_id', $call->id)
+            ->where('milestone_status_id', $doneStatusId)
+            ->with('milestoneStatus')
+            ->orderBy('due_date')
             ->get()
             ->map(fn ($m) => [
                 'id'       => $m->id,
                 'name'     => $m->name,
-                'deadline' => $m->deadline?->toDateString(),
-                'status'   => $m->status,
-                'comments' => $m->comments,
+                'due_date' => $m->due_date?->toDateString(),
+                'status'   => $m->milestoneStatus?->name,
             ]);
 
-        return response()->json([
-            'application_id' => $assignedApp->id,
-            'team_name'      => $assignedApp->team?->name,
-            'milestones'     => $milestones,
-        ]);
+        return response()->json(['milestones' => $milestones]);
     }
 
-    public function approveMilestone(Request $request, Call $call, Milestone $milestone): JsonResponse
+    public function approveMilestone(Request $request, Call $call, CallMilestone $milestone): JsonResponse
     {
         $this->authorizePoCall($request, $call);
+        abort_if($milestone->call_id !== $call->id, 403);
 
-        $assignedApp = $this->assignedApplication($call->load(['applications.status']));
-        abort_if(! $assignedApp || $milestone->project_id !== $assignedApp->id, 403);
+        $validated = $request->validate([
+            'comment' => ['nullable', 'string', 'max:1000'],
+        ]);
 
-        $milestone->update(['status' => 'Schválené']);
+        try {
+            (new MilestoneStateMachine($milestone))->transitionTo(MilestoneStateMachine::STATE_APPROVED);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
-        return response()->json(['message' => 'Míľnik bol schválený.', 'status' => 'Schválené']);
+        if (! empty($validated['comment'])) {
+            MilestoneComment::create([
+                'milestone_id' => $milestone->id,
+                'user_id'      => $request->user()->id,
+                'comment_text' => $validated['comment'],
+            ]);
+        }
+
+        return response()->json(['message' => 'Míľnik bol schválený.', 'status' => MilestoneStateMachine::STATE_APPROVED]);
     }
 
-    // ── Documents — PO výstupy a prezentácie ──────────────────────────────
-    // Samostatná tabuľka po_document (call_id + document_id).
-    // document_has_call = tech. spec. org_admina — nedotýkame sa.
-    // document_has_application = súbory študentov — nedotýkame sa.
-
-    public function documents(Request $request, Call $call): JsonResponse
+    public function rejectMilestone(Request $request, Call $call, CallMilestone $milestone): JsonResponse
     {
         $this->authorizePoCall($request, $call);
+        abort_if($milestone->call_id !== $call->id, 403);
 
-        $docs = $call->poDocuments()->with('versions')->get()->map(function ($doc) {
-            $latest = $doc->versions->sortByDesc('id')->first();
-            return [
-                'id'          => $doc->id,
-                'name'        => $latest?->file_name ?? "Dokument #{$doc->id}",
-                'uploaded_at' => $latest?->created_at,
-            ];
-        });
-
-        return response()->json(['documents' => $docs]);
-    }
-
-    public function uploadDocument(Request $request, Call $call): JsonResponse
-    {
-        $this->authorizePoCall($request, $call);
-
-        $request->validate([
-            'file' => ['required', 'file', 'max:20480'],
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $file = $request->file('file');
-        $path = $file->store("calls/{$call->id}/po-documents", 'public');
+        try {
+            (new MilestoneStateMachine($milestone))->transitionTo(MilestoneStateMachine::STATE_REJECTED);
+            (new MilestoneStateMachine($milestone))->transitionTo(MilestoneStateMachine::STATE_IN_PROGRESS);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
-        $document = Document::create([
-            'security_classification_id' => 1,
-            'owner_id'                   => $request->user()->id,
-        ]);
+        if (! empty($validated['reason'])) {
+            MilestoneComment::create([
+                'milestone_id' => $milestone->id,
+                'user_id'      => $request->user()->id,
+                'comment_text' => $validated['reason'],
+            ]);
+        }
 
-        DocumentVersion::create([
-            'document_id' => $document->id,
-            'file_name'   => $file->getClientOriginalName(),
-            'file_path'   => $path,
-        ]);
-
-        $call->poDocuments()->attach($document->id);
-
-        return response()->json([
-            'id'          => $document->id,
-            'name'        => $file->getClientOriginalName(),
-            'uploaded_at' => now(),
-        ], 201);
+        return response()->json(['message' => 'Míľnik bol zamietnutý.', 'status' => MilestoneStateMachine::STATE_IN_PROGRESS]);
     }
 
     // ── Auth helper ────────────────────────────────────────────────────────

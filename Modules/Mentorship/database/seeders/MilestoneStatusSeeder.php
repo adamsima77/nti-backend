@@ -13,6 +13,8 @@ class MilestoneStatusSeeder extends Seeder
             'Plánované',
             'V riešení',
             'Dokončené',
+            'Schválené',
+            'Zamietnuté',
         ];
 
         foreach ($items as $item) {

@@ -2,7 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Mentorship\Http\Controllers\MentorshipController;
+use Modules\Mentorship\Http\Controllers\CallMilestoneController;
 use Modules\Mentorship\Http\Controllers\MilestoneController;
+use Modules\Mentorship\Http\Controllers\MilestoneDocumentController;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('mentor')->group(function () {
@@ -20,4 +22,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/mentors', [MentorshipController::class, 'fetchMentors']);
 
     Route::apiResource('milestones', MilestoneController::class);
+
+    Route::get('calls/{call}/milestones', [CallMilestoneController::class, 'index']);
+    Route::post('calls/{call}/milestones', [CallMilestoneController::class, 'store']);
+    Route::patch('calls/{call}/milestones/{milestone}', [CallMilestoneController::class, 'update']);
+    Route::delete('calls/{call}/milestones/{milestone}', [CallMilestoneController::class, 'destroy']);
+
+    // Dokumenty k míľniku
+    Route::get('calls/{call}/milestones/{milestone}/documents', [MilestoneDocumentController::class, 'index']);
+    Route::post('calls/{call}/milestones/{milestone}/documents', [MilestoneDocumentController::class, 'store']);
+    Route::get('calls/{call}/milestones/{milestone}/documents/{document}/download', [MilestoneDocumentController::class, 'download']);
+    Route::delete('calls/{call}/milestones/{milestone}/documents/{document}', [MilestoneDocumentController::class, 'destroy']);
 });

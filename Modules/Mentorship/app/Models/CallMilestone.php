@@ -4,6 +4,9 @@ namespace Modules\Mentorship\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Applications\Models\Document;
 use Modules\Programs\Models\Call;
 
 class CallMilestone extends Model
@@ -15,7 +18,7 @@ class CallMilestone extends Model
         'name',
         'description',
         'due_date',
-        'status',
+        'milestone_status_id',
     ];
 
     protected $casts = [
@@ -25,5 +28,25 @@ class CallMilestone extends Model
     public function call(): BelongsTo
     {
         return $this->belongsTo(Call::class, 'call_id');
+    }
+
+    public function milestoneStatus(): BelongsTo
+    {
+        return $this->belongsTo(MilestoneStatus::class, 'milestone_status_id');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(MilestoneComment::class, 'milestone_id')->with('user:id,name,surname')->orderBy('created_at');
+    }
+
+    public function documents(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Document::class,
+            'document_has_milestone',
+            'milestone_id',
+            'document_id'
+        )->with('versions');
     }
 }

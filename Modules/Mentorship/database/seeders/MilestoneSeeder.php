@@ -17,39 +17,21 @@ class MilestoneSeeder extends Seeder
         }
 
         foreach ($callIds->take(2) as $callId) {
-            $milestoneId = DB::table('milestone')->updateOrInsert(
+            DB::table('milestone')->updateOrInsert(
                 [
                     'call_id' => $callId,
-                    'name' => 'Kickoff a zber podkladov',
+                    'name'    => 'Kickoff a zber podkladov',
                 ],
                 [
-                    'call_id' => $callId,
-                    'name' => 'Kickoff a zber podkladov',
-                    'description' => 'Úvodný míľnik pre nastavenie spolupráce a zber vstupov.',
-                    'due_date' => now()->addWeeks(2),
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'call_id'             => $callId,
+                    'name'                => 'Kickoff a zber podkladov',
+                    'description'         => 'Úvodný míľnik pre nastavenie spolupráce a zber vstupov.',
+                    'due_date'            => now()->addWeeks(2),
+                    'milestone_status_id' => $statusId,
+                    'created_at'          => now(),
+                    'updated_at'          => now(),
                 ]
             );
-
-            $createdMilestoneId = DB::table('milestone')
-                ->where('call_id', $callId)
-                ->where('name', 'Kickoff a zber podkladov')
-                ->value('id');
-
-            if ($createdMilestoneId !== null) {
-                DB::table('milestone_has_milestone_status')->updateOrInsert(
-                    [
-                        'milestone_id' => $createdMilestoneId,
-                        'milestone_status_id' => $statusId,
-                    ],
-                    [
-                        'note' => 'Počiatočný stav po seede.',
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]
-                );
-            }
         }
     }
 }
