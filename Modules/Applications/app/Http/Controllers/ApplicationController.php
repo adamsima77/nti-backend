@@ -116,9 +116,128 @@ class ApplicationController extends Controller
         ]);
     }
 
+    private function checkAnswerOfApplicationAnswer(array $answers, int $callId): bool
+    {
+        $form = Call::where('id', $callId)->value('application_form_schema');
+
+        if (empty($form['fields'])) {
+            return false;
+        }
+
+        foreach ($form['fields'] as $field) {
+            $fieldName  = $field['name'];
+            $isRequired = $field['required'] ?? false;
+            $answer     = $answers[$fieldName] ?? null;
+
+            // Normalize empty string to null
+            if ($answer === '') {
+                $answer = null;
+            }
+
+            if (! $isRequired) {
+                continue;
+            }
+
+            switch ($field['type']) {
+
+                case 'text':
+                case 'textarea':
+                    if ($answer === null || ! is_string($answer) || trim($answer) === '') {
+                        return false;
+                    }
+                    break;
+
+                case 'number':
+                    if ($answer === null || ! is_numeric($answer)) {
+                        return false;
+                    }
+                    break;
+
+                case 'email':
+                    if ($answer === null || ! filter_var(trim($answer), FILTER_VALIDATE_EMAIL)) {
+                        return false;
+                    }
+                    break;
+
+                case 'date':
+                    if ($answer === null) {
+                        return false;
+                    }
+
+                    $parsed = \DateTime::createFromFormat('Y-m-d', $answer);
+                    if (! $parsed || $parsed->format('Y-m-d') !== $answer) {
+                        return false;
+                    }
+                    break;
+
+                case 'select':
+                    if ($answer === null) {
+                        return false;
+                    }
+                    $validOptions = array_column($field['options'] ?? [], 'value');
+                    if (! in_array($answer, $validOptions, strict: true)) {
+                        return false;
+                    }
+                    break;
+
+                case 'checkbox':
+
+                    if ($answer !== '1') {
+                        return false;
+                    }
+                    break;
+
+                case 'checkboxes':
+
+                    if ($answer === null) {
+                        return false;
+                    }
+                    $decoded = json_decode($answer, true);
+                    if (! is_array($decoded) || count($decoded) === 0) {
+                        return false;
+                    }
+                    // Optionally validate each selected value against defined options
+                    if (! empty($field['options'])) {
+                        $validOptions = array_column($field['options'], 'value');
+                        foreach ($decoded as $selected) {
+                            if (! in_array($selected, $validOptions, strict: true)) {
+                                return false;
+                            }
+                        }
+                    }
+                    break;
+
+                case 'file':
+
+                    if ($answer === null) {
+                        return false;
+                    }
+                    $ids = json_decode($answer, true);
+                    if (! is_array($ids) || count($ids) === 0) {
+                        return false;
+                    }
+                    foreach ($ids as $id) {
+                        if (! is_numeric($id) || (int) $id <= 0) {
+                            return false;
+                        }
+                    }
+                    break;
+
+                default:
+                    if ($answer === null) {
+                        return false;
+                    }
+                    break;
+            }
+        }
+
+        return true;
+    }
+
     public function submitApplication(Request $request): JsonResponse
     {
         $this->authorize('submitApplication', Application::class);
+
         $validated = $request->validate([
             'call_id'     => ['required', 'integer', 'exists:call,id'],
             'team_id'     => ['required', 'integer', 'exists:team,id'],
@@ -127,27 +246,35 @@ class ApplicationController extends Controller
         ]);
 
         $user = $request->user();
+        if(!$this->checkAnswerOfApplicationAnswer($validated['form_data'], $validated['call_id'])){
+            return response()->json(['message' => 'Answer not valid !'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
         $team = Team::query()->findOrFail($validated['team_id']);
 
-        if (! $team->members()->where('user_id', $user->id)->exists()) {
+        $teamMembership = $team->members()->where('user_id', $user->id)->first();
+
+        if (! $teamMembership) {
             abort(403, 'Nie ste členom tohto tímu.');
         }
 
-        if(!$team->members()->where('team_role_id', 2)->exists()) {
-            abort(403, 'Musíte byť Team Leader !');
+        if ($teamMembership->pivot->team_role_id !== 1) { // 1 == TeamLeader
+            abort(403, 'Musíte byť Team Leader na vykonanie tejto akcie!');
         }
 
+        // 1. Find existing draft or create a new one with a initial Draft status (1)
         $application = Application::query()->updateOrCreate(
             [
                 'call_id' => $validated['call_id'],
                 'team_id' => $validated['team_id'],
             ],
             [
-                'created_by'  => $user->id,
-                'last_update' => now(),
+                'created_by'    => $user->id,
+                'last_update'   => now(),
+                'active_status' => 1,
             ]
         );
 
+        // 2. Persist or update the application form answers
         if (! empty($validated['form_data'])) {
             $application->answers()->updateOrCreate(
                 ['application_id' => $application->id],
@@ -155,18 +282,24 @@ class ApplicationController extends Controller
             );
         }
 
+        // 3. Idempotency Guard: If parallel requests execute and the application
+        // is already marked as 'Podané' (2), skip the state machine and return success.
+        if ((int) $application->active_status === 2) {
+            return response()->json([
+                'message' => 'Application submitted successfully.'
+            ], Response::HTTP_OK);
+        }
+
+        // 4. Let the state machine formally transition the record from Draft (1) to Submitted (2)
         try {
             $stateMachine = new ApplicationStateMachine($application, $user);
             $stateMachine->transitionTo(
                 ApplicationStateMachine::STATE_SUBMITTED,
                 'Prihláška bola podaná !'
             );
-
         } catch (\InvalidArgumentException $e) {
-
             abort(422, $e->getMessage());
         }
-
 
         return response()->json([
             'message' => 'Application submitted successfully.'
@@ -185,15 +318,20 @@ class ApplicationController extends Controller
         ]);
 
         $user = $request->user();
+        if(!$this->checkAnswerOfApplicationAnswer($validated['form_data'], $validated['call_id'])){
+            return response()->json(['message' => 'Answer not valid !'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
         $team = Team::query()->findOrFail($validated['team_id']);
 
 
-        if (! $team->members()->where('user_id', $user->id)->exists()) {
+        $teamMembership = $team->members()->where('user_id', $user->id)->first();
+
+        if (! $teamMembership) {
             abort(403, 'Nie ste členom tohto tímu.');
         }
 
-        if(!$team->members()->where('team_role_id', 2)->exists()) {
-                   abort(403, 'Musíte byť Team Leader !');
+        if ($teamMembership->pivot->team_role_id !== 1) { //1 == TeamLeader
+            abort(403, 'Musíte byť Team Leader na vykonanie tejto akcie!');
         }
 
         $draftStatus = StatusOfApplication::query()
@@ -265,11 +403,13 @@ class ApplicationController extends Controller
     // INDEX / SHOW
     // ──────────────────────────────────────────────────────────────────────────
 
+
     public function index(Request $request)
     {
-        $this->authorize('viewAny', Applications::class);
+        $this->authorize('viewAny', Application::class);
 
         $perPage = min(max((int) $request->query('per_page', 15), 1), 100);
+        $user = $request->user();
 
         $applications = Application::query()
             ->with([
@@ -280,7 +420,12 @@ class ApplicationController extends Controller
                 'documents:id',
                 'category.categoryTranslations:id,category_id,language_id,name',
             ])
-            ->where('created_by', $request->user()->id)
+            // Scope the list: Admins see all, team members see only their team's applications
+            ->unless($user->isAdmin() || $user->isSuperAdmin(), function (Builder $query) use ($user) {
+                $query->whereHas('team.members', function (Builder $q) use ($user) {
+                    $q->where('user_id', $user->id);
+                });
+            })
             ->when(
                 $request->filled('search'),
                 fn (Builder $query) => $query->whereHas(
@@ -334,6 +479,7 @@ class ApplicationController extends Controller
                 'call:id,name',
                 'status:id,name',
                 'team:id,name',
+                'team.members:id,name,surname',
                 'team.members.student.academicFlags',
                 'documents:id',
                 'documents.versions',
@@ -360,8 +506,8 @@ class ApplicationController extends Controller
 
         return response()->json([
             'application' => new ApplicationResource($application),
-            'form_schema'  => $formSchema,
-            'answer' => $latestAnswer,
+            'form_schema' => $formSchema,
+            'answer'      => $latestAnswer,
         ]);
     }
 

@@ -63,11 +63,9 @@ class ApplicationResource extends JsonResource
                         'name'      => $member->name,
                         'surname'   => $member->surname,
                         'role_id'   => $member->pivot?->team_role_id,
-                        'role_name' => match($member->pivot?->team_role_id) {
-                            1 => 'Vedúci tímu',
-                            2 => 'Člen',
-                            default => null,
-                        },
+
+                        'role_name' => $member->pivot?->role?->name ?? 'Člen tímu',
+
                         'student'   => $member->student ? [
                             'id'             => $member->student->id,
                             'academic_flags' => $member->student->academicFlags,

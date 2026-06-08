@@ -5,6 +5,7 @@ namespace Modules\Evaluation\Database\Seeders;
 use Illuminate\Database\Seeder;
 use Modules\Evaluation\Models\Commission;
 use Modules\Evaluation\Models\CommissionMember;
+use Modules\IdentityAccess\Database\Seeders\DemoEvaluatorUserSeeder;
 use Modules\IdentityAccess\Models\User;
 
 class CommissionMemberSeeder extends Seeder
@@ -14,31 +15,45 @@ class CommissionMemberSeeder extends Seeder
         $commission = Commission::query()->first();
 
         if ($commission === null) {
+            $this->command?->error('No commission found. Run CommissionSeeder first.');
             return;
         }
 
+        $emails = [
+            DemoEvaluatorUserSeeder::EMAIL_1,
+            DemoEvaluatorUserSeeder::EMAIL_2,
+        ];
+
         $users = User::query()
-            ->whereHas('roles', fn ($query) => $query->where('name', 'evaluator'))
-            ->orderBy('id')
-            ->get();
+            ->whereIn('email', $emails)
+            ->get()
+            ->keyBy('email');
 
-        if ($users->isEmpty()) {
-            $users = User::query()->orderBy('id')->take(3)->get();
+        $missing = array_diff($emails, $users->keys()->toArray());
+
+        if (! empty($missing)) {
+            $this->command?->warn('Missing demo users: ' . implode(', ', $missing));
+            $this->command?->warn('Run DemoCommissionChairUserSeeder and DemoEvaluatorUserSeeder first.');
         }
-
-        $users = $users->take(3);
 
         foreach ($users as $user) {
             CommissionMember::query()->updateOrCreate(
                 [
-                    'user_id' => $user->id,
+                    'user_id'       => $user->id,
                     'commission_id' => $commission->id,
                 ],
                 [
-                    'user_id' => $user->id,
+                    'user_id'       => $user->id,
                     'commission_id' => $commission->id,
                 ]
             );
         }
+
+        $this->command?->newLine();
+        $this->command?->info("Seeded {$users->count()} member(s) into commission #{$commission->id}:");
+        $this->command?->table(
+            ['Email', 'Name'],
+            $users->map(fn ($u) => [$u->email, "{$u->name} {$u->surname}"])->values()->toArray()
+        );
     }
 }

@@ -63,6 +63,11 @@ class EvaluationPolicy
         return false;
     }
 
+    public function viewEvaluations(User $user): bool
+    {
+        return $user->isEvaluator() || $user->isSuperAdmin();
+    }
+
     /**
      * Check if user is a commission member.
      */

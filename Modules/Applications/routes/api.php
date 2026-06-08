@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Applications\Http\Controllers\ApplicationController;
 use Modules\Applications\Http\Controllers\DocumentController;
 use Modules\Applications\Http\Controllers\StatusOfApplicationController;
+use Modules\Evaluation\Http\Controllers\EvaluationController;
 use Modules\Reporting\Http\Controllers\ExportController;
 
 
@@ -32,4 +33,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/admin/applications/{application}/mentorships/{mentorship}', [ApplicationController::class, 'deleteMentor']);
     Route::post('/submit-application', [ApplicationController::class, 'submitApplication']);
     Route::get('/get-status-admin', [StatusOfApplicationController::class, 'fetchExceptDraftAdmin']);
+
+    Route::get('/fetch-for-evaluation', [EvaluationController::class, 'fetchForEvaluation']);
 });

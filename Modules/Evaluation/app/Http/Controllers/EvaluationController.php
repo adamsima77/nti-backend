@@ -20,6 +20,7 @@ use Modules\Evaluation\Models\EvaluationScore;
 use Modules\Content\Enums\LanguageType;
 use Modules\Content\Models\Language;
 use Modules\Organizations\Models\OrganizationRole;
+use Modules\Programs\Models\Call;
 use Modules\Programs\Models\Call as ProgramCall;
 use Modules\Programs\Models\Criterion;
 use Modules\Programs\Support\CallFormSchema;
@@ -33,6 +34,45 @@ class EvaluationController extends Controller
         $this->authorize('viewAny', Evaluation::class);
         $com = Commission::all();
         return response()->json(['commissions' => $com], Response::HTTP_OK);
+    }
+
+    public function fetchForEvaluator(Request $request)
+    {
+        $this->authorize('viewEvaluations', Evaluation::class);
+        $evaluator_id = $request->user()->id;
+
+        $idOfEvaluator = CommissionMember::where('user_id', $evaluator_id)->first();
+
+        if (!$idOfEvaluator) {
+            return response()->json(['evaluations' => []], Response::HTTP_OK);
+        }
+
+        $evaluations = Evaluation::with([
+            'application' => function ($query) use ($idOfEvaluator) {
+                $query->with([
+                    'call' => function ($query) use ($idOfEvaluator) {
+                        $query->withCount(['applications as vsetky_moje_na_hodnotenie_count' => function ($q) use ($idOfEvaluator) {
+                            $q->whereHas('evaluations', function ($evalQuery) use ($idOfEvaluator) {
+                                $evalQuery->where('commission_member_id', $idOfEvaluator->id);
+                            });
+                        }]);
+
+                        $query->withCount(['applications as moje_uz_ohodnotene_count' => function ($q) use ($idOfEvaluator) {
+                            $q->whereHas('evaluations', function ($evalQuery) use ($idOfEvaluator) {
+                                $evalQuery->where('commission_member_id', $idOfEvaluator->id)
+                                    ->whereNotNull('decision_id');
+                            });
+                        }]);
+                    }
+                ]);
+            },
+            'scores',
+            'decision'
+        ])
+            ->where('commission_member_id', $idOfEvaluator->id)
+            ->get();
+
+        return response()->json(['evaluations' => $evaluations], Response::HTTP_OK);
     }
 
 
@@ -387,6 +427,7 @@ class EvaluationController extends Controller
         }, $fields);
     }
 
+
     private function applicationDetailPayload(Request $request, Application $application, ?Evaluation $currentEvaluation, Collection $commissionMembers, ?int $currentCommissionMemberId = null): array
     {
         $application->loadMissing([
@@ -401,9 +442,10 @@ class EvaluationController extends Controller
             'team.members.student.studyYear.studyYearTranslations',
             'documents.versions',
             'statusHistory.status:id,name',
-            'statusHistory.changedBy:id,first_name,last_name',
+            'statusHistory.changedBy:id,name,surname',
             'status:id,name',
             'category.categoryTranslations:id,category_id,language_id,name',
+            'answers'
         ]);
 
         $callCriteria = $application->call?->callCriteria ?? collect();
@@ -424,6 +466,7 @@ class EvaluationController extends Controller
         $teamRoleMap = TeamRole::query()->pluck('name', 'id');
 
         return [
+            'answers' => $application->answers->first()?->answer ?? [],
             'id' => $application->id,
             'status' => $this->normalizeApplicationStatus($application->status?->name),
             'academic_flag' => $this->resolveAcademicFlag($application),
@@ -443,7 +486,7 @@ class EvaluationController extends Controller
             'category' => $application->category ? [
                 'id' => $application->category->id,
                 'name' => $application->category->categoryTranslations
-                    ->firstWhere('language_id', LanguageType::SLOVAK->value)?->name
+                        ->firstWhere('language_id', LanguageType::SLOVAK->value)?->name
                     ?? $application->category->slug,
             ] : null,
             'description' => $application->call?->description ?? '',
@@ -478,29 +521,32 @@ class EvaluationController extends Controller
             'evaluation' => $currentEvaluation ? $this->evaluationPayload($currentEvaluation, $callCriteria) : null,
             'call' => $application->call ? $this->callPayload($application->call, $currentCommissionMemberId) : null,
             'teamMembers' => $application->team?->members?->map(function ($member) use ($teamRoleMap) {
-                $student = $member->student;
-                $record = $student?->academicRecord;
+                    $student = $member->student;
+                    $record = $student?->academicRecord;
 
-                return [
-                    'id' => $member->id,
-                    'student_id' => $student?->id,
-                    'name' => trim(($member->name ?? '').' '.($member->surname ?? '')),
-                    'role' => $teamRoleMap->get((int) $member->pivot->team_role_id, 'Člen tímu'),
-                    'honor_declaration' => (bool) ($record?->honor_declaration ?? false),
-                    'honor_declaration_signed_at' => optional($record?->honor_declaration_signed_at)?->toDateTimeString(),
-                    'transcript_file' => $record?->transcript_file ? Storage::url($record->transcript_file) : null,
-                    'school' => $student?->university?->name ?? null,
-                    'study_program' => $student?->studyProgram?->studyProgramTranslations?->first()?->name ?? $student?->studyProgram?->name ?? null,
-                    'study_year' => $student?->studyYear?->studyYearTranslations?->first()?->name ?? null,
-                ];
-            })->values() ?? [],
-            'commissionMembers' => $commissionMembers->map(function (CommissionMember $commissionMember) use ($scoreMap) {
+                    return [
+                        'id' => $member->id,
+                        'student_id' => $student?->id,
+                        'name' => trim(($member->name ?? '').' '.($member->surname ?? '')),
+                        'role' => $teamRoleMap->get((int) $member->pivot->team_role_id, 'Člen tímu'),
+                        'honor_declaration' => (bool) ($record?->honor_declaration ?? false),
+                        'honor_declaration_signed_at' => optional($record?->honor_declaration_signed_at)?->toDateTimeString(),
+                        'transcript_file' => $record?->transcript_file ? Storage::url($record->transcript_file) : null,
+                        'school' => $student?->university?->name ?? null,
+                        'study_program' => $student?->studyProgram?->studyProgramTranslations?->first()?->name ?? $student?->studyProgram?->name ?? null,
+                        'study_year' => $student?->studyYear?->studyYearTranslations?->first()?->name ?? null,
+                    ];
+                })->values() ?? [],
+            'commissionMembers' => $commissionMembers->filter(function (CommissionMember $commissionMember) use ($currentCommissionMemberId) {
+                return $commissionMember->id === $currentCommissionMemberId;
+            })->map(function (CommissionMember $commissionMember) use ($scoreMap) {
                 $user = $commissionMember->user;
 
                 return [
                     'id' => $commissionMember->id,
                     'name' => trim(($user?->name ?? '').' '.($user?->surname ?? '')),
                     'score' => array_key_exists($commissionMember->id, $scoreMap) ? $scoreMap[$commissionMember->id] : null,
+                    'is_chairman' => (bool) $commissionMember->is_chairman,
                 ];
             })->values(),
         ];
@@ -520,6 +566,7 @@ class EvaluationController extends Controller
             'criteria.*.comment' => ['nullable', 'string'],
             'internal_note' => ['nullable', 'string'],
             'recommendation' => ['required', 'in:approve,reject,supplement'],
+            'is_final' => ['required', 'boolean'], // Draft alebo finálne hodnotenie
         ]);
 
         $application = Application::query()
@@ -528,6 +575,19 @@ class EvaluationController extends Controller
                 'status:id,name',
             ])
             ->findOrFail($applicationId);
+
+
+        $existingEvaluation = Evaluation::query()
+            ->where('application_id', $application->id)
+            ->where('commission_member_id', $commissionMember->id)
+            ->first();
+
+        if ($existingEvaluation !== null && ($existingEvaluation->submitted_at !== null)) {
+            return response()->json([
+                'message' => 'Hodnotenie pre túto prihlášku ste už definitívne odoslali a nie je možné ho upravovať.',
+            ], Response::HTTP_CONFLICT);
+        }
+        // ──────────────────────────────────────────────────────────────────────────
 
         if ($evaluationId === null) {
             $this->authorize('create', Evaluation::class);
@@ -544,35 +604,31 @@ class EvaluationController extends Controller
             $this->authorize('update', $evaluation);
         }
 
-        $existingEvaluation = Evaluation::query()
-            ->where('application_id', $application->id)
-            ->where('commission_member_id', $commissionMember->id)
-            ->first();
-
-        if ($evaluationId === null && $existingEvaluation !== null) {
-            return response()->json([
-                'message' => 'Hodnotenie pre túto prihlášku ste už odoslali.',
-            ], Response::HTTP_CONFLICT);
-        }
-
         $decisionId = $this->resolveDecisionId($validated['recommendation']);
+        $isFinal = (bool) $validated['is_final'];
 
-        $evaluation = DB::transaction(function () use ($evaluation, $validated, $application, $commissionMember, $decisionId, $evaluationId) {
-            $evaluation = $evaluationId !== null
-                ? $evaluation
-                : Evaluation::query()->create([
+        $evaluation = DB::transaction(function () use ($evaluation, $validated, $application, $commissionMember, $decisionId, $evaluationId, $isFinal) {
+            if ($evaluationId !== null) {
+
+                $evaluation->update([
+                    'decision_id' => $decisionId,
+                    'internal_note' => $validated['internal_note'] ?? null,
+                    'submitted_at' => $evaluation->submitted_at ?? ($isFinal ? now() : null),
+                    'locked' => $evaluation->locked || $isFinal,
+                ]);
+            } else {
+                // Vytvorenie úplne nového záznamu
+                $evaluation = Evaluation::query()->create([
                     'application_id' => $application->id,
                     'commission_member_id' => $commissionMember->id,
                     'decision_id' => $decisionId,
-                    'submitted_at' => now(),
                     'internal_note' => $validated['internal_note'] ?? null,
+                    'submitted_at' => $isFinal ? now() : null,
+                    'locked' => $isFinal,
                 ]);
+            }
 
-            $evaluation->update([
-                'decision_id' => $decisionId,
-                'internal_note' => $validated['internal_note'] ?? null,
-            ]);
-
+            // Premazanie starých bodov a uloženie nových
             EvaluationScore::query()->where('evaluation_id', $evaluation->id)->delete();
 
             foreach ($validated['criteria'] as $criterion) {
@@ -598,7 +654,7 @@ class EvaluationController extends Controller
         });
 
         return response()->json([
-            'message' => 'Hodnotenie bolo úspešne uložené.',
+            'message' => $isFinal ? 'Hodnotenie bolo úspešne odoslané.' : 'Koncept bol úspešne uložený.',
             'evaluation' => $this->evaluationPayload($evaluation, $application->call?->callCriteria ?? collect()),
         ], $evaluationId === null ? Response::HTTP_CREATED : Response::HTTP_OK);
     }
@@ -656,24 +712,9 @@ class EvaluationController extends Controller
         $commissionMemberIds = $this->resolveCommissionMemberIds($request);
         $currentCommissionMemberId = $commissionMemberIds->first();
 
-        $applications = Application::query()
-            ->with([
-                'call.program.typeOfProgram:id,name',
-                'team.members',
-                'status:id,name',
-            ])
-            ->whereNotNull('submitted_at')
-            ->latest('id')
-            ->get();
-
-        if ($applications->isEmpty()) {
+        if ($currentCommissionMemberId === null) {
             return response()->json([
-                'stats' => [
-                    'total' => 0,
-                    'pending' => 0,
-                    'evaluated' => 0,
-                    'decided' => 0,
-                ],
+                'stats' => ['total' => 0, 'pending' => 0, 'evaluated' => 0, 'decided' => 0],
                 'calls' => [],
                 'applications' => [],
                 'recentApplications' => [],
@@ -681,53 +722,73 @@ class EvaluationController extends Controller
             ]);
         }
 
+        // 1. Načítame aplikácie
+        $applications = Application::query()
+            ->with(['call.program.typeOfProgram:id,name', 'team.members', 'status:id,name'])
+            ->whereNotNull('submitted_at')
+            ->whereHas('call.currentStatusHistory.status', function ($query) {
+                $query->where('name', 'Publikované');
+            })
+            ->limit(10)
+            ->latest('id')
+            ->get();
+
+        // 2. Načítame hodnotenia
         $evaluations = Evaluation::query()
             ->with('scores')
             ->whereIn('application_id', $applications->pluck('id'))
             ->get();
 
+        // 3. Identifikujeme moje uzavreté hodnotenia (rozhodnuté)
+        $myDecisions = $evaluations->where('commission_member_id', $currentCommissionMemberId)
+            ->whereNotNull('submitted_at')
+            ->whereNotNull('decision_id');
+
+        $myDecidedApplicationIds = $myDecisions->pluck('application_id');
+
+        // 4. Pripravíme metriky pre frontend
         $applicationMetrics = [];
         foreach ($evaluations as $evaluation) {
             $total = $this->evaluationTotal($evaluation);
             $applicationMetrics[$evaluation->application_id]['totals'][] = $total;
 
-            if ($currentCommissionMemberId !== null && (int) $evaluation->commission_member_id === $currentCommissionMemberId) {
+            if ((int) $evaluation->commission_member_id === $currentCommissionMemberId) {
                 $applicationMetrics[$evaluation->application_id]['my_score'] = $total;
+                $applicationMetrics[$evaluation->application_id]['my_decision'] = $evaluation->decision_id;
             }
         }
 
         $summaries = $applications->map(function (Application $application) use ($applicationMetrics, $currentCommissionMemberId) {
-            return $this->applicationSummary($application, $currentCommissionMemberId);
+            $summary = $this->applicationSummary($application, $currentCommissionMemberId);
+            // Pridáme informáciu o rozhodnutí do summary pre frontend
+            $summary['has_decision'] = isset($applicationMetrics[$application->id]['my_decision']);
+            return $summary;
         })->values();
 
-        $callQuery = ProgramCall::query()
+        // 5. Načítame výzvy
+        $calls = ProgramCall::query()
             ->withCount('applications')
-            ->with([
-                'program.typeOfProgram:id,name',
-                'currentStatusHistory.status:id,name',
-                'callCriteria.criterionTranslations:id,criterion_id,language_id,name',
-                'applications.team.members',
-                'applications.status:id,name',
-            ]);
-
-        if ($this->isOrgMember($request)) {
-            $callQuery->whereIn('id', $this->orgMemberCallIds($request));
-        } else {
-            $callQuery->whereHas('currentStatusHistory.status', function ($query) {
+            ->with(['program.typeOfProgram:id,name', 'currentStatusHistory.status:id,name', 'callCriteria.criterionTranslations:id,criterion_id,language_id,name', 'applications.team.members', 'applications.status:id,name'])
+            ->whereHas('currentStatusHistory.status', function ($query) {
                 $query->where('name', 'Publikované');
-            });
-        }
-
-        $calls = $callQuery->latest('id')
+            })
+            ->limit(4)
+            ->latest('id')
             ->get()
             ->map(fn (ProgramCall $call) => $this->callPayload($call, $currentCommissionMemberId))
             ->values();
 
+        // 6. Výpočet štatistík
         $stats = [
             'total' => $summaries->count(),
-            'pending' => $summaries->filter(fn (array $summary) => $summary['my_score'] === null && in_array($summary['status'], ['submitted', 'evaluating', 'supplement'], true))->count(),
-            'evaluated' => $summaries->filter(fn (array $summary) => $summary['my_score'] !== null)->count(),
-            'decided' => $summaries->filter(fn (array $summary) => in_array($summary['status'], ['approved', 'rejected'], true))->count(),
+            // PENDING: Prihlášky, kde nemám rozhodnutie a sú v stave vyžadujúcom hodnotenie
+            'pending' => $summaries->filter(fn (array $summary) =>
+                !$myDecidedApplicationIds->contains($summary['id']) &&
+                in_array($summary['status'], ['submitted', 'under_review', 'evaluating', 'supplement'], true)
+            )->count(),
+            'evaluated' => $summaries->filter(fn (array $summary) => isset($summary['my_score']) && $summary['my_score'] !== null)->count(),
+            // DECIDED: Počet mojich odoslaných rozhodnutí
+            'decided' => $myDecidedApplicationIds->count(),
         ];
 
         return response()->json([
@@ -735,10 +796,13 @@ class EvaluationController extends Controller
             'calls' => $calls,
             'applications' => $summaries,
             'recentApplications' => $summaries->take(3)->values(),
-            'urgentApplications' => $summaries->filter(fn (array $summary) => $summary['my_score'] === null && in_array($summary['status'], ['submitted', 'evaluating'], true))->values(),
+            'urgentApplications' => $summaries->filter(fn (array $summary) =>
+                !$myDecidedApplicationIds->contains($summary['id']) &&
+                in_array($summary['status'], ['submitted', 'under_review', 'evaluating'], true)
+            )->values(),
         ]);
     }
-
+    /*
     public function calls(Request $request): JsonResponse
     {
         $commissionMemberIds = $this->resolveCommissionMemberIds($request);
@@ -768,7 +832,9 @@ class EvaluationController extends Controller
 
         return response()->json($calls);
     }
+    */
 
+    /*
     public function callApplications(Request $request, int $callId): JsonResponse
     {
         $commissionMemberIds = $this->resolveCommissionMemberIds($request);
@@ -789,6 +855,7 @@ class EvaluationController extends Controller
 
         return response()->json($applications);
     }
+    */
 
     public function application(Request $request, int $applicationId): JsonResponse
     {

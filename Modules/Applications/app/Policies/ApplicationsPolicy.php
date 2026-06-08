@@ -37,7 +37,10 @@ class ApplicationsPolicy
      */
     public function view(User $user, Application $application): bool
     {
-        return $user->id === $application->created_by || $user->isAdmin() || $user->isSuperAdmin();
+        return $user->id === $application->created_by
+            || $user->isAdmin()
+            || $user->isSuperAdmin()
+            || $application->team->members()->where('user_id', $user->id)->exists();
     }
 
     /**

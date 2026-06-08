@@ -9,9 +9,6 @@ class CommissionSeeder extends Seeder
 {
     public function run(): void
     {
-        Commission::query()->updateOrCreate(
-            ['name' => 'Hodnotiaca komisia'],
-            ['name' => 'Hodnotiaca komisia']
-        );
+        Commission::create(['name' => 'Testovacia komisia']);
     }
 }

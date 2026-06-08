@@ -9,8 +9,24 @@ use Modules\IdentityAccess\Models\User;
 
 class DemoEvaluatorUserSeeder extends Seeder
 {
-    public const EMAIL = 'evaluator@test.nti.local';
+    public const EMAIL_1 = 'evaluator1@test.nti.local';
+    public const EMAIL_2 = 'evaluator2@test.nti.local';
     public const PASSWORD = 'Password123!';
+
+    private array $users = [
+        [
+            'email'        => self::EMAIL_1,
+            'name'         => 'Eva',
+            'surname'      => 'Komisárová',
+            'job_position' => 'Evaluátor (demo)',
+        ],
+        [
+            'email'        => self::EMAIL_2,
+            'name'         => 'Marek',
+            'surname'      => 'Hodnotiteľ',
+            'job_position' => 'Evaluátor (demo)',
+        ],
+    ];
 
     public function run(): void
     {
@@ -21,32 +37,31 @@ class DemoEvaluatorUserSeeder extends Seeder
             return;
         }
 
-        $user = User::query()->updateOrCreate(
-            ['email' => self::EMAIL],
-            [
-                'name' => 'Eva',
-                'surname' => 'Komisárová',
-                'password' => self::PASSWORD,
-                'status_id' => UserStatus::ACTIVE->value,
-                'job_position' => 'Evaluator (demo)',
-            ]
-        );
+        foreach ($this->users as $data) {
+            $user = User::query()->updateOrCreate(
+                ['email' => $data['email']],
+                [
+                    'name'         => $data['name'],
+                    'surname'      => $data['surname'],
+                    'password'     => self::PASSWORD,
+                    'status_id'    => UserStatus::ACTIVE->value,
+                    'job_position' => $data['job_position'],
+                ]
+            );
 
-        $user->forceFill(['email_verified_at' => now()])->saveQuietly();
-        $user->roles()->sync([$role->id]);
+            $user->forceFill(['email_verified_at' => now()])->saveQuietly();
+            $user->roles()->sync([$role->id]);
+        }
 
         $this->command?->newLine();
-        $this->command?->info('Demo evaluator created/updated:');
-
+        $this->command?->info('Demo evaluators created/updated:');
         $this->command?->table(
-            ['Field', 'Value'],
-            [
-                ['Email', self::EMAIL],
-                ['Password', self::PASSWORD],
-                ['Name', 'Eva Komisárová'],
-                ['Status', 'active (verified email)'],
-                ['Role', 'evaluator'],
-            ]
+            ['Email', 'Name', 'Role'],
+            collect($this->users)->map(fn ($u) => [
+                $u['email'],
+                "{$u['name']} {$u['surname']}",
+                'evaluator',
+            ])->toArray()
         );
     }
 }

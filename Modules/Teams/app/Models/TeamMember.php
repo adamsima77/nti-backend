@@ -17,6 +17,8 @@ class TeamMember extends Pivot
     public $incrementing = false;
     public $timestamps = false;
 
+
+
     /**
      * The attributes that are mass assignable.
      */
@@ -25,6 +27,8 @@ class TeamMember extends Pivot
         'team_id',
         'team_role_id',
     ];
+
+    protected $with = ['role'];
 
     public function user(): BelongsTo
     {
