@@ -28,6 +28,8 @@ class StatusOfApplicationController extends Controller
     public function fetchAdminStatuses(){
         $statuses = StatusOfApplication::whereIn('name',[
             'V hodnotení',
+            'Schválené',
+            'Zamietnuté',
             'Vyžiadané doplnenie',
             'Aktívny projekt',
             'Ukončené',
