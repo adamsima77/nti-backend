@@ -3,8 +3,10 @@
 namespace Modules\Applications\Policies;
 
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Support\Facades\DB;
 use Modules\Applications\Models\Document;
 use Modules\IdentityAccess\Models\User;
+use Modules\Teams\Models\TeamMember;
 
 class DocumentPolicy
 {
@@ -23,6 +25,7 @@ class DocumentPolicy
      *
      * Access rules:
      * - Owner can always view their own documents
+     * - Team members of application can also download files
      * - Admin/SuperAdmin can view any document
      * - For "Interné" (internal) documents attached to applications:
      *   Users who are part of the application team can view them
@@ -35,15 +38,38 @@ class DocumentPolicy
             return true;
         }
 
-        if ($user->isEvaluator()) {
+        $ownerOfDocument = $document->owner_id;
 
-            return $document->applications()
-                ->whereHas('evaluations', function ($q) use ($user) {
-                    $q->whereHas('commissionMember', function ($q2) use ($user) {
-                        $q2->where('user_id', $user->id);
-                    });
-                })
+
+        $ownerTeamIds = TeamMember::where('user_id', $ownerOfDocument)
+            ->pluck('team_id')
+            ->toArray();
+
+
+        $areInSameTeam = TeamMember::whereIn('team_id', $ownerTeamIds)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if ($areInSameTeam) {
+            return true;
+        }
+
+        if ($user->isEvaluator()) {
+            $ownerId = $document->owner_id;
+            $ownerTeamIds = TeamMember::where('user_id', $ownerId)
+                ->pluck('team_id')
+                ->toArray();
+
+            $isAssignedToEvaluator = DB::table('evaluation')
+                ->join('application', 'evaluation.application_id', '=', 'application.id')
+                ->join('commission_member', 'evaluation.commission_member_id', '=', 'commission_member.id')
+                ->whereIn('application.team_id', $ownerTeamIds)
+                ->where('commission_member.user_id', $user->id)
                 ->exists();
+
+            if ($isAssignedToEvaluator) {
+                return true;
+            }
         }
 
 

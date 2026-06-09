@@ -310,10 +310,10 @@ class StudentsController extends Controller
         return response()->json([
             'student' => $student->load([
                 'user',
-                'studyProgram',
-                'studyField',
+                'studyProgram.studyProgramTranslations',
+                'studyField.studyFieldTranslations',
                 'university',
-                'studyYear',
+                'studyYear.studyYearTranslations',
                 'academicFlags',
                 'academicRecord',
             ]),

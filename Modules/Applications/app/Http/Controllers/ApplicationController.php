@@ -246,11 +246,11 @@ class ApplicationController extends Controller
         ]);
 
         $user = $request->user();
-        if(!$this->checkAnswerOfApplicationAnswer($validated['form_data'], $validated['call_id'])){
+        if (!$this->checkAnswerOfApplicationAnswer($validated['form_data'], $validated['call_id'])) {
             return response()->json(['message' => 'Answer not valid !'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        $team = Team::query()->findOrFail($validated['team_id']);
 
+        $team = Team::query()->findOrFail($validated['team_id']);
         $teamMembership = $team->members()->where('user_id', $user->id)->first();
 
         if (! $teamMembership) {
@@ -261,20 +261,36 @@ class ApplicationController extends Controller
             abort(403, 'Musíte byť Team Leader na vykonanie tejto akcie!');
         }
 
-        // 1. Find existing draft or create a new one with a initial Draft status (1)
+
+        $application = Application::query()
+            ->where('call_id', $validated['call_id'])
+            ->where('team_id', $validated['team_id'])
+            ->first();
+
+        if ($application !== null) {
+            $stateMachine = new ApplicationStateMachine($application, $user);
+
+
+            if ($stateMachine->currentState() !== ApplicationStateMachine::STATE_DRAFT) {
+                abort(422, 'Prihlášku nie je možné odoslať, pretože už prešla fázou konceptu alebo bola spracovaná.');
+            }
+        }
+
+
         $application = Application::query()->updateOrCreate(
             [
                 'call_id' => $validated['call_id'],
                 'team_id' => $validated['team_id'],
             ],
             [
-                'created_by'    => $user->id,
+
+                'created_by'    => $application ? $application->created_by : $user->id,
                 'last_update'   => now(),
                 'active_status' => 1,
             ]
         );
 
-        // 2. Persist or update the application form answers
+
         if (! empty($validated['form_data'])) {
             $application->answers()->updateOrCreate(
                 ['application_id' => $application->id],
@@ -282,15 +298,14 @@ class ApplicationController extends Controller
             );
         }
 
-        // 3. Idempotency Guard: If parallel requests execute and the application
-        // is already marked as 'Podané' (2), skip the state machine and return success.
+
         if ((int) $application->active_status === 2) {
             return response()->json([
                 'message' => 'Application submitted successfully.'
             ], Response::HTTP_OK);
         }
 
-        // 4. Let the state machine formally transition the record from Draft (1) to Submitted (2)
+
         try {
             $stateMachine = new ApplicationStateMachine($application, $user);
             $stateMachine->transitionTo(
@@ -480,17 +495,17 @@ class ApplicationController extends Controller
                 'status:id,name',
                 'team:id,name',
                 'team.members:id,name,surname',
+                'evaluations',
                 'team.members.student.academicFlags',
                 'documents:id',
                 'documents.versions',
                 'statusHistory.status:id,name',
                 'milestones',
                 'category.categoryTranslations:id,category_id,language_id,name',
-                'team.members.student',
-                'mentorships.mentor',
+                'mentorships.mentor:id,name,surname',
                 'evaluations.commissionMember.commission',
                 'evaluations.commissionMember.user:id,name,surname',
-                'evaluations.scores.criterion',
+                'evaluations.scores.criterion',   // scores + criterion name
             ])
             ->findOrFail($id);
 

@@ -546,7 +546,6 @@ class EvaluationController extends Controller
                     'id' => $commissionMember->id,
                     'name' => trim(($user?->name ?? '').' '.($user?->surname ?? '')),
                     'score' => array_key_exists($commissionMember->id, $scoreMap) ? $scoreMap[$commissionMember->id] : null,
-                    'is_chairman' => (bool) $commissionMember->is_chairman,
                 ];
             })->values(),
         ];
@@ -557,6 +556,11 @@ class EvaluationController extends Controller
         $commissionMember = CommissionMember::query()
             ->where('user_id', $request->user()->id)
             ->firstOrFail();
+
+        $applicationState = Application::where('id', $applicationId)->firstOrFail();
+        if($applicationState->active_status != 3){ // V Hodnotení
+            abort(403, "Prihlášku už nemôžete hodnotiť !");
+        }
 
         $validated = $request->validate([
             'criteria' => ['required', 'array', 'min:1'],
