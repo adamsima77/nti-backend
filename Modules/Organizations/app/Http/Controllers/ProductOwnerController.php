@@ -125,9 +125,15 @@ class ProductOwnerController extends Controller
             'application_deadline' => ['sometimes', 'nullable', 'date'],
             'project_start'        => ['sometimes', 'nullable', 'date'],
             'project_end'          => ['sometimes', 'nullable', 'date'],
+            'document_ids'         => ['nullable', 'array'],
+            'document_ids.*'       => ['integer', 'exists:document,id'],
         ]);
 
-        $call->update($validated);
+        $call->update(collect($validated)->except('document_ids')->toArray());
+
+        if (array_key_exists('document_ids', $validated)) {
+            $call->documents()->sync($validated['document_ids'] ?? []);
+        }
 
         return response()->json(['message' => 'Zadanie bolo aktualizované.', 'data' => $call->fresh()]);
     }

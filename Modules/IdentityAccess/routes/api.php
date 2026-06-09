@@ -8,6 +8,7 @@ use Modules\IdentityAccess\Http\Controllers\StatusController;
 use Modules\IdentityAccess\Http\Controllers\UserConsentController;
 use Modules\IdentityAccess\Http\Controllers\UserController;
 use Modules\IdentityAccess\Http\Controllers\AuthController;
+use Modules\Organizations\Http\Controllers\AcceptInviteController;
 use Modules\Organizations\Http\Controllers\OrganizationController;
 use Modules\Reporting\Http\Controllers\ExportController;
 use Illuminate\Http\Request;
@@ -23,6 +24,8 @@ Route::prefix('auth')->group(function () {
     Route::get('verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
         ->middleware(['signed', 'throttle:6,1'])
         ->name('verification.verify');
+    Route::get('invite', [AcceptInviteController::class, 'show']);
+    Route::post('accept-invite', [AcceptInviteController::class, 'accept']);
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {

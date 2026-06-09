@@ -113,6 +113,6 @@ class Call extends Model
             'document_has_call',
             'call_id',
             'document_id'
-        );
+        )->withTimestamps();
     }
 }

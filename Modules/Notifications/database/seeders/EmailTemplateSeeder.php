@@ -77,7 +77,7 @@ class EmailTemplateSeeder extends Seeder
     If you think you received it by mistake, please contact us at
     <a href="mailto:support@nti.sk" style="color:#64748b;">support@nti.sk</a>.
 </p>'
-            ], // <-- Tu bolo predtým nesprávne uzatvorenie ] a chýbal začiatok nového poľa
+            ],
             [
                 'slug'    => 'organization_onboarded',
                 'subject' => 'Thank you, {{ $organizationName }}!',
@@ -610,6 +610,49 @@ class EmailTemplateSeeder extends Seeder
 <p style="margin-top:24px; font-size:12px; color:#94a3b8; line-height:1.5;">
     If the button does not work, copy this link:<br>
     <a href="{{ $joinUrl }}" style="color:#0d5fbf; word-break:break-all;">{{ $joinUrl }}</a>
+</p>',
+            ],
+            [
+                'slug'    => 'organization_member_invite',
+                'subject' => 'You have been invited to join {{ $organizationName }} on NTI',
+                'body_html' => '
+<h1 style="margin:0 0 16px; font-size:24px;">Organization invitation 🎉</h1>
+<p style="margin:0 0 16px; font-size:15px; color:#64748b; line-height:1.6;">
+    <strong>{{ $organizationName }}</strong> has invited you to join the NTI platform
+    as <strong>{{ $roleLabel }}</strong>.
+</p>
+<p style="margin:0 0 24px; font-size:14px; color:#64748b; line-height:1.6;">
+    Click the button below to set your password and submit your account for NTI admin approval.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:24px;">
+    <tr>
+        <td style="background:#f1f5f9; border-radius:8px; padding:16px 20px;">
+            <p style="margin:0; font-size:13px; color:#64748b;">
+                Your login email: <strong style="color:#0a1628;">{{ $inviteeEmail }}</strong>
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+            <a href="{{ $acceptUrl }}" target="_blank"
+               style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">
+                Accept invitation
+            </a>
+        </td>
+    </tr>
+</table>
+
+<p style="margin-top:24px; font-size:12px; color:#94a3b8; line-height:1.5;">
+    If the button does not work, copy this link:<br>
+    <a href="{{ $acceptUrl }}" style="color:#0d5fbf; word-break:break-all;">{{ $acceptUrl }}</a>
+</p>
+<p style="margin-top:16px; font-size:12px; color:#94a3b8;">
+    This invitation expires in 72 hours.
+    If you received this by mistake, please contact the organisation administrator.
 </p>',
             ],
         ];

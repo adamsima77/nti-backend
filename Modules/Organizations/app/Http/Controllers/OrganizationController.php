@@ -16,6 +16,9 @@ use Modules\Applications\Models\Application;
 use Modules\Organizations\Events\OrganizationApproved;
 use Modules\Organizations\Models\Address;
 use Modules\Organizations\Models\Organization;
+use Modules\IdentityAccess\Models\Role;
+use Modules\Organizations\Events\OrganizationMemberInvited;
+use Modules\Organizations\Models\OrganizationInvitation;
 use Modules\Organizations\Models\OrganizationRole;
 use Modules\Organizations\Models\Sector;
 
@@ -265,32 +268,63 @@ class OrganizationController extends Controller
             ], Response::HTTP_CONFLICT);
         }
 
+        $isNewUser = false;
+
         if (! $user) {
+            $isNewUser = true;
             $user = User::create([
-                'name' => preg_replace('/@.*$/', '', $validated['email']),
-                'surname' => '',
-                'email' => $validated['email'],
-                'password' => Hash::make(Str::random(32)),
+                'name'      => preg_replace('/@.*$/', '', $validated['email']),
+                'surname'   => '',
+                'email'     => $validated['email'],
+                'password'  => Hash::make(Str::random(32)),
                 'status_id' => UserStatus::PENDING_EMAIL->value,
             ]);
+        }
 
-            if (method_exists($user, 'sendEmailVerificationNotification')) {
-                $user->sendEmailVerificationNotification();
-            }
+        // Assign global organization role if not already set
+        $orgRole = Role::where('name', 'organization')->first();
+        if ($orgRole && ! $user->roles()->where('name', 'organization')->exists()) {
+            $user->roles()->attach($orgRole->id);
         }
 
         $organization->users()->attach($user->id, [
             'organization_role' => $organizationRole->id,
         ]);
 
+        // Create invite token and send invite email (for new users only)
+        if ($isNewUser) {
+            $invite = OrganizationInvitation::create([
+                'token'                => Str::random(64),
+                'email'                => $validated['email'],
+                'organization_id'      => $organization->id,
+                'organization_role_id' => $organizationRole->id,
+                'expires_at'           => now()->addHours(72),
+            ]);
+
+            $roleLabelMap = [
+                'admin'  => 'Správca organizácie',
+                'member' => 'Člen',
+                'po'     => 'Product Owner',
+            ];
+
+            $lang = $request->cookie('i18n_redirected', 'sk') === 'en' ? 'en' : 'sk';
+
+            event(new OrganizationMemberInvited(
+                invitation:   $invite,
+                organization: $organization,
+                roleLabel:    $roleLabelMap[$validated['role']] ?? $validated['role'],
+                lang:         $lang,
+            ));
+        }
+
         return response()->json([
             'message' => 'Pozvánka bola odoslaná.',
-            'member' => [
-                'id' => $user->id,
-                'name' => trim(sprintf('%s %s', $user->name, $user->surname)),
-                'email' => $user->email,
-                'status' => $user->status_id === UserStatus::ACTIVE->value ? 'active' : 'pending',
-                'role' => $validated['role'],
+            'member'  => [
+                'id'      => $user->id,
+                'name'    => trim(sprintf('%s %s', $user->name, $user->surname)),
+                'email'   => $user->email,
+                'status'  => $user->status_id === UserStatus::ACTIVE->value ? 'active' : 'pending',
+                'role'    => $validated['role'],
                 'addedAt' => $user->created_at?->toDateString(),
             ],
         ], Response::HTTP_CREATED);
