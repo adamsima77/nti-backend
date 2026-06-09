@@ -42,6 +42,7 @@ class ExportController extends Controller
             'active_status'      => $request->input('status_id'),
             'submitted_from' => $request->input('submitted_from'),
             'submitted_to'   => $request->input('submitted_to'),
+            'search' => $request->input('search')
         ];
 
         // ── PDF ────────────────────────────────────────────────────────────────
@@ -95,35 +96,44 @@ class ExportController extends Controller
     }
 
 
-    private function buildApplicationExportQuery(array $filters)
-    {
-        $query = Application::query()
-            ->with([
-                'team',
-                'call',
-                'status',
-                'mentorships.mentor',
-                'creator',
-            ]);
+private function buildApplicationExportQuery(array $filters)
+{
+    $query = Application::query()
+        ->with([
+            'team',
+            'call',
+            'status',
+            'mentorships.mentor',
+            'creator',
+        ]);
 
-        if (! empty($filters['call_id'])) {
-            $query->where('call_id', $filters['call_id']);
-        }
-
-        if (! empty($filters['active_status'])) {
-            $query->where('active_status', $filters['active_status']);
-        }
-
-        if (! empty($filters['submitted_from'])) {
-            $query->whereDate('submitted_at', '>=', $filters['submitted_from']);
-        }
-
-        if (! empty($filters['submitted_to'])) {
-            $query->whereDate('submitted_at', '<=', $filters['submitted_to']);
-        }
-
-        return $query->orderByDesc('submitted_at');
+    if (! empty($filters['call_id'])) {
+        $query->where('call_id', $filters['call_id']);
     }
+
+    if (! empty($filters['active_status'])) {
+        $query->where('active_status', $filters['active_status']);
+    }
+
+    if (! empty($filters['submitted_from'])) {
+        $query->whereDate('submitted_at', '>=', $filters['submitted_from']);
+    }
+
+    if (! empty($filters['submitted_to'])) {
+        $query->whereDate('submitted_at', '<=', $filters['submitted_to']);
+    }
+
+    if (! empty($filters['search'])) {
+        $term = '%' . $filters['search'] . '%';
+
+        $query->where(function ($subQuery) use ($term) {
+            $subQuery->where('reference', 'ilike', $term)
+                ->orWhereHas('team', fn ($q) => $q->where('name', 'ilike', $term));
+        });
+    }
+
+    return $query->orderByDesc('submitted_at');
+}
 
     public function evaluations(Request $request, string $format = 'xlsx', QueuedExportService $queuedExportService)
     {

@@ -435,19 +435,22 @@ class ApplicationController extends Controller
                 'documents:id',
                 'category.categoryTranslations:id,category_id,language_id,name',
             ])
-            // Scope the list: Admins see all, team members see only their team's applications
+
             ->unless($user->isAdmin() || $user->isSuperAdmin(), function (Builder $query) use ($user) {
                 $query->whereHas('team.members', function (Builder $q) use ($user) {
                     $q->where('user_id', $user->id);
                 });
             })
-            ->when(
-                $request->filled('search'),
-                fn (Builder $query) => $query->whereHas(
-                    'call',
-                    fn (Builder $q) => $q->where('name', 'ilike', '%'.$request->query('search').'%')
-                )
-            )
+            ->when($request->filled('search'), function (Builder $q) use ($request) {
+                $q->where(function (Builder $subQuery) use ($request) {
+                    $searchTerm = '%' . $request->query('search') . '%';
+
+                    $subQuery->where('reference', 'ilike', $searchTerm)
+                        ->orWhereHas('call', function (Builder $callQuery) use ($searchTerm) {
+                            $callQuery->where('name', 'ilike', $searchTerm);
+                        });
+                });
+            })
             ->when(
                 $request->filled('program_type_id'),
                 fn (Builder $query) => $query->whereHas(
@@ -478,6 +481,17 @@ class ApplicationController extends Controller
             ->when(
                 $request->filled('status_id'),
                 fn ($q) => $q->where('active_status', $request->integer('status_id'))
+            )
+            ->when(
+                $request->filled('search'),
+                function ($q) use ($request) {
+                    $term = '%' . $request->query('search') . '%';
+
+                    $q->where(function ($query) use ($term) {
+                        $query->where('reference', 'ilike', $term)
+                            ->orWhereHas('team', fn ($sub) => $sub->where('name', 'ilike', $term));
+                    });
+                }
             )
             ->paginate(15);
 

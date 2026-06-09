@@ -49,6 +49,7 @@ class EvaluationController extends Controller
 
         $evaluations = Evaluation::with([
             'application' => function ($query) use ($idOfEvaluator) {
+                $query->with(['status']);
                 $query->with([
                     'call' => function ($query) use ($idOfEvaluator) {
                         $query->withCount(['applications as vsetky_moje_na_hodnotenie_count' => function ($q) use ($idOfEvaluator) {
