@@ -441,10 +441,28 @@ class OrganizationController extends Controller
             'in_progress'    => $calls->filter(fn ($c) => $c->currentStatusHistory?->status?->name === 'V realizácii')->count(),
             'completed'      => $calls->filter(fn ($c) => $c->currentStatusHistory?->status?->name === 'Uzavreté')->count(),
         ];
+        
+        $teams = $calls->flatMap(fn ($call) => $call->applications
+            ->filter(fn ($app) => in_array($app->status?->name, ['Onboarding', 'Aktívny projekt', 'Ukončené']))
+            ->map(fn ($app) => [
+                'team_name' => $app->team?->name,
+                'call_name' => $call->name,
+                'status'    => $app->status?->name,
+            ])
+        )->filter(fn ($t) => $t['team_name'])->values();
+
+        $applications = $calls->flatMap(fn ($call) => $call->applications->map(fn ($app) => [
+            'team_name'    => $app->team?->name ?? '—',
+            'call_name'    => $call->name,
+            'status'       => $app->status?->name,
+            'submitted_at' => $app->created_at?->toDateString(),
+        ]))->sortByDesc('submitted_at')->take(5)->values();
 
         return response()->json([
-            'stats' => $stats,
-            'calls' => $callsSummary,
+            'stats'        => $stats,
+            'calls'        => $callsSummary,
+            'teams'        => $teams,
+            'applications' => $applications,
         ], Response::HTTP_OK);
     }
 

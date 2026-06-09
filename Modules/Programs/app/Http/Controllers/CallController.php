@@ -92,7 +92,7 @@ class CallController extends Controller
                 'callTranslations.language:id,name',
                 'callCriteria',
                 'qualificationStack.translations:id,name',
-                'productOwner:id,name,email',
+                'productOwner:id,name,surname,email',
             ]);
 
         if (auth()->user()->isPartner()) {
@@ -203,7 +203,7 @@ class CallController extends Controller
                 'currentStatusHistory.status:id,name',
                 'callCriteria',
                 'callCriteria.criterionTranslations:id,criterion_id,language_id,name,description',
-                'productOwner:id,name,email',
+                'productOwner:id,name,surname,email',
                 'documents.versions',
             ])
             ->findOrFail($id);
@@ -267,9 +267,10 @@ class CallController extends Controller
             'max_teams'                => $call->max_teams,
             'po_user_id'               => $call->po_user_id,
             'product_owner'            => [
-                'id'    => $call->productOwner?->id,
-                'name'  => $call->productOwner?->name,
-                'email' => $call->productOwner?->email,
+                'id'      => $call->productOwner?->id,
+                'name'    => $call->productOwner?->name,
+                'surname' => $call->productOwner?->surname,
+                'email'   => $call->productOwner?->email,
             ],
             'application_start'        => $call->application_start,
             'application_deadline'     => $call->application_deadline,

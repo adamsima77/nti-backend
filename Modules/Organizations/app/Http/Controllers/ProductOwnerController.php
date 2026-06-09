@@ -103,6 +103,7 @@ class ProductOwnerController extends Controller
                 'open_milestones'   => $openBacklog,
                 'done_milestones'   => $doneBacklog,
                 'pending_approvals' => $pendingApprovals,
+                'documents_count'   => $call->documents?->count() ?? 0,
             ],
         ]);
     }
