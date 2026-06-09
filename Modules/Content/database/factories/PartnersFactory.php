@@ -18,16 +18,17 @@ class PartnersFactory extends Factory
      */
     public function definition(): array
     {
+        $name = $this->faker->company();
+
         return [
-            'name' => 'Testing name',
+            'name' => $name,
+            'image' => 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=edf2f7&color=1d4ed8&size=128&rounded=true',
         ];
     }
 
     public function configure()
     {
         return $this->afterCreating(function (Partner $partner) {
-
-            $name = $this->faker->company();
             $description = $this->faker->realText(150);
 
             $partner->partnerTranslations()->createMany([
