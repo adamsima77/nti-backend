@@ -18,9 +18,12 @@ class PartnerReferenceFactory extends Factory
      */
     public function definition(): array
     {
+        $name = $this->faker->name();
+
         return [
-            'name' => $this->faker->name(),
-            'job_position' => $this->faker->jobTitle()
+            'name' => $name,
+            'job_position' => $this->faker->jobTitle(),
+            'image' => 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=edf2f7&color=3b82f6',
         ];
     }
 

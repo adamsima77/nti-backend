@@ -21,33 +21,58 @@ class DemoMentorUserSeeder extends Seeder
             return;
         }
 
-        $user = User::query()->updateOrCreate(
-            ['email' => self::EMAIL],
+        $mentors = [
             [
-                'name'         => 'Matej',
-                'surname'      => 'Novotný',
-                'password'     => self::PASSWORD, // hashed via User cast
-                'status_id'    => UserStatus::ACTIVE->value,
+                'email' => self::EMAIL,
+                'name' => 'Matej',
+                'surname' => 'Novotný',
                 'job_position' => 'Mentor (demo)',
-            ]
-        );
+            ],
+            [
+                'email' => 'ivana.kovacova@test.nti.local',
+                'name' => 'Ivana',
+                'surname' => 'Kováčová',
+                'job_position' => 'Senior Software Mentor',
+            ],
+            [
+                'email' => 'peter.nemec@test.nti.local',
+                'name' => 'Peter',
+                'surname' => 'Nemec',
+                'job_position' => 'Product Mentor',
+            ],
+            [
+                'email' => 'veronika.horvathova@test.nti.local',
+                'name' => 'Veronika',
+                'surname' => 'Horváthová',
+                'job_position' => 'Business Strategy Mentor',
+            ],
+            [
+                'email' => 'michal.sklenar@test.nti.local',
+                'name' => 'Michal',
+                'surname' => 'Sklenár',
+                'job_position' => 'Growth Mentor',
+            ],
+        ];
 
-        $user->forceFill(['email_verified_at' => now()])->saveQuietly();
-        $user->roles()->sync([$role->id]);
+        foreach ($mentors as $mentorData) {
+            $mentor = User::query()->updateOrCreate(
+                ['email' => $mentorData['email']],
+                [
+                    'name'         => $mentorData['name'],
+                    'surname'      => $mentorData['surname'],
+                    'password'     => self::PASSWORD, // hashed via User cast
+                    'status_id'    => UserStatus::ACTIVE->value,
+                    'job_position' => $mentorData['job_position'],
+                    'avatar'       => 'https://ui-avatars.com/api/?name=' . urlencode($mentorData['name'] . ' ' . $mentorData['surname']) . '&background=edf2f7&color=3b82f6&size=256&rounded=true',
+                ]
+            );
+
+            $mentor->forceFill(['email_verified_at' => now()])->saveQuietly();
+            $mentor->roles()->sync([$role->id]);
+        }
 
         $this->command?->newLine();
-        $this->command?->info('Demo mentor created/updated:');
-
-        $this->command?->table(
-            ['Field', 'Value'],
-            [
-                ['Email', self::EMAIL],
-                ['Password', self::PASSWORD],
-                ['Name', 'Matej Novotný'],
-                ['Status', 'active (verified email)'],
-                ['Role', 'mentor'],
-            ]
-        );
+        $this->command?->info('✅ Demo mentors created/updated: ' . count($mentors));
     }
 }
 

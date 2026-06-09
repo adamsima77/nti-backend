@@ -3,9 +3,6 @@
 namespace Modules\IdentityAccess\Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Modules\IdentityAccess\Models\Permission;
-use Modules\IdentityAccess\Models\User;
-use Modules\IdentityAccess\Models\UserConsent;
 
 class IdentityAccessDatabaseSeeder extends Seeder
 {
@@ -20,14 +17,14 @@ class IdentityAccessDatabaseSeeder extends Seeder
              StatusSeeder::class,
              ConsentTypeSeeder::class,
          ]);
-        User::factory()->count(10)->create();
-        UserConsent::factory()->count(20)->create();
+        // Removed random user and consent factory seeding. Use explicit demo seeders only.
 
         // Predvídateľný študentský účet na testovanie (e-mail zodpovedá menu).
         $this->call([
             DemoStudentUserSeeder::class,
             DemoMentorUserSeeder::class,
-            DemoEvaluatorUserSeeder::class
+            DemoEvaluatorUserSeeder::class,
+            DemoOrganizationUserSeeder::class,
         ]);
     }
 }
