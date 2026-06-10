@@ -254,6 +254,49 @@ class EmailTemplateTranslationSeeder extends Seeder
     Ak ste pozvánku nedostali správne, kontaktujte administrátora organizácie.
 </p>',
             ],
+            'commission_member_invite' => [
+                'subject'   => 'Pozvánka do hodnotiacej komisie NTI',
+                'body_html' => '
+<h1 style="margin:0 0 16px; font-size:24px;">Pozvánka do komisie</h1>
+<p style="margin:0 0 16px; font-size:15px; color:#64748b; line-height:1.6;">
+    Boli ste pozvaní ako hodnotiteľ do komisie
+    <strong style="color:#0a1628;">{{ $commissionName }}</strong>
+    na platforme NTI.
+</p>
+<p style="margin:0 0 24px; font-size:14px; color:#64748b; line-height:1.6;">
+    Kliknite na tlačidlo nižšie, nastavte si heslo a odošlite účet na schválenie NTI administrátorom.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:24px;">
+    <tr>
+        <td style="background:#f1f5f9; border-radius:8px; padding:16px 20px;">
+            <p style="margin:0; font-size:13px; color:#64748b;">
+                Váš prihlasovací e-mail: <strong style="color:#0a1628;">{{ $inviteeEmail }}</strong>
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td align="center" bgcolor="#0d5fbf" style="border-radius:8px;">
+            <a href="{{ $acceptUrl }}" target="_blank"
+               style="display:inline-block; padding:14px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:8px; background-color:#0d5fbf;">
+                Prijať pozvánku
+            </a>
+        </td>
+    </tr>
+</table>
+
+<p style="margin-top:24px; font-size:12px; color:#94a3b8; line-height:1.5;">
+    Ak tlačidlo nefunguje, skopírujte tento odkaz:<br>
+    <a href="{{ $acceptUrl }}" style="color:#0d5fbf; word-break:break-all;">{{ $acceptUrl }}</a>
+</p>
+<p style="margin-top:16px; font-size:12px; color:#94a3b8;">
+    Platnosť pozvánky vyprší za 72 hodín.
+    Ak ste túto správu dostali omylom, kontaktujte administrátora NTI.
+</p>',
+            ],
             'team_invite' => [
                 'subject'   => 'Pozvánka do tímu: {{ $teamName }}',
                 'body_html' => '

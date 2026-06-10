@@ -606,7 +606,7 @@ class EvaluationController extends Controller
         }
 
         $decisionId = $this->resolveDecisionId($validated['recommendation']);
-        $isFinal = (bool) $validated['is_final'];
+        $isFinal = (bool) $validated['is_final'] && $validated['recommendation'] !== 'supplement';
 
         $evaluation = DB::transaction(function () use ($evaluation, $validated, $application, $commissionMember, $decisionId, $evaluationId, $isFinal) {
             if ($evaluationId !== null) {
@@ -723,31 +723,28 @@ class EvaluationController extends Controller
             ]);
         }
 
-        // 1. Načítame aplikácie
+        $assignedApplicationIds = Evaluation::whereIn('commission_member_id', $commissionMemberIds)
+            ->pluck('application_id')
+            ->unique();
+
         $applications = Application::query()
             ->with(['call.program.typeOfProgram:id,name', 'team.members', 'status:id,name'])
+            ->whereIn('id', $assignedApplicationIds)
             ->whereNotNull('submitted_at')
-            ->whereHas('call.currentStatusHistory.status', function ($query) {
-                $query->where('name', 'Publikované');
-            })
-            ->limit(10)
             ->latest('id')
             ->get();
 
-        // 2. Načítame hodnotenia
         $evaluations = Evaluation::query()
             ->with('scores')
-            ->whereIn('application_id', $applications->pluck('id'))
+            ->whereIn('application_id', $assignedApplicationIds)
             ->get();
 
-        // 3. Identifikujeme moje uzavreté hodnotenia (rozhodnuté)
         $myDecisions = $evaluations->where('commission_member_id', $currentCommissionMemberId)
             ->whereNotNull('submitted_at')
             ->whereNotNull('decision_id');
 
         $myDecidedApplicationIds = $myDecisions->pluck('application_id');
 
-        // 4. Pripravíme metriky pre frontend
         $applicationMetrics = [];
         foreach ($evaluations as $evaluation) {
             $total = $this->evaluationTotal($evaluation);
@@ -761,34 +758,27 @@ class EvaluationController extends Controller
 
         $summaries = $applications->map(function (Application $application) use ($applicationMetrics, $currentCommissionMemberId) {
             $summary = $this->applicationSummary($application, $currentCommissionMemberId);
-            // Pridáme informáciu o rozhodnutí do summary pre frontend
             $summary['has_decision'] = isset($applicationMetrics[$application->id]['my_decision']);
             return $summary;
         })->values();
 
-        // 5. Načítame výzvy
+        $assignedCallIds = $applications->pluck('call_id')->unique()->filter();
+
         $calls = ProgramCall::query()
             ->withCount('applications')
             ->with(['program.typeOfProgram:id,name', 'currentStatusHistory.status:id,name', 'callCriteria.criterionTranslations:id,criterion_id,language_id,name', 'applications.team.members', 'applications.status:id,name'])
-            ->whereHas('currentStatusHistory.status', function ($query) {
-                $query->where('name', 'Publikované');
-            })
-            ->limit(4)
-            ->latest('id')
+            ->whereIn('id', $assignedCallIds)
             ->get()
             ->map(fn (ProgramCall $call) => $this->callPayload($call, $currentCommissionMemberId))
             ->values();
 
-        // 6. Výpočet štatistík
         $stats = [
             'total' => $summaries->count(),
-            // PENDING: Prihlášky, kde nemám rozhodnutie a sú v stave vyžadujúcom hodnotenie
             'pending' => $summaries->filter(fn (array $summary) =>
                 !$myDecidedApplicationIds->contains($summary['id']) &&
                 in_array($summary['status'], ['submitted', 'under_review', 'evaluating', 'supplement'], true)
             )->count(),
             'evaluated' => $summaries->filter(fn (array $summary) => isset($summary['my_score']) && $summary['my_score'] !== null)->count(),
-            // DECIDED: Počet mojich odoslaných rozhodnutí
             'decided' => $myDecidedApplicationIds->count(),
         ];
 
@@ -860,11 +850,6 @@ class EvaluationController extends Controller
 
     public function application(Request $request, int $applicationId): JsonResponse
     {
-        $commissionMembers = CommissionMember::query()
-            ->with('user')
-            ->orderBy('id')
-            ->get();
-
         $application = Application::query()
             ->with([
                 'call.program.typeOfProgram:id,name',
@@ -888,6 +873,15 @@ class EvaluationController extends Controller
                 ->where('commission_member_id', $currentCommissionMember->id)
                 ->first()
             : null;
+
+        $commissionMembers = CommissionMember::query()
+            ->with('user')
+            ->where(function ($q) use ($application) {
+                $q->whereNull('call_id')
+                  ->orWhere('call_id', $application->call_id);
+            })
+            ->orderBy('id')
+            ->get();
 
         return response()->json($this->applicationDetailPayload($request, $application, $currentEvaluation, $commissionMembers, $currentCommissionMember?->id));
     }

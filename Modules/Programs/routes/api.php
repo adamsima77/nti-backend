@@ -42,7 +42,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('calls/{call}/workflow',   [CallWorkflowController::class, 'show']);
         Route::patch('calls/{call}/workflow', [CallWorkflowController::class, 'transition']);
 
-        // Program B — team selection
+        // Commission setup
+        Route::get('admin/calls/{id}/commission-setup',       [CallController::class, 'commissionSetup']);
+        Route::get('admin/calls/{id}/org-members',            [CallController::class, 'orgMembers']);
+        Route::post('admin/calls/{id}/setup-commission',      [CallController::class, 'setupCommission']);
         Route::get('admin/calls/{id}/program-b-applications', [CallController::class, 'programBApplications']);
         Route::post('admin/calls/{id}/select-team',           [CallController::class, 'selectTeam']);
 

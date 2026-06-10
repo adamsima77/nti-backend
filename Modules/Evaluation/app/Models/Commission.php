@@ -20,4 +20,9 @@ class Commission extends Model
     {
         return $this->hasMany(CommissionMember::class, 'commission_id');
     }
+
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(CommissionInvitation::class, 'commission_id');
+    }
 }

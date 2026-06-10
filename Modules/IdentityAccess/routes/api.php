@@ -8,6 +8,7 @@ use Modules\IdentityAccess\Http\Controllers\StatusController;
 use Modules\IdentityAccess\Http\Controllers\UserConsentController;
 use Modules\IdentityAccess\Http\Controllers\UserController;
 use Modules\IdentityAccess\Http\Controllers\AuthController;
+use Modules\Evaluation\Http\Controllers\AcceptCommissionInviteController;
 use Modules\Organizations\Http\Controllers\AcceptInviteController;
 use Modules\Organizations\Http\Controllers\OrganizationController;
 use Modules\Reporting\Http\Controllers\ExportController;
@@ -26,6 +27,8 @@ Route::prefix('auth')->group(function () {
         ->name('verification.verify');
     Route::get('invite', [AcceptInviteController::class, 'show']);
     Route::post('accept-invite', [AcceptInviteController::class, 'accept']);
+    Route::get('commission-invite', [AcceptCommissionInviteController::class, 'show']);
+    Route::post('accept-commission-invite', [AcceptCommissionInviteController::class, 'accept']);
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {

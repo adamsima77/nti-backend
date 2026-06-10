@@ -774,12 +774,177 @@ class CallController extends Controller
     //  PROGRAM B — TEAM SELECTION
     // ─────────────────────────────────────────────────────────────────────────
 
-    /**
-     * GET /v1/admin/calls/{id}/program-b-applications
-     *
-     * Returns applications for a Program B call that is in "V párovaní" status,
-     * including evaluation details (average score, all-submitted flag).
-     */
+    public function commissionSetup(int $id): JsonResponse
+    {
+        $this->authorize('viewAny', Call::class);
+
+        $setup = DB::table('call_commission_setup')
+            ->join('commission', 'commission.id', '=', 'call_commission_setup.commission_id')
+            ->where('call_commission_setup.call_id', $id)
+            ->select('commission.id as commission_id', 'commission.name as commission_name')
+            ->first();
+
+        $repMember = CommissionMember::where('call_id', $id)
+            ->with(['user:id,name,surname,email', 'commission:id,name'])
+            ->first();
+
+        if (! $setup && ! $repMember) {
+            return response()->json(['commission_setup' => null]);
+        }
+
+        if (! $setup && $repMember?->commission) {
+            $setup = (object) [
+                'commission_id'   => $repMember->commission->id,
+                'commission_name' => $repMember->commission->name,
+            ];
+        }
+
+        return response()->json([
+            'commission_setup' => [
+                'commission'  => ['id' => $setup->commission_id, 'name' => $setup->commission_name],
+                'company_rep' => $repMember?->user ? [
+                    'id'    => $repMember->user_id,
+                    'name'  => trim($repMember->user->name . ' ' . $repMember->user->surname),
+                    'email' => $repMember->user->email,
+                ] : null,
+            ],
+        ]);
+    }
+
+    public function orgMembers(int $id): JsonResponse
+    {
+        $this->authorize('viewAny', Call::class);
+
+        $call = Call::with('organization.users')->findOrFail($id);
+
+        $existingRep = CommissionMember::where('call_id', $id)
+            ->with([
+                'user:id,name,surname,email',
+                'commission:id,name',
+            ])
+            ->first();
+
+        $commissionSetup = null;
+        if ($existingRep) {
+            $commissionSetup = [
+                'commission' => $existingRep->commission
+                    ? ['id' => $existingRep->commission->id, 'name' => $existingRep->commission->name]
+                    : null,
+                'company_rep' => $existingRep->user ? [
+                    'id'    => $existingRep->user_id,
+                    'name'  => trim($existingRep->user->name . ' ' . $existingRep->user->surname),
+                    'email' => $existingRep->user->email,
+                ] : null,
+            ];
+        }
+
+        if (! $call->organization) {
+            return response()->json(['data' => [], 'commission_setup' => $commissionSetup]);
+        }
+
+        $members = $call->organization->users
+            ->map(fn ($u) => [
+                'id'    => $u->id,
+                'name'  => trim($u->name . ' ' . $u->surname),
+                'email' => $u->email,
+            ]);
+
+        return response()->json(['data' => $members, 'commission_setup' => $commissionSetup]);
+    }
+
+
+    public function setupCommission(Request $request, int $id): JsonResponse
+    {
+        $call = Call::with(['applications', 'organization', 'program.typeOfProgram'])->findOrFail($id);
+
+        $this->authorize('update', $call);
+
+        if (DB::table('call_commission_setup')->where('call_id', $id)->exists()) {
+            return response()->json([
+                'message' => 'Komisia pre túto výzvu je už nastavená.',
+            ], 422);
+        }
+
+        $isProgramB = str_contains(optional($call->program)->typeOfProgram?->name ?? '', 'B')
+            || str_contains(optional($call->program)->name ?? '', 'B');
+
+        $validated = $request->validate([
+            'commission_id'       => ['required', 'integer', 'exists:commission,id'],
+            'company_rep_user_id' => [$isProgramB ? 'required' : 'nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        if ($isProgramB && isset($validated['company_rep_user_id'])) {
+            $belongs = DB::table('user_organization')
+                ->where('user_id', $validated['company_rep_user_id'])
+                ->where('organization_id', $call->organization_id)
+                ->exists();
+
+            if (! $belongs) {
+                return response()->json([
+                    'message' => 'Zástupca firmy musí byť členom organizácie, ktorá vytvorila túto výzvu.',
+                ], 422);
+            }
+        }
+
+        DB::transaction(function () use ($call, $validated, $isProgramB) {
+            $commissionId     = $validated['commission_id'];
+            $companyRepUserId = $validated['company_rep_user_id'] ?? null;
+
+            DB::table('call_commission_setup')->insert([
+                'call_id'       => $call->id,
+                'commission_id' => $commissionId,
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]);
+
+            $regularMembers = CommissionMember::where('commission_id', $commissionId)
+                ->whereNull('call_id')
+                ->get();
+
+            $orgMember = null;
+            if ($isProgramB && $companyRepUserId) {
+                $orgMember = CommissionMember::firstOrCreate([
+                    'user_id'       => $companyRepUserId,
+                    'commission_id' => $commissionId,
+                    'call_id'       => $call->id,
+                ]);
+            }
+
+            $applications = $call->applications()
+                ->where('active_status', '!=', 1)
+                ->get();
+
+            foreach ($applications as $application) {
+                foreach ($regularMembers as $member) {
+                    Evaluation::firstOrCreate([
+                        'application_id'       => $application->id,
+                        'commission_member_id' => $member->id,
+                    ], [
+                        'decision_id'   => null,
+                        'submitted_at'  => null,
+                        'internal_note' => null,
+                    ]);
+                }
+
+                if ($orgMember) {
+                    Evaluation::firstOrCreate([
+                        'application_id'       => $application->id,
+                        'commission_member_id' => $orgMember->id,
+                    ], [
+                        'decision_id'   => null,
+                        'submitted_at'  => null,
+                        'internal_note' => null,
+                    ]);
+                }
+            }
+        });
+
+        return response()->json(['message' => $isProgramB
+            ? 'Komisia a zástupca firmy boli priradení k výzve.'
+            : 'Komisia bola priradená k výzve.',
+        ]);
+    }
+
     public function programBApplications(int $id): JsonResponse
     {
         $this->authorize('viewAny', Call::class);
@@ -799,13 +964,14 @@ class CallController extends Controller
             return response()->json(['message' => 'Výzva sa nenachádza v stave "V párovaní".'], 422);
         }
 
-        // All commission members assigned to this call (both regular evaluators
-        // and the company rep with call_id = $id belong to the same commission).
         $commissionIds = CommissionMember::where('call_id', $id)
             ->pluck('commission_id')
             ->unique();
 
         $allMemberIds = CommissionMember::whereIn('commission_id', $commissionIds)
+            ->where(function ($q) use ($id) {
+                $q->whereNull('call_id')->orWhere('call_id', $id);
+            })
             ->pluck('id');
 
         $totalMemberCount = $allMemberIds->count();
@@ -861,7 +1027,6 @@ class CallController extends Controller
             ];
         });
 
-        // Team selection is only allowed when EVERY application is fully evaluated
         $allApplicationsEvaluated = $data->every(fn ($a) => $a['all_evaluated']);
 
         return response()->json([
@@ -870,14 +1035,6 @@ class CallController extends Controller
         ]);
     }
 
-    /**
-     * POST /v1/admin/calls/{id}/select-team
-     *
-     * Selects a team for a Program B call:
-     *   - Selected application → Schválené
-     *   - All other non-draft applications → Zamietnuté
-     *   - Call → Pridelené
-     */
     public function selectTeam(Request $request, int $id): JsonResponse
     {
         $call = Call::with([
@@ -910,7 +1067,6 @@ class CallController extends Controller
             $approvedStatus  = StatusOfApplication::where('name', 'Schválené')->firstOrFail();
             $rejectedStatus  = StatusOfApplication::where('name', 'Zamietnuté')->firstOrFail();
 
-            // Approve the selected application
             $selectedApp->update([
                 'active_status' => $approvedStatus->id,
                 'last_update'   => now(),
@@ -922,7 +1078,6 @@ class CallController extends Controller
                 'changed_by'               => $user->id,
             ]);
 
-            // Reject all other non-draft applications for this call
             Application::where('call_id', $call->id)
                 ->where('id', '!=', $selectedApp->id)
                 ->where('active_status', '!=', 1)
@@ -939,8 +1094,7 @@ class CallController extends Controller
                         'changed_by'               => $user->id,
                     ]);
                 });
-
-            // Transition call to Pridelené
+            
             (new CallStateMachine($call))->transitionTo('Pridelené');
         });
 

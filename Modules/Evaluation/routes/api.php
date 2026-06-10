@@ -2,9 +2,21 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Applications\Http\Controllers\ApplicationController;
+use Modules\Evaluation\Http\Controllers\CommissionController;
 use Modules\Evaluation\Http\Controllers\EvaluationController;
 
 Route::middleware('auth:sanctum')->group(function () {
+    // ── Commission management (admin only) ────────────────────────────────────
+    Route::prefix('v1/admin/commissions')->group(function () {
+        Route::get('/',                           [CommissionController::class, 'index']);
+        Route::post('/',                          [CommissionController::class, 'store']);
+        Route::put('/{id}',                       [CommissionController::class, 'update']);
+        Route::delete('/{id}',                    [CommissionController::class, 'destroy']);
+        Route::post('/{id}/members',              [CommissionController::class, 'addMember']);
+        Route::delete('/{id}/members/{memberId}', [CommissionController::class, 'removeMember']);
+        Route::get('/evaluators',                 [CommissionController::class, 'evaluators']);
+    });
+
 	Route::get('/evaluations/pending', [EvaluationController::class, 'pending']);
     Route::post('evaluations/{application_id}/score', [EvaluationController::class, 'storeScore']);
 
