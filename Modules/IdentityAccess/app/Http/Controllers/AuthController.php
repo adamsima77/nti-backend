@@ -343,7 +343,8 @@ class AuthController extends Controller
     {
         $user     = $request->user()->load('roles.permissions', 'organizations');
         $userData = $user->toArray();
-        $userData['organization_name'] = $user->organizations->first()?->name;
+        $userData['organization_name']   = $user->organizations->first()?->name;
+        $userData['is_commission_member'] = $user->commissionMemberships()->exists();
         return response()->json($userData, Response::HTTP_OK);
     }
 

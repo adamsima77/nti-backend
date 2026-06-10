@@ -441,7 +441,7 @@ class OrganizationController extends Controller
             'in_progress'    => $calls->filter(fn ($c) => $c->currentStatusHistory?->status?->name === 'V realizácii')->count(),
             'completed'      => $calls->filter(fn ($c) => $c->currentStatusHistory?->status?->name === 'Uzavreté')->count(),
         ];
-        
+
         $teams = $calls->flatMap(fn ($call) => $call->applications
             ->filter(fn ($app) => in_array($app->status?->name, ['Onboarding', 'Aktívny projekt', 'Ukončené']))
             ->map(fn ($app) => [

@@ -42,6 +42,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('calls/{call}/workflow',   [CallWorkflowController::class, 'show']);
         Route::patch('calls/{call}/workflow', [CallWorkflowController::class, 'transition']);
 
+        // Program B — team selection
+        Route::get('admin/calls/{id}/program-b-applications', [CallController::class, 'programBApplications']);
+        Route::post('admin/calls/{id}/select-team',           [CallController::class, 'selectTeam']);
+
         // Criteria CRUD
         Route::get('admin/criteria',         [CriterionController::class, 'index']);
         Route::post('admin/criteria',        [CriterionController::class, 'store']);

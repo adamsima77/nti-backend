@@ -15,6 +15,7 @@ class EvaluationDatabaseSeeder extends Seeder
             DecisionSeeder::class,
             CommissionSeeder::class,
             CommissionMemberSeeder::class,
+            DemoOrgCommissionMemberSeeder::class,
             EvaluationSeeder::class,
             EvaluationScoreSeeder::class,
         ]);

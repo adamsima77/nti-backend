@@ -267,9 +267,11 @@ class EvaluationController extends Controller
                 ];
             })->values(),
             'total_score' => $this->evaluationTotal($evaluation),
-            'recommendation' => $this->normalizeApplicationStatus($evaluation->decision?->name) === 'approved'
-                ? 'approve'
-                : ($this->normalizeApplicationStatus($evaluation->decision?->name) === 'rejected' ? 'reject' : 'supplement'),
+            'recommendation' => $evaluation->decision === null ? null : (
+                $this->normalizeApplicationStatus($evaluation->decision->name) === 'approved'
+                    ? 'approve'
+                    : ($this->normalizeApplicationStatus($evaluation->decision->name) === 'rejected' ? 'reject' : 'supplement')
+            ),
             'internal_note' => $evaluation->internal_note,
             'submitted_at' => optional($evaluation->submitted_at ?? $evaluation->created_at)?->toDateTimeString(),
             'locked' => $evaluation->submitted_at !== null,
@@ -586,12 +588,6 @@ class EvaluationController extends Controller
             ->where('application_id', $application->id)
             ->where('commission_member_id', $commissionMember->id)
             ->first();
-
-        if ($existingEvaluation !== null && ($existingEvaluation->submitted_at !== null)) {
-            return response()->json([
-                'message' => 'Hodnotenie pre túto prihlášku ste už definitívne odoslali a nie je možné ho upravovať.',
-            ], Response::HTTP_CONFLICT);
-        }
         // ──────────────────────────────────────────────────────────────────────────
 
         if ($evaluationId === null) {
@@ -618,8 +614,8 @@ class EvaluationController extends Controller
                 $evaluation->update([
                     'decision_id' => $decisionId,
                     'internal_note' => $validated['internal_note'] ?? null,
-                    'submitted_at' => $evaluation->submitted_at ?? ($isFinal ? now() : null),
-                    'locked' => $evaluation->locked || $isFinal,
+                    'submitted_at' => $isFinal ? now() : null,
+                    'locked' => $isFinal,
                 ]);
             } else {
                 // Vytvorenie úplne nového záznamu

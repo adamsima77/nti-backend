@@ -11,6 +11,11 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use App\Services\Pdf\PdfService;
+use Modules\Applications\Models\Application;
+use Modules\Applications\Models\ApplicationStatusHistory;
+use Modules\Applications\Models\StatusOfApplication;
+use Modules\Evaluation\Models\CommissionMember;
+use Modules\Evaluation\Models\Evaluation;
 use Modules\Content\Models\Language;
 use Modules\Organizations\Models\OrganizationRole;
 use Modules\Programs\Http\Resources\CallResource;
@@ -176,7 +181,9 @@ class CallController extends Controller
                 'callCriteria' => function ($query) {
                     $query->withPivot('weight', 'is_academic_signal');
                 },
-                'callTranslations.language:id,name'
+                'callTranslations.language:id,name',
+                'applications.team:id,name',
+                'applications.status:id,name',
             ])
             ->findOrFail($id);
 
@@ -761,6 +768,183 @@ class CallController extends Controller
             ['call' => $call],
             'project-report-' . $call->id . '.pdf'
         );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  PROGRAM B — TEAM SELECTION
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * GET /v1/admin/calls/{id}/program-b-applications
+     *
+     * Returns applications for a Program B call that is in "V párovaní" status,
+     * including evaluation details (average score, all-submitted flag).
+     */
+    public function programBApplications(int $id): JsonResponse
+    {
+        $this->authorize('viewAny', Call::class);
+
+        $call = Call::with([
+            'program.typeOfProgram:id,name',
+            'currentStatusHistory.status:id,name',
+        ])->findOrFail($id);
+
+        $programName = $call->program?->typeOfProgram?->name ?? '';
+        if (!str_contains(strtolower($programName), 'b')) {
+            return response()->json(['message' => 'Výzva nepatrí do Programu B.'], 422);
+        }
+
+        $callStatus = $call->currentStatusHistory?->status?->name;
+        if ($callStatus !== 'V párovaní') {
+            return response()->json(['message' => 'Výzva sa nenachádza v stave "V párovaní".'], 422);
+        }
+
+        // All commission members assigned to this call (both regular evaluators
+        // and the company rep with call_id = $id belong to the same commission).
+        $commissionIds = CommissionMember::where('call_id', $id)
+            ->pluck('commission_id')
+            ->unique();
+
+        $allMemberIds = CommissionMember::whereIn('commission_id', $commissionIds)
+            ->pluck('id');
+
+        $totalMemberCount = $allMemberIds->count();
+
+        $applications = Application::query()
+            ->with([
+                'team:id,name',
+                'status:id,name',
+                'evaluations' => fn ($q) => $q->with([
+                    'scores:id,evaluation_id,criterion_id,score',
+                    'commissionMember.user:id,name,surname',
+                ]),
+            ])
+            ->where('call_id', $id)
+            ->where('active_status', '!=', 1) // exclude drafts
+            ->get();
+
+        $data = $applications->map(function (Application $app) use ($totalMemberCount) {
+            $evaluations    = $app->evaluations;
+            $submittedCount = $evaluations->filter(fn ($e) => $e->submitted_at !== null)->count();
+            $allEvaluated   = $totalMemberCount > 0 && $submittedCount === $totalMemberCount;
+
+            $avgScore = null;
+            if ($allEvaluated) {
+                $allScores = $evaluations
+                    ->flatMap(fn ($e) => $e->scores)
+                    ->pluck('score')
+                    ->filter(fn ($s) => $s !== null);
+                $avgScore = $allScores->isNotEmpty() ? round($allScores->avg(), 2) : null;
+            }
+
+            $evaluationDetails = $evaluations->map(fn ($e) => [
+                'evaluator'   => $e->commissionMember?->user
+                    ? trim(($e->commissionMember->user->name ?? '') . ' ' . ($e->commissionMember->user->surname ?? ''))
+                    : null,
+                'submitted'   => $e->submitted_at !== null,
+                'score_count' => $e->scores->count(),
+                'avg_score'   => $e->scores->isNotEmpty()
+                    ? round($e->scores->pluck('score')->filter()->avg(), 2)
+                    : null,
+            ]);
+
+            return [
+                'id'                          => $app->id,
+                'reference'                   => $app->reference,
+                'team'                        => $app->team ? ['id' => $app->team->id, 'name' => $app->team->name] : null,
+                'status'                      => $app->status ? ['id' => $app->status->id, 'name' => $app->status->name] : null,
+                'evaluations_count'           => $totalMemberCount,
+                'submitted_evaluations_count' => $submittedCount,
+                'all_evaluated'               => $allEvaluated,
+                'average_score'               => $avgScore,
+                'evaluations'                 => $evaluationDetails,
+            ];
+        });
+
+        // Team selection is only allowed when EVERY application is fully evaluated
+        $allApplicationsEvaluated = $data->every(fn ($a) => $a['all_evaluated']);
+
+        return response()->json([
+            'data'                      => $data,
+            'all_applications_evaluated' => $allApplicationsEvaluated,
+        ]);
+    }
+
+    /**
+     * POST /v1/admin/calls/{id}/select-team
+     *
+     * Selects a team for a Program B call:
+     *   - Selected application → Schválené
+     *   - All other non-draft applications → Zamietnuté
+     *   - Call → Pridelené
+     */
+    public function selectTeam(Request $request, int $id): JsonResponse
+    {
+        $call = Call::with([
+            'program.typeOfProgram:id,name',
+            'currentStatusHistory.status:id,name',
+        ])->findOrFail($id);
+
+        $this->authorize('transition', $call);
+
+        $validated = $request->validate([
+            'application_id' => ['required', 'integer', 'exists:application,id'],
+        ]);
+
+        $programName = $call->program?->typeOfProgram?->name ?? '';
+        if (!str_contains(strtolower($programName), 'b')) {
+            return response()->json(['message' => 'Výzva nepatrí do Programu B.'], 422);
+        }
+
+        $callStatus = $call->currentStatusHistory?->status?->name;
+        if ($callStatus !== 'V párovaní') {
+            return response()->json(['message' => 'Výzva sa nenachádza v stave "V párovaní".'], 422);
+        }
+
+        $selectedApp = Application::where('id', $validated['application_id'])
+            ->where('call_id', $id)
+            ->firstOrFail();
+
+        DB::transaction(function () use ($call, $selectedApp, $request) {
+            $user            = $request->user();
+            $approvedStatus  = StatusOfApplication::where('name', 'Schválené')->firstOrFail();
+            $rejectedStatus  = StatusOfApplication::where('name', 'Zamietnuté')->firstOrFail();
+
+            // Approve the selected application
+            $selectedApp->update([
+                'active_status' => $approvedStatus->id,
+                'last_update'   => now(),
+            ]);
+            ApplicationStatusHistory::create([
+                'status_of_application_id' => $approvedStatus->id,
+                'application_id'           => $selectedApp->id,
+                'note'                     => 'Tím bol vybraný administrátorom (Program B)',
+                'changed_by'               => $user->id,
+            ]);
+
+            // Reject all other non-draft applications for this call
+            Application::where('call_id', $call->id)
+                ->where('id', '!=', $selectedApp->id)
+                ->where('active_status', '!=', 1)
+                ->get()
+                ->each(function (Application $app) use ($rejectedStatus, $user) {
+                    $app->update([
+                        'active_status' => $rejectedStatus->id,
+                        'last_update'   => now(),
+                    ]);
+                    ApplicationStatusHistory::create([
+                        'status_of_application_id' => $rejectedStatus->id,
+                        'application_id'           => $app->id,
+                        'note'                     => 'Iný tím bol vybraný administrátorom (Program B)',
+                        'changed_by'               => $user->id,
+                    ]);
+                });
+
+            // Transition call to Pridelené
+            (new CallStateMachine($call))->transitionTo('Pridelené');
+        });
+
+        return response()->json(['message' => 'Tím bol úspešne vybraný. Výzva bola presunutá do stavu "Pridelené".']);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

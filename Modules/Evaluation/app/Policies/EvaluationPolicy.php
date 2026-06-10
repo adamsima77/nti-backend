@@ -41,7 +41,6 @@ class EvaluationPolicy
 
     public function create(User $user): bool
     {
-        // Allow creation only for admin and commission members
         return $user->isAdmin() || $user->isSuperAdmin() || $this->isCommissionMember($user);
     }
 
@@ -65,7 +64,9 @@ class EvaluationPolicy
 
     public function viewEvaluations(User $user): bool
     {
-        return $user->isEvaluator() || $user->isSuperAdmin();
+        return $user->isEvaluator()
+            || $user->isSuperAdmin()
+            || $user->commissionMemberships()->exists();
     }
 
     /**
