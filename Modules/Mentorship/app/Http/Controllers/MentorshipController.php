@@ -22,11 +22,15 @@ use Modules\Teams\Models\Team;
 class MentorshipController extends Controller
 {
     use AuthorizesRequests;
+
+    // ──────────────────────────────────────────────────────────────
+    // Public routes
+    // ──────────────────────────────────────────────────────────────
+
     public function assignMentor(Request $request, Application $application, User $user)
     {
         $this->authorize('assignMentor', Mentorship::class);
 
-        // Zápis výhradne do prepájacej tabuľky mentorship
         Mentorship::firstOrCreate([
             'mentor_user_id' => $user->id,
             'application_id' => $application->id,
@@ -34,6 +38,7 @@ class MentorshipController extends Controller
 
         return response()->json(['message' => 'Mentor assigned successfully.'], Response::HTTP_OK);
     }
+
     public function fetchMentors(Request $request)
     {
         $mentors = User::whereHas('roles', function ($query) {
@@ -42,6 +47,7 @@ class MentorshipController extends Controller
 
         return response()->json(['mentors' => $mentors], Response::HTTP_OK);
     }
+
     public function dashboard(Request $request): JsonResponse
     {
         $mentor = $this->currentMentor($request);
@@ -49,10 +55,9 @@ class MentorshipController extends Controller
 
         return response()->json([
             'stats' => [
-                'totalProjects' => $projects->count(),
-                'activeProjects' => $projects->where('status', 'active')->count(),
-
-                'pendingMilestones' => $projects->where('pendingMilestone', true)->count(),
+                'totalProjects'          => $projects->count(),
+                'activeProjects'         => $projects->where('status', 'active')->count(),
+                'pendingMilestones'      => $projects->where('pendingMilestone', true)->count(),
                 'consultationsThisMonth' => $projects->sum('consultationsCount'),
             ],
 
@@ -63,10 +68,11 @@ class MentorshipController extends Controller
                 ->take(5)
                 ->values()
                 ->map(fn (array $project) => [
-                    'id' => 'project-'.$project['id'],
+                    'id'      => 'project-' . $project['id'],
                     'message' => sprintf('Projekt %s čaká na schválenie míľnika.', $project['name']),
-                    'link' => '/mentor/projekty/'.$project['id'],
+                    'link'    => '/mentor/projekty/' . $project['id'],
                 ]),
+
             'recentConsultations' => collect($this->recentConsultations($mentor->id))->take(5)->values(),
         ]);
     }
@@ -76,6 +82,79 @@ class MentorshipController extends Controller
         $mentor = $this->currentMentor($request);
 
         return response()->json($this->mentorProjects($mentor->id, $request));
+    }
+
+    /**
+     * GET /mentor/projects/{id}
+     *
+     * Returns a single project with all detail data in one request:
+     * milestones (with comments), consultations, team members, product owner.
+     * Replaces the old pattern of: fetchProjects() + fetchMilestones() + fetchConsultations().
+     */
+    public function projectDetail(Request $request, int $project): JsonResponse
+    {
+        $mentor = $this->currentMentor($request);
+
+        $application = Application::query()
+            ->with([
+                'creator:id,name,surname,email',
+                'team.members',
+                'call.program.typeOfProgram',
+                'milestones',
+                'status:id,name',
+                'mentorships',
+            ])
+            ->whereKey($project)
+            ->whereHas('mentorships', fn ($q) => $q->where('mentor_user_id', $mentor->id))
+            ->first();
+
+        abort_if($application === null, 404);
+
+        $milestones = $application->milestones
+            ->map(fn (Milestone $m) => $this->formatMilestone($m))
+            ->values();
+
+        $completed = $application->milestones
+            ->filter(fn ($m) => $this->isMilestoneCompleted($m->status))
+            ->count();
+
+        $hasPendingApproval = $application->milestones->contains(
+            fn ($m) => $this->normalizeMilestoneStatus($m->status) === 'pending_approval',
+        );
+
+        // The mentorship row carries the assignment date
+        $mentorship = $application->mentorships->firstWhere('mentor_user_id', $mentor->id);
+
+        return response()->json([
+            'id'         => $application->id,
+            'name'       => $application->call?->name ?? ('Projekt #' . $application->id),
+            'teamName'   => $application->team?->name,
+            'program'    => $application->call?->program?->typeOfProgram?->name
+                ?? $application->call?->program?->name,
+            'status'     => $this->projectStatus($application),
+            'assignedAt' => $mentorship?->created_at?->format('d.m.Y'),
+
+            'productOwner' => $application->creator ? [
+                'name'  => trim(($application->creator->name ?? '') . ' ' . ($application->creator->surname ?? ''))
+                    ?: ($application->creator->email ?? 'Mentor'),
+                'email' => $application->creator->email,
+            ] : null,
+
+            'teamMembers' => $application->team
+                ? $application->team->members->map(fn (User $member) => [
+                    'id'   => $member->id,
+                    'name' => trim(($member->name ?? '') . ' ' . ($member->surname ?? ''))
+                        ?: ($member->email ?? ('Používateľ #' . $member->id)),
+                    'role' => 'Člen tímu',
+                ])->values()
+                : [],
+
+            'milestones'          => $milestones,
+            'consultations'       => $this->consultationsForProjectDetailed($mentor->id, $project),
+            'milestonesCompleted' => $completed,
+            'milestonesTotal'     => $application->milestones->count(),
+            'pendingMilestone'    => $hasPendingApproval,
+        ]);
     }
 
     public function consultations(Request $request): JsonResponse
@@ -93,7 +172,7 @@ class MentorshipController extends Controller
         return response()->json(
             $application->milestones
                 ->map(fn (Milestone $milestone) => $this->formatMilestone($milestone))
-                ->values()
+                ->values(),
         );
     }
 
@@ -118,7 +197,7 @@ class MentorshipController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => ['required', 'string', 'in:completed,approved,rejected'],
+            'status'  => ['required', 'string', 'in:completed,approved,rejected'],
             'comment' => ['nullable', 'string', 'max:5000'],
         ]);
 
@@ -134,9 +213,7 @@ class MentorshipController extends Controller
 
         $oldStatus = $milestoneModel->status;
 
-        $milestoneModel->update([
-            'status' => $targetStatus,
-        ]);
+        $milestoneModel->update(['status' => $targetStatus]);
 
         if ($targetStatus === 'rejected' && filled($request->input('comment'))) {
             $this->storeMilestoneComment($milestoneModel, $mentor->id, (string) $request->input('comment'));
@@ -165,38 +242,32 @@ class MentorshipController extends Controller
         if ($request->isMethod('post')) {
 
             $validated = $request->validate([
-                'title' => ['required', 'string', 'max:255'],
-                'type' => ['required', 'in:online,offline'],
+                'title'       => ['required', 'string', 'max:255'],
+                'type'        => ['required', 'in:online,offline'],
                 'scheduled_at' => ['required', 'date'],
                 'meeting_url' => ['nullable', 'url'],
-                'agenda' => ['nullable', 'string', 'max:5000'],
-                'duration' => ['required', 'integer', 'min:1'],
+                'agenda'      => ['nullable', 'string', 'max:5000'],
+                'duration'    => ['required', 'integer', 'min:1'],
             ]);
 
-            if (
-                $validated['type'] === 'online'
-                && empty($validated['meeting_url'])
-            ) {
+            if ($validated['type'] === 'online' && empty($validated['meeting_url'])) {
                 return response()->json([
                     'message' => 'Pre online stretnutie je potrebné zadať odkaz.',
                 ], 422);
             }
 
-            $mentorshipId = $this->mentorshipId(
-                $mentor->id,
-                $project
-            );
+            $mentorshipId = $this->mentorshipId($mentor->id, $project);
 
             $mentorSession = MentorshipSession::create([
                 'mentorship_id' => $mentorshipId,
-                'created_by' => $mentor->id,
-                'title' => $validated['title'],
-                'type' => $validated['type'],
-                'meeting_url' => $validated['meeting_url'] ?? null,
-                'scheduled_at' => $validated['scheduled_at'],
-                'agenda' => $validated['agenda'] ?? null,
-                'duration' => $validated['duration'],
-                'status' => 'scheduled'
+                'created_by'    => $mentor->id,
+                'title'         => $validated['title'],
+                'type'          => $validated['type'],
+                'meeting_url'   => $validated['meeting_url'] ?? null,
+                'scheduled_at'  => $validated['scheduled_at'],
+                'agenda'        => $validated['agenda'] ?? null,
+                'duration'      => $validated['duration'],
+                'status'        => 'scheduled',
             ]);
 
             event(new MentorSessionEvent($mentorSession));
@@ -207,10 +278,7 @@ class MentorshipController extends Controller
         }
 
         return response()->json(
-            $this->consultationsForProject(
-                $mentor->id,
-                $project
-            )
+            $this->consultationsForProjectDetailed($mentor->id, $project),
         );
     }
 
@@ -225,15 +293,17 @@ class MentorshipController extends Controller
         $this->mentorApplicationOrFail($mentor->id, $project);
 
         $request->validate([
-            'message' => ['required', 'string', 'max:5000'],
-            'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'message'        => ['required', 'string', 'max:5000'],
+            'rating'         => ['nullable', 'integer', 'min:1', 'max:5'],
             'recommendation' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        return response()->json([
-            'message' => 'Feedback bol prijatý.',
-        ]);
+        return response()->json(['message' => 'Feedback bol prijatý.']);
     }
+
+    // ──────────────────────────────────────────────────────────────
+    // Private helpers
+    // ──────────────────────────────────────────────────────────────
 
     private function currentMentor(Request $request): User
     {
@@ -244,85 +314,6 @@ class MentorshipController extends Controller
 
         return $user;
     }
-
-    private function mentorCalls(int $mentorId)
-    {
-
-        $calls = DB::table('mentorship')
-            ->where('mentor_user_id', $mentorId)
-            ->orderByDesc('created_at')
-            ->get();
-
-        $applicationIds = collect($calls->items())->pluck('application_id')->unique();
-
-        $applications = Application::query()
-            ->with([
-                'creator:id,name,surname,email',
-                'team.members',
-                'call.program.typeOfProgram',
-                'milestones',
-                'status:id,name',
-            ])
-            ->whereIn('id', $applicationIds)
-            ->get()
-            ->keyBy('id');
-
-
-        $transformedItems = collect($calls->items())->map(function ($assignment) use ($applications, $mentorId) {
-            $application = $applications->get($assignment->application_id);
-
-            if ($application === null) {
-                return null;
-            }
-
-            $milestones = $application->milestones->map(fn (Milestone $milestone) => $this->formatMilestone($milestone))->values();
-            $completed = $application->milestones->filter(fn (Milestone $milestone) => $this->isMilestoneCompleted($milestone->status))->count();
-            $nextMilestone = $application->milestones
-                ->first(fn (Milestone $milestone) => ! $this->isMilestoneCompleted($milestone->status));
-            $hasPendingApproval = $application->milestones->contains(
-                fn (Milestone $milestone) => $this->normalizeMilestoneStatus($milestone->status) === 'pending_approval'
-            );
-
-            return [
-                'id' => $application->id,
-                'name' => $application->call?->name ?? ('Projekt #'.$application->id),
-                'teamName' => $application->team?->name,
-                'program' => $application->call?->program?->typeOfProgram?->name ?? $application->call?->program?->name,
-                'status' => $this->projectStatus($application),
-                'assignedAt' => Carbon::parse($assignment->created_at)->format('d.m.Y'),
-                'productOwner' => $application->creator ? [
-                    'name' => trim(($application->creator->name ?? '').' '.($application->creator->surname ?? '')) ?: ($application->creator->email ?? 'Mentor'),
-                    'email' => $application->creator->email,
-                ] : null,
-                'teamMembers' => $application->team
-                    ? $application->team->members->map(function (User $member) {
-                        return [
-                            'id' => $member->id,
-                            'name' => trim(($member->name ?? '').' '.($member->surname ?? '')) ?: ($member->email ?? ('Používateľ #'.$member->id)),
-                            'role' => 'Člen tímu',
-                        ];
-                    })->values()
-                    : [],
-                'teamSize' => $application->team
-                    ? ($application->team->relationLoaded('members')
-                        ? $application->team->members->count()
-                        : $application->team->members()->count())
-                    : 0,
-                'consultationsCount' => $this->consultationsCount($mentorId, (int) $application->id),
-                'milestonesCompleted' => $completed,
-                'milestonesTotal' => $application->milestones->count(),
-                'nextMilestone' => $nextMilestone?->name,
-                'pendingMilestone' => $hasPendingApproval,
-                'milestones' => $milestones,
-            ];
-        })->filter()->values();
-
-        return $calls->setCollection($transformedItems);
-    }
-
-    /**
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
-     */
 
     private function mentorProjects(int $mentorId, Request $request)
     {
@@ -339,86 +330,69 @@ class MentorshipController extends Controller
                 $q->where('mentor_user_id', $mentorId);
             });
 
-        // =========================
-        // FILTER: STATUS
-        // =========================
         if ($request->filled('status')) {
             $query->where('active_status', $request->status);
-            }
+        }
 
-        // =========================
-        // FILTER: PROGRAM
-        // =========================
         if ($request->filled('program')) {
             $query->whereHas('call', function ($q) use ($request) {
                 $q->where('program_id', $request->program);
             });
         }
 
-        $paginator = $query->orderByDesc('created_by')
-            ->paginate(30);
+        $paginator = $query->orderByDesc('created_by')->paginate(30);
 
         $transformed = collect($paginator->items())->map(function (Application $application) use ($mentorId) {
-
             $milestones = $application->milestones
-                ->map(fn ($milestone) => $this->formatMilestone($milestone))
+                ->map(fn ($m) => $this->formatMilestone($m))
                 ->values();
 
             $completed = $application->milestones
-                ->filter(fn ($milestone) => $this->isMilestoneCompleted($milestone->status))
+                ->filter(fn ($m) => $this->isMilestoneCompleted($m->status))
                 ->count();
 
             $nextMilestone = $application->milestones
-                ->first(fn ($milestone) => ! $this->isMilestoneCompleted($milestone->status));
+                ->first(fn ($m) => ! $this->isMilestoneCompleted($m->status));
 
             $hasPendingApproval = $application->milestones->contains(
-                fn ($milestone) =>
-                    $this->normalizeMilestoneStatus($milestone->status) === 'pending_approval'
+                fn ($m) => $this->normalizeMilestoneStatus($m->status) === 'pending_approval',
             );
 
             return [
-                'id' => $application->id,
-                'name' => $application->call?->name ?? ('Projekt #' . $application->id),
+                'id'       => $application->id,
+                'name'     => $application->call?->name ?? ('Projekt #' . $application->id),
                 'teamName' => $application->team?->name,
-                'program' => $application->call?->program?->typeOfProgram?->name
+                'program'  => $application->call?->program?->typeOfProgram?->name
                     ?? $application->call?->program?->name,
 
-                'status' => $this->projectStatus($application),
-
+                'status'     => $this->projectStatus($application),
                 'assignedAt' => $application->mentorships
                     ->firstWhere('mentor_user_id', $mentorId)
                     ?->created_at
                     ?->format('d.m.Y'),
 
                 'productOwner' => $application->creator ? [
-                    'name' => trim(($application->creator->name ?? '') . ' ' . ($application->creator->surname ?? ''))
+                    'name'  => trim(($application->creator->name ?? '') . ' ' . ($application->creator->surname ?? ''))
                         ?: ($application->creator->email ?? 'Mentor'),
                     'email' => $application->creator->email,
                 ] : null,
 
                 'teamMembers' => $application->team
-                    ? $application->team->members->map(function ($member) {
-                        return [
-                            'id' => $member->id,
-                            'name' => trim(($member->name ?? '') . ' ' . ($member->surname ?? ''))
-                                ?: ($member->email ?? ('Používateľ #' . $member->id)),
-                            'role' => 'Člen tímu',
-                        ];
-                    })->values()
+                    ? $application->team->members->map(fn ($m) => [
+                        'id'   => $m->id,
+                        'name' => trim(($m->name ?? '') . ' ' . ($m->surname ?? ''))
+                            ?: ($m->email ?? ('Používateľ #' . $m->id)),
+                        'role' => 'Člen tímu',
+                    ])->values()
                     : [],
 
-                'teamSize' => $application->team
-                    ? $application->team->members->count()
-                    : 0,
-
-                'consultationsCount' =>
-                    $this->consultationsCount($mentorId, (int) $application->id),
-
+                'teamSize'           => $application->team ? $application->team->members->count() : 0,
+                'consultationsCount' => $this->consultationsCount($mentorId, (int) $application->id),
                 'milestonesCompleted' => $completed,
-                'milestonesTotal' => $application->milestones->count(),
-                'nextMilestone' => $nextMilestone?->name,
-                'pendingMilestone' => $hasPendingApproval,
-                'milestones' => $milestones,
+                'milestonesTotal'     => $application->milestones->count(),
+                'nextMilestone'       => $nextMilestone?->name,
+                'pendingMilestone'    => $hasPendingApproval,
+                'milestones'          => $milestones,
             ];
         })->values();
 
@@ -430,9 +404,15 @@ class MentorshipController extends Controller
     private function mentorApplicationOrFail(int $mentorId, int $projectId): Application
     {
         $application = Application::query()
-            ->with(['creator:id,name,surname,email', 'team.members', 'call.program.typeOfProgram', 'milestones', 'status:id,name'])
+            ->with([
+                'creator:id,name,surname,email',
+                'team.members',
+                'call.program.typeOfProgram',
+                'milestones',
+                'status:id,name',
+            ])
             ->whereKey($projectId)
-            ->whereHas('mentorships', fn ($query) => $query->where('mentor_user_id', $mentorId))
+            ->whereHas('mentorships', fn ($q) => $q->where('mentor_user_id', $mentorId))
             ->first();
 
         abort_if($application === null, 404);
@@ -440,19 +420,16 @@ class MentorshipController extends Controller
         return $application;
     }
 
-
-
-
     private function mentorshipId(int $mentorId, int $projectId): int
     {
-        $mentorshipId = DB::table('mentorship')
+        $id = DB::table('mentorship')
             ->where('mentor_user_id', $mentorId)
             ->where('application_id', $projectId)
             ->value('id');
 
-        abort_if($mentorshipId === null, 404);
+        abort_if($id === null, 404);
 
-        return (int) $mentorshipId;
+        return (int) $id;
     }
 
     private function consultationsCount(int $mentorId, int $projectId): int
@@ -464,6 +441,50 @@ class MentorshipController extends Controller
             ->count();
     }
 
+    /**
+     * Full consultation rows for a single project — includes real duration,
+     * real title, and correctly reads the `ms.title` column.
+     * Used by both projectDetail() and projectConsultations() GET.
+     */
+    private function consultationsForProjectDetailed(int $mentorId, int $projectId)
+    {
+        return DB::table('mentorship_session as ms')
+            ->join('mentorship as m', 'm.id', '=', 'ms.mentorship_id')
+            ->where('m.mentor_user_id', $mentorId)
+            ->where('m.application_id', $projectId)
+            ->orderByDesc('ms.scheduled_at')
+            ->get([
+                'ms.id',
+                'ms.title',
+                'ms.scheduled_at',
+                'ms.agenda',
+                'ms.type',
+                'ms.duration',
+            ])
+            ->map(function ($row) {
+                return [
+                    'id'          => (int) $row->id,
+                    'title'       => $row->title ?? 'Konzultácia',
+                    'date'        => Carbon::parse($row->scheduled_at)->format('d.m.Y'),
+                    'duration'    => (int) ($row->duration ?? 60),
+                    'type'        => $row->type,
+                    'summary'     => mb_strimwidth(trim(strip_tags((string) $row->agenda)), 0, 200, '…'),
+                    'actionItems' => [],
+                ];
+            })
+            ->values();
+    }
+
+    /**
+     * @deprecated  Use consultationsForProjectDetailed() for all new code.
+     *              Kept only because allConsultations() references it via the
+     *              paginator — will be removed once that endpoint is refactored.
+     */
+    private function consultationsForProject(int $mentorId, int $projectId)
+    {
+        return $this->consultationsForProjectDetailed($mentorId, $projectId);
+    }
+
     private function recentConsultations(int $mentorId)
     {
         return DB::table('mentorship_session as ms')
@@ -473,143 +494,68 @@ class MentorshipController extends Controller
             ->orderByDesc('ms.scheduled_at')
             ->where('m.mentor_user_id', $mentorId)
             ->limit(5)
-            ->get([
-                'ms.id',
-                'ms.scheduled_at',
-
-                'a.id as project_id',
-                'c.name as project_name',
-            ])
-            ->map(function ($row) {
-                return [
-                    'id' => (int) $row->id,
-                    'projectId' => (int) $row->project_id,
-                    'projectName' => $row->project_name ?? ('Projekt #'.$row->project_id),
-                    'date' => Carbon::parse($row->scheduled_at)->format('d.m.Y'),
-                ];
-            });
-    }
-
-    private function consultationsForProject(int $mentorId, int $projectId)
-    {
-        return DB::table('mentorship_session as ms')
-            ->join('mentorship as m', 'm.id', '=', 'ms.mentorship_id')
-            ->where('m.mentor_user_id', $mentorId)
-            ->where('m.application_id', $projectId)
-            ->orderByDesc('ms.scheduled_at')
-            ->get([
-                'ms.id',
-                'ms.scheduled_at',
-                'ms.agenda',
-                'ms.type',
-            ])
-            ->map(function ($row) {
-                return [
-                    'id' => (int) $row->id,
-                    'title' => 'Konzultácia',
-                    'date' => Carbon::parse($row->scheduled_at)->format('d.m.Y'),
-                    'duration' => 60,
-                    'type' => $row->type,
-                    'summary' => mb_strimwidth(trim(strip_tags((string) $row->agenda)), 0, 200, '…'),
-                    'actionItems' => [],
-                ];
-            });
+            ->get(['ms.id', 'ms.scheduled_at', 'a.id as project_id', 'c.name as project_name'])
+            ->map(fn ($row) => [
+                'id'          => (int) $row->id,
+                'projectId'   => (int) $row->project_id,
+                'projectName' => $row->project_name ?? ('Projekt #' . $row->project_id),
+                'date'        => Carbon::parse($row->scheduled_at)->format('d.m.Y'),
+            ]);
     }
 
     private function allConsultations(int $mentorId, Request $request)
     {
-        // 1. Vytvoríme základný query builder
         $query = DB::table('mentorship_session as ms')
             ->join('mentorship as m', 'm.id', '=', 'ms.mentorship_id')
             ->join('application as a', 'a.id', '=', 'm.application_id')
             ->leftJoin('call as c', 'c.id', '=', 'a.call_id')
             ->where('m.mentor_user_id', $mentorId);
 
-        // 2. SERVEROVÉ FILTROVANIE (Aplikuje sa iba, ak frontend filter odoslal)
-
-        // Filter na konkrétny projekt
         if ($request->filled('project_id')) {
             $query->where('a.id', $request->input('project_id'));
         }
 
-        // Filter na typ konzultácie (online / offline)
         if ($request->filled('type')) {
             $query->where('ms.type', $request->input('type'));
         }
 
-        // Filter na konkrétny mesiac (Frontend posiela formát "YYYY-MM", napr. "2026-06")
         if ($request->filled('month')) {
-            $month = $request->input('month'); // očakáva napr. "2026-06"
-
-            // Pre PostgreSQL (keďže používaš pgsql) filtrujeme bezpečne pomocou to_char alebo splitu
-            $query->whereRaw("to_char(ms.scheduled_at, 'YYYY-MM') = ?", [$month]);
+            $query->whereRaw("to_char(ms.scheduled_at, 'YYYY-MM') = ?", [$request->input('month')]);
         }
 
-        // 3. Zoradíme a spustíme pagináciu s aplikovanými WHERE podmienkami
         $paginator = $query->orderByDesc('ms.scheduled_at')
             ->paginate(30, [
-                'ms.id',
-                'ms.scheduled_at',
-                'ms.agenda',
-                'ms.type',
-                'ms.duration',
-                'a.id as project_id',
-                'c.name as project_name',
+                'ms.id', 'ms.title', 'ms.scheduled_at', 'ms.agenda',
+                'ms.type', 'ms.duration',
+                'a.id as project_id', 'c.name as project_name',
             ]);
 
-        // 4. Transformácia výslednej kolekcie na JSON formát pre frontend (ostáva rovnaká)
-        $transformedCollection = collect($paginator->items())->map(function ($row) {
-            $summary = trim(strip_tags((string) $row->agenda));
-            $summary = mb_strimwidth($summary, 0, 180, '…');
-
+        $transformed = collect($paginator->items())->map(function ($row) {
             return [
-                'id' => (int) $row->id,
-                'projectId' => (int) $row->project_id,
-                'projectName' => $row->project_name ?? ('Projekt #'.$row->project_id),
-                'title' => 'Konzultácia',
-                'type' => $row->type,
-                'date' => Carbon::parse($row->scheduled_at)->format('d.m.Y'),
-                'duration' => (int) ($row->duration ?? 60),
-                'summary' => $summary,
+                'id'          => (int) $row->id,
+                'projectId'   => (int) $row->project_id,
+                'projectName' => $row->project_name ?? ('Projekt #' . $row->project_id),
+                'title'       => $row->title ?? 'Konzultácia',
+                'type'        => $row->type,
+                'date'        => Carbon::parse($row->scheduled_at)->format('d.m.Y'),
+                'duration'    => (int) ($row->duration ?? 60),
+                'summary'     => mb_strimwidth(trim(strip_tags((string) $row->agenda)), 0, 180, '…'),
                 'actionItems' => [],
             ];
         });
 
-        return $paginator->setCollection($transformedCollection);
-    }
-
-    private function consultationTypeFromNotes(string $notes): string
-    {
-        if (preg_match('/^Typ:\s*(.+)$/mi', $notes, $matches) !== 1) {
-            return 'personal';
-        }
-
-        $value = mb_strtolower(trim($matches[1]));
-
-        if (in_array($value, ['online', 'online (videohovor)'], true)) {
-            return 'online';
-        }
-
-        if (in_array($value, ['personal', 'osobne', 'osobné'], true)) {
-            return 'personal';
-        }
-
-        if (in_array($value, ['written', 'písomná / e-mail', 'pisomna / e-mail'], true)) {
-            return 'written';
-        }
-
-        return 'personal';
+        return $paginator->setCollection($transformed);
     }
 
     private function formatMilestone(Milestone $milestone): array
     {
         return [
-            'id' => $milestone->id,
-            'title' => $milestone->name,
-            'dueDate' => $milestone->deadline?->format('Y-m-d'),
-            'status' => $this->normalizeMilestoneStatus($milestone->status),
+            'id'          => $milestone->id,
+            'title'       => $milestone->name,
+            'dueDate'     => $milestone->deadline?->format('Y-m-d'),
+            'status'      => $this->normalizeMilestoneStatus($milestone->status),
             'description' => $milestone->comments,
-            'comments' => $this->milestoneComments($milestone->id),
+            'comments'    => $this->milestoneComments($milestone->id),
         ];
     }
 
@@ -647,10 +593,6 @@ class MentorshipController extends Controller
             || str_contains($value, 'aktív')
         ) {
             return 'in_progress';
-        }
-
-        if (str_contains($value, 'pending')) {
-            return 'pending';
         }
 
         return 'pending';
@@ -694,12 +636,12 @@ class MentorshipController extends Controller
         }
 
         DB::table('milestone_comments')->insert([
-            'milestone_id' => $legacyMilestoneId,
-            'user_id' => $userId,
+            'milestone_id'      => $legacyMilestoneId,
+            'user_id'           => $userId,
             'parent_comment_id' => null,
-            'comment_text' => $text,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'comment_text'      => $text,
+            'created_at'        => now(),
+            'updated_at'        => now(),
         ]);
     }
 
@@ -709,22 +651,13 @@ class MentorshipController extends Controller
             ->join('users as u', 'u.id', '=', 'mc.user_id')
             ->where('mc.milestone_id', $milestoneId)
             ->orderBy('mc.created_at')
-            ->get([
-                'mc.id',
-                'mc.comment_text',
-                'mc.created_at',
-                'u.name',
-                'u.surname',
-                'u.email',
+            ->get(['mc.id', 'mc.comment_text', 'mc.created_at', 'u.name', 'u.surname', 'u.email'])
+            ->map(fn ($row) => [
+                'id'     => (int) $row->id,
+                'author' => trim(($row->name ?? '') . ' ' . ($row->surname ?? '')) ?: ($row->email ?? 'Používateľ'),
+                'date'   => Carbon::parse($row->created_at)->format('d.m.Y'),
+                'text'   => (string) $row->comment_text,
             ])
-            ->map(function ($row) {
-                return [
-                    'id' => (int) $row->id,
-                    'author' => trim(($row->name ?? '').' '.($row->surname ?? '')) ?: ($row->email ?? 'Používateľ'),
-                    'date' => Carbon::parse($row->created_at)->format('d.m.Y'),
-                    'text' => (string) $row->comment_text,
-                ];
-            })
             ->values();
     }
 
@@ -744,8 +677,8 @@ class MentorshipController extends Controller
 
     private function projectStatus(Application $application): string
     {
-        $status = Application::with(['status'])->where('id', $application->id)
-            ->first();
+        $status = Application::with(['status'])->where('id', $application->id)->first();
+
         return $status->status->name ?? '';
     }
 }

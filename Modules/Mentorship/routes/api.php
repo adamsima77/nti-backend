@@ -7,7 +7,9 @@ use Modules\Mentorship\Http\Controllers\MilestoneController;
 use Modules\Mentorship\Http\Controllers\MilestoneDocumentController;
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/mentor/projects/{project}', [MentorshipController::class, 'projectDetail']);
     Route::prefix('mentor')->group(function () {
+
         Route::get('dashboard', [MentorshipController::class, 'dashboard']);
         Route::get('projects', [MentorshipController::class, 'projects']);
         Route::get('consultations', [MentorshipController::class, 'consultations']);
