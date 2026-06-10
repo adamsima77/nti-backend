@@ -12,9 +12,15 @@ class MentorshipSession extends Model
 
     protected $fillable = [
         'mentorship_id',
+        'title',
+        'duration',
         'created_by',
         'date',
-        'notes',
+        'type', //online,offline
+        'meeting_url',
+        'scheduled_at',
+        'agenda',
+        'status' // 'scheduled', 'completed', 'cancelled'
     ];
 
     protected $casts = [

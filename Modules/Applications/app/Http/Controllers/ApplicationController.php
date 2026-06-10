@@ -234,6 +234,37 @@ class ApplicationController extends Controller
         return true;
     }
 
+    public function findForCall(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'call_id' => ['required', 'integer', 'exists:call,id'],
+            'team_id' => ['required', 'integer', 'exists:team,id'],
+        ]);
+
+        $user = $request->user();
+
+        $application = Application::query()
+            ->with(['status:id,name', 'answers'])
+            ->where('call_id', $validated['call_id'])
+            ->where('team_id', $validated['team_id'])
+            ->whereHas('team.members', fn ($q) => $q->where('user_id', $user->id))
+            ->first();
+
+        if (! $application) {
+            return response()->json(['application' => null]);
+        }
+
+        return response()->json([
+            'application' => [
+                'id'        => $application->id,
+                'status'    => $application->status?->name,
+                // answers table takes precedence over the legacy form_data column
+                'form_data' => $application->answers()->first()?->answer ?? $application->form_data,
+            ],
+        ]);
+    }
+
+
     public function submitApplication(Request $request): JsonResponse
     {
         $this->authorize('submitApplication', Application::class);
@@ -246,78 +277,81 @@ class ApplicationController extends Controller
         ]);
 
         $user = $request->user();
-        if (!$this->checkAnswerOfApplicationAnswer($validated['form_data'], $validated['call_id'])) {
+
+        // Gate 1: call must be open (deadline not passed, not force-closed)
+        $this->assertCallIsOpen($validated['call_id']);
+
+        if (! $this->checkAnswerOfApplicationAnswer($validated['form_data'], $validated['call_id'])) {
             return response()->json(['message' => 'Answer not valid !'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $team = Team::query()->findOrFail($validated['team_id']);
+        $team           = Team::query()->findOrFail($validated['team_id']);
         $teamMembership = $team->members()->where('user_id', $user->id)->first();
 
         if (! $teamMembership) {
             abort(403, 'Nie ste členom tohto tímu.');
         }
 
-        if ($teamMembership->pivot->team_role_id !== 1) { // 1 == TeamLeader
+        if ($teamMembership->pivot->team_role_id !== 1) {
             abort(403, 'Musíte byť Team Leader na vykonanie tejto akcie!');
         }
-
 
         $application = Application::query()
             ->where('call_id', $validated['call_id'])
             ->where('team_id', $validated['team_id'])
             ->first();
 
+        // Gate 2: only Draft and Supplement-requested are valid starting points
+        $submittableStates = [
+            ApplicationStateMachine::STATE_DRAFT,
+            ApplicationStateMachine::STATE_SUPPLEMENT_REQUESTED,
+        ];
+
         if ($application !== null) {
             $stateMachine = new ApplicationStateMachine($application, $user);
 
-
-            if ($stateMachine->currentState() !== ApplicationStateMachine::STATE_DRAFT) {
+            if (! in_array($stateMachine->currentState(), $submittableStates)) {
                 abort(422, 'Prihlášku nie je možné odoslať, pretože už prešla fázou konceptu alebo bola spracovaná.');
             }
         }
 
+        // Create a fresh Draft record when submitting without a prior draft
+        if ($application === null) {
+            $draftStatus = StatusOfApplication::query()
+                ->where('name', ApplicationStateMachine::STATE_DRAFT)
+                ->firstOrFail();
 
-        $application = Application::query()->updateOrCreate(
-            [
-                'call_id' => $validated['call_id'],
-                'team_id' => $validated['team_id'],
-            ],
-            [
-
-                'created_by'    => $application ? $application->created_by : $user->id,
+            $application = Application::query()->create([
+                'call_id'       => $validated['call_id'],
+                'team_id'       => $validated['team_id'],
+                'created_by'    => $user->id,
+                'active_status' => $draftStatus->id,
                 'last_update'   => now(),
-                'active_status' => 1,
-            ]
-        );
-
+            ]);
+        } else {
+            $application->update(['last_update' => now()]);
+        }
 
         if (! empty($validated['form_data'])) {
             $application->answers()->updateOrCreate(
                 ['application_id' => $application->id],
-                ['answer' => $validated['form_data']]
+                ['answer'         => $validated['form_data']]
             );
         }
-
-
-        if ((int) $application->active_status === 2) {
-            return response()->json([
-                'message' => 'Application submitted successfully.'
-            ], Response::HTTP_OK);
-        }
-
 
         try {
             $stateMachine = new ApplicationStateMachine($application, $user);
             $stateMachine->transitionTo(
                 ApplicationStateMachine::STATE_SUBMITTED,
-                'Prihláška bola podaná !'
+                'Prihláška bola podaná!'
             );
         } catch (\InvalidArgumentException $e) {
             abort(422, $e->getMessage());
         }
 
         return response()->json([
-            'message' => 'Application submitted successfully.'
+            'message' => 'Application submitted successfully.',
+            'id'      => $application->id, // used by nova.vue for redirect
         ], Response::HTTP_OK);
     }
 
@@ -333,19 +367,22 @@ class ApplicationController extends Controller
         ]);
 
         $user = $request->user();
-        if(!$this->checkAnswerOfApplicationAnswer($validated['form_data'], $validated['call_id'])){
+
+        // Gate 1: call must still be open
+        $this->assertCallIsOpen($validated['call_id']);
+
+        if (! empty($validated['form_data']) && ! $this->checkAnswerOfApplicationAnswer($validated['form_data'], $validated['call_id'])) {
             return response()->json(['message' => 'Answer not valid !'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        $team = Team::query()->findOrFail($validated['team_id']);
 
-
+        $team           = Team::query()->findOrFail($validated['team_id']);
         $teamMembership = $team->members()->where('user_id', $user->id)->first();
 
         if (! $teamMembership) {
             abort(403, 'Nie ste členom tohto tímu.');
         }
 
-        if ($teamMembership->pivot->team_role_id !== 1) { //1 == TeamLeader
+        if ($teamMembership->pivot->team_role_id !== 1) {
             abort(403, 'Musíte byť Team Leader na vykonanie tejto akcie!');
         }
 
@@ -353,14 +390,13 @@ class ApplicationController extends Controller
             ->where('name', ApplicationStateMachine::STATE_DRAFT)
             ->firstOrFail();
 
-
         $application = Application::query()
             ->where('call_id', $validated['call_id'])
             ->where('team_id', $validated['team_id'])
             ->first();
 
+        // Gate 2: only allow saving a draft when none exists yet or it is still a draft
         if ($application !== null) {
-
             $stateMachine = new ApplicationStateMachine($application, $user);
 
             if ($stateMachine->currentState() !== ApplicationStateMachine::STATE_DRAFT) {
@@ -371,19 +407,17 @@ class ApplicationController extends Controller
         $draft = DB::transaction(function () use ($validated, $user, $draftStatus, $application) {
             $isNew = ($application === null);
 
-
             $application = Application::query()->updateOrCreate(
                 [
                     'call_id' => $validated['call_id'],
                     'team_id' => $validated['team_id'],
                 ],
                 [
-                    'created_by'    => $isNew ? $user->id : $application->created_by, // Keep original creator if updating
+                    'created_by'    => $isNew ? $user->id : $application->created_by,
                     'active_status' => $draftStatus->id,
                     'last_update'   => now(),
                 ]
             );
-
 
             if ($isNew) {
                 $application->statusHistory()->create([
@@ -393,14 +427,12 @@ class ApplicationController extends Controller
                 ]);
             }
 
-
             if (! empty($validated['form_data'])) {
                 $application->answers()->updateOrCreate(
                     ['application_id' => $application->id],
-                    ['answer' => $validated['form_data']]
+                    ['answer'         => $validated['form_data']]
                 );
             } else {
-
                 $application->answers()->delete();
             }
 
@@ -413,6 +445,22 @@ class ApplicationController extends Controller
             ),
         ]);
     }
+
+    private function assertCallIsOpen(int $callId): void
+    {
+        $call = \Modules\Programs\Models\Call::query()->findOrFail($callId);
+
+        $now              = now();
+        $afterStart       = ! $call->application_start    || $now->greaterThanOrEqualTo($call->application_start);
+        $beforeDeadline   = ! $call->application_deadline || $now->lessThanOrEqualTo($call->application_deadline);
+        $notForceClosed   = ! ((bool) $call->force_closed);
+
+        if (! ($notForceClosed && $afterStart && $beforeDeadline)) {
+            abort(422, 'Táto výzva je uzavretá alebo vypršal termín podania prihlášok.');
+        }
+    }
+
+
 
     // ──────────────────────────────────────────────────────────────────────────
     // INDEX / SHOW

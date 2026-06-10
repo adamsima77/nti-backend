@@ -79,6 +79,66 @@ class EmailTemplateSeeder extends Seeder
 </p>'
             ],
             [
+                'slug'       => 'mentorship_session_created',
+                'subject'    => 'Ahoj {{ $fullName }}, nová mentorska konzultácia je naplánovaná',
+                'type'       => 'transactional',
+                'is_active'  => true,
+                'body_html'  => '<h2 style="margin:0 0 8px; font-size:22px; font-weight:600; color:#0a1628;">
+    Ahoj, {{ $fullName }}!
+</h2>
+
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    Váš mentor <strong>{{ $mentorName }}</strong> naplánoval novú konzultáciu pre program <strong>{{ $callName }}</strong>. Pozri si detaily stretnutia nižšie a priprav sa na stretnutie.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:24px;">
+    <tr>
+        <td style="background:#f0fdf4; border-left:4px solid #16a34a; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:#0a1628;">
+                📅 {{ $title }}
+            </p>
+            <p style="margin:0; font-size:14px; color:#64748b; line-height:1.6;">
+                <strong style="color:#0a1628;">Čas:</strong> {{ $formattedDate }}<br>
+                <strong style="color:#0a1628;">Trvanie:</strong> {{ $duration }} minút<br>
+                <strong style="color:#0a1628;">Forma:</strong> {{ $formaText }}<br>
+                <strong style="color:#0a1628;">Odkaz / Miesto:</strong> {{ $meetingUrlText }}
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:24px;">
+    <tr>
+        <td style="background:#f1f5f9; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 12px; font-size:14px; font-weight:600; color:#0a1628;">
+                {{ $agendaTitle }}
+            </p>
+            <p style="margin:0; font-size:14px; color:#64748b; line-height:1.6; white-space: pre-line;">
+                {{ $agendaBody }}
+            </p>
+        </td>
+    </tr>
+</table>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td align="center">
+           <a href="{{ $actionURL }}" target="_blank"
+               style="display:inline-block; background:#0a1628; color:#ffffff; text-decoration:none;
+                      font-size:15px; font-weight:600; padding:14px 32px; border-radius:8px;">
+                Otvoriť konzultáciu →
+            </a>
+        </td>
+    </tr>
+</table>
+
+<p style="margin:0; font-size:12px; color:#94a3b8; line-height:1.6;">
+    Tento email bol odoslaný na adresu prepojenú s tvojím účtom na NTI portáli.
+    Ak si myslíš, že si správu dostal omylom, kontaktuj nás na
+    <a href="mailto:support@nti.sk" style="color:#64748b;">support@nti.sk</a>.
+</p>'
+            ],
+            [
                 'slug'    => 'organization_onboarded',
                 'subject' => 'Thank you, {{ $organizationName }}!',
                 'body_html' => '

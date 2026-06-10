@@ -16,17 +16,23 @@ class MentorshipSessionSeeder extends Seeder
             return;
         }
 
+        $scheduledAt = now()->addDays(1)->toDateTimeString();
+
         DB::table('mentorship_session')->updateOrInsert(
             [
                 'mentorship_id' => $mentorshipId,
                 'created_by' => $userId,
-                'date' => now()->addDays(1)->toDateTimeString(),
+                'scheduled_at' => $scheduledAt,
             ],
             [
                 'mentorship_id' => $mentorshipId,
                 'created_by' => $userId,
-                'date' => now()->addDays(1)->toDateTimeString(),
-                'notes' => 'Prvá mentorovacia session zo seeda.',
+                'title' => 'Úvodné mentorské stretnutie',
+                'type' => 'online',
+                'meeting_url' => 'https://meet.google.com/abc-defg-hij',
+                'scheduled_at' => $scheduledAt,
+                'agenda' => 'Prvá mentorovacia session zo seeda.',
+                'status' => 'scheduled',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]

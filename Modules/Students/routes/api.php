@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+
+use Modules\Students\Http\Controllers\StudentDashboardController;
 use Modules\Students\Http\Controllers\StudentsController;
 use Modules\Students\Http\Controllers\AcademicFlagController;
 use Modules\Students\Http\Controllers\StudyFieldController;
@@ -25,3 +27,6 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/study-fields-public/lang/{lang}', [StudyFieldController::class, 'fetchByLangPublic']);
 Route::get('/study-years-public/lang/{lang}', [StudyYearController::class, 'fetchByLangPublic']);
 Route::get('/study-programs-public/lang/{lang}', [StudyProgramController::class, 'fetchByLangPublic']);
+
+Route::get('/v1/student/dashboard', StudentDashboardController::class)
+    ->middleware('auth:sanctum');

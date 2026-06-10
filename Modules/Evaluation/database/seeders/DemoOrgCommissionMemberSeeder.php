@@ -44,7 +44,6 @@ class DemoOrgCommissionMemberSeeder extends Seeder
             [
                 'user_id'       => $user->id,
                 'commission_id' => $commission->id,
-                'call_id'       => $call->id,
             ],
             []
         );

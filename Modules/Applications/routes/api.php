@@ -16,6 +16,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
     Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
     Route::get('/applications', [ApplicationController::class, 'index']);
+    Route::get('/applications/find', [ApplicationController::class, 'findForCall']); // ← here, before {id}
     Route::get('/applications/{id}', [ApplicationController::class, 'show']);
     Route::post('/applications', [ApplicationController::class, 'store']);
     Route::patch('/applications/{id}/status', [ApplicationController::class, 'updateStatus']);
@@ -34,5 +35,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/submit-application', [ApplicationController::class, 'submitApplication']);
     Route::get('/get-status-admin', [StatusOfApplicationController::class, 'fetchExceptDraftAdmin']);
 
-    Route::get('/fetch-for-evaluation', [EvaluationController::class, 'fetchForEvaluation']);
 });
+
+

@@ -10,8 +10,10 @@ use Modules\IdentityAccess\Events\PasswordResetRequested;
 use Modules\IdentityAccess\Events\StudentOnboarded;
 use Modules\IdentityAccess\Events\UserBanned;
 use Modules\IdentityAccess\Events\UserRegistered;
+use Modules\Mentorship\Events\MentorSessionEvent;
 use Modules\Mentorship\Events\MilestoneStatusChanged;
 use Modules\Notifications\Events\BulkEmail;
+use Modules\Notifications\Listeners\MentorshipSession;
 use Modules\Notifications\Listeners\SendBannedEmail;
 use Modules\Notifications\Listeners\SendBulkEmail;
 use Modules\Notifications\Listeners\SendContactConfirmationEmail;
@@ -34,6 +36,10 @@ class EventServiceProvider extends ServiceProvider
 
         PasswordResetRequested::class => [
             SendPasswordResetEmail::class,
+        ],
+
+        MentorSessionEvent::class => [
+           MentorshipSession::class,
         ],
 
         UserRegistered::class => [

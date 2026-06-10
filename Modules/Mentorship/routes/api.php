@@ -17,6 +17,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('projects/{project}/consultations', [MentorshipController::class, 'storeConsultation']);
         Route::post('projects/{project}/feedback', [MentorshipController::class, 'storeFeedback']);
         Route::post('/admin/applications/{application}/mentors/{user}', [MentorshipController::class, 'assignMentor']);
+       Route::get('/call-name', [MentorshipController::class, 'fetchMentorCalls']);
+       Route::get('/fetch-detail/{application}', [MentorshipController::class, 'fetchDetail']);
     });
 
     Route::get('/mentors', [MentorshipController::class, 'fetchMentors']);
