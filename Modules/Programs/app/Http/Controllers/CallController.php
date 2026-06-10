@@ -715,6 +715,8 @@ class CallController extends Controller
         return response()->json($calls);
     }
 
+
+
     public function fetchCallByIdAndLang(int $id, string $lang): JsonResponse
     {
         $language = Language::where('name', $lang)->first();

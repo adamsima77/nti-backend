@@ -52,7 +52,7 @@ class ApplicationResource extends JsonResource
     {
         $user = $request->user();
 
-        // Overenie roly (upravte podľa vášho systému, napr. $user?->hasRole('admin'))
+
         $isAdmin = $user && ($user->isAdmin() || $user->isSuperadmin());
 
         return [
@@ -117,7 +117,7 @@ class ApplicationResource extends JsonResource
                 $users = User::whereIn('id', $userIds)->get()->keyBy('id');
 
                 return $this->statusHistory
-                    ->sortBy('created_at')
+                    ->sortByDesc('created_at')
                     ->map(function ($history) use ($users) {
                         $user = $users->get($history->changed_by);
                         return [

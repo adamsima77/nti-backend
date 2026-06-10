@@ -15,9 +15,21 @@ return new class extends Migration
             $table->increments('id');
             $table->unsignedBigInteger('mentorship_id');
             $table->unsignedBigInteger('created_by');
-            $table->timestamp('date');
-            $table->text('notes');
-            $table->timestamps();
+
+            $table->string('title');
+            $table->unsignedInteger('duration')->default(60);
+            $table->enum('type', ['online', 'offline']);
+            $table->string('meeting_url')->nullable();
+
+            $table->timestamp('scheduled_at');
+
+            $table->text('agenda')->nullable();
+
+            $table->enum('status', [
+                'scheduled',
+                'completed',
+                'cancelled'
+            ])->default('scheduled');
 
             $table->index('mentorship_id', 'idx_ms_session_mentorship');
             $table->index('created_by', 'idx_ms_session_creator');
@@ -29,6 +41,8 @@ return new class extends Migration
             $table->foreign('created_by')
                 ->references('id')
                 ->on('users');
+
+            $table->timestamps();
         });
     }
 

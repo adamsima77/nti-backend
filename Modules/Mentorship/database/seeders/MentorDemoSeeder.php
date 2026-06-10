@@ -146,17 +146,23 @@ class MentorDemoSeeder extends Seeder
                 ->value('id');
 
             if ($existingMentorshipId !== null) {
+                $scheduledAt = now()->subDays(3 - $applicationIndex)->toDateTimeString();
+
                 DB::table('mentorship_session')->updateOrInsert(
                     [
                         'mentorship_id' => $existingMentorshipId,
                         'created_by' => $mentor->id,
-                        'date' => now()->subDays(3 - $applicationIndex)->toDateTimeString(),
+                        'scheduled_at' => $scheduledAt,
                     ],
                     [
                         'mentorship_id' => $existingMentorshipId,
                         'created_by' => $mentor->id,
-                        'date' => now()->subDays(3 - $applicationIndex)->toDateTimeString(),
-                        'notes' => 'Stabilný demo záznam konzultácie pre mentor dashboard.',
+                        'title' => 'Pravidelná konzultácia k projektu',
+                        'type' => 'offline',
+                        'meeting_url' => null,
+                        'scheduled_at' => $scheduledAt,
+                        'agenda' => 'Stabilný demo záznam konzultácie pre mentor dashboard.',
+                        'status' => 'completed',
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]
