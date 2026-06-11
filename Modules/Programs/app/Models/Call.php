@@ -32,7 +32,6 @@ class Call extends Model
         'budget_type',
         'tech_spec',
         'tech_tags',
-        'max_teams',
         'po_user_id',
     ];
 

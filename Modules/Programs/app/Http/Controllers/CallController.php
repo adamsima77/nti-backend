@@ -105,6 +105,8 @@ class CallController extends Controller
                 'callCriteria',
                 'qualificationStack.translations:id,name',
                 'productOwner:id,name,surname,email',
+                'applications.team.members:id,name,surname',
+                'applications.status:id,name',
             ]);
 
         if (auth()->user()->isPartner()) {
@@ -219,6 +221,9 @@ class CallController extends Controller
                 'callCriteria.criterionTranslations:id,criterion_id,language_id,name,description',
                 'productOwner:id,name,surname,email',
                 'documents.versions',
+                'applications.team:id,name',
+                'applications.team.members:id',
+                'applications.status:id,name',
             ])
             ->findOrFail($id);
 
@@ -278,7 +283,6 @@ class CallController extends Controller
             'budget_type'              => $call->budget_type,
             'tech_spec'                => $call->tech_spec,
             'tech_tags'                => $call->tech_tags ?? [],
-            'max_teams'                => $call->max_teams,
             'po_user_id'               => $call->po_user_id,
             'product_owner'            => [
                 'id'      => $call->productOwner?->id,
@@ -327,6 +331,16 @@ class CallController extends Controller
                 'name' => $call->callType?->name,
             ],
             'documents'                => $documents,
+            'applications'             => $call->applications->map(fn ($a) => [
+                'id'            => $a->id,
+                'team'          => [
+                    'id'            => $a->team?->id,
+                    'name'          => $a->team?->name,
+                    'members_count' => $a->team?->members->count() ?? 0,
+                ],
+                'status'        => ['id' => $a->status?->id, 'name' => $a->status?->name],
+                'submitted_at'  => $a->submitted_at,
+            ])->values(),
         ]);
     }
 
@@ -345,7 +359,6 @@ class CallController extends Controller
             'budget_type'             => ['nullable', 'string'],
             'tech_spec'               => ['nullable', 'string'],
             'tech_tags'               => ['nullable', 'array'],
-            'max_teams'               => ['nullable', 'integer'],
             'po_user_id'              => ['nullable', 'integer'],
             'po_email'                => ['nullable', 'email'],
             'organization_id'         => ['nullable', 'integer'],
@@ -426,7 +439,6 @@ class CallController extends Controller
                     'budget_type'             => $validated['budget_type'] ?? 'milestone',
                     'tech_spec'               => $validated['tech_spec'] ?? null,
                     'tech_tags'               => $validated['tech_tags'] ?? [],
-                    'max_teams'               => $validated['max_teams'] ?? 1,
                     'po_user_id'              => $validated['po_user_id'] ?? null,
                     'application_start'       => $validated['application_start'],
                     'application_deadline'    => $validated['application_deadline'],
@@ -516,7 +528,6 @@ class CallController extends Controller
             'budget_type'             => ['nullable', 'string'],
             'tech_spec'               => ['nullable', 'string'],
             'tech_tags'               => ['nullable', 'array'],
-            'max_teams'               => ['nullable', 'integer'],
             'po_user_id'              => ['nullable', 'integer'],
             'po_email'                => ['nullable', 'email'],
             'application_start'       => ['sometimes', 'date'],
@@ -592,7 +603,7 @@ class CallController extends Controller
 
                         'budget', 'budget_type',
                         'tech_spec', 'tech_tags',
-                        'max_teams', 'po_user_id',
+                        'po_user_id',
                         'organization_id',
                         // ── NEW ───────────────────────────────────────────
                         'qualification_stack_id',
@@ -669,6 +680,18 @@ class CallController extends Controller
             DB::table('call_translations')->where('call_id', $call->id)->delete();
             DB::table('status_of_call_has_call')->where('call_id', $call->id)->delete();
             $call->callCriteria()->detach();
+            DB::table('project_milestones')->where('call_id', $call->id)->delete();
+            $appIds = $call->applications()->pluck('id');
+            if ($appIds->isNotEmpty()) {
+                DB::table('application_status_history')->whereIn('application_id', $appIds)->delete();
+                DB::table('application_field_value')->whereIn('application_id', $appIds)->delete();
+                DB::table('document_has_application')->whereIn('application_id', $appIds)->delete();
+                DB::table('mentorship')->whereIn('application_id', $appIds)->delete();
+                DB::table('evaluation')->whereIn('application_id', $appIds)->delete();
+                DB::table('project_kpi')->whereIn('application_id', $appIds)->delete();
+                DB::table('project_output')->whereIn('application_id', $appIds)->delete();
+                DB::table('application')->whereIn('id', $appIds)->delete();
+            }
             $call->delete();
 
             return response()->json(['message' => 'Výzva bola úspešne zmazaná.']);

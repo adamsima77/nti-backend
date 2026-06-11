@@ -91,7 +91,6 @@ class ProductOwnerController extends Controller
                 'program'              => $call->program?->typeOfProgram?->name,
                 'organization'         => $call->organization?->name,
                 'budget'               => $call->budget,
-                'max_teams'            => $call->max_teams,
                 'budget_type'          => $call->budget_type,
                 'requirements'         => $call->callCriteria?->pluck('name') ?? [],
                 'documents'            => $call->documents?->map(fn ($d) => [
@@ -121,7 +120,6 @@ class ProductOwnerController extends Controller
             'budget_type'          => ['nullable', 'string'],
             'tech_spec'            => ['nullable', 'string'],
             'tech_tags'            => ['nullable', 'array'],
-            'max_teams'            => ['nullable', 'integer'],
             'application_start'    => ['sometimes', 'nullable', 'date'],
             'application_deadline' => ['sometimes', 'nullable', 'date'],
             'project_start'        => ['sometimes', 'nullable', 'date'],

@@ -65,7 +65,6 @@ class CallResource extends JsonResource
             'budget_type' => $this->budget_type,
             'tech_spec'   => $this->tech_spec,
             'tech_tags'   => $this->tech_tags ?? [],
-            'max_teams'   => $this->max_teams,
             'po_user_id'  => $this->po_user_id,
             'product_owner' => [
                 'id'    => $this->productOwner?->id,
@@ -93,6 +92,18 @@ class CallResource extends JsonResource
                 ),
 
             'applicants_count' => $this->applications_count ?? 0,
+
+            'assigned_team' => $this->whenLoaded('applications', function () {
+                $activeStatuses = ['Onboarding', 'Aktívny projekt', 'Ukončené', 'Schválené'];
+                $app = $this->applications->first(fn ($a) => in_array($a->status?->name, $activeStatuses))
+                    ?? $this->applications->first();
+                if (!$app?->team) return null;
+                return [
+                    'id'           => $app->team->id,
+                    'name'         => $app->team->name,
+                    'members_count' => $app->team->members->count(),
+                ];
+            }),
 
             'status' => [
                 'id'   => $currentStatus?->id,
