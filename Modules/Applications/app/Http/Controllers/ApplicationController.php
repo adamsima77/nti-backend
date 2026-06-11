@@ -590,10 +590,37 @@ class ApplicationController extends Controller
 
         $latestAnswer = $application->answers()->latest()->first();
 
+        $callCommission = null;
+        if ($application->call_id) {
+            $setup = DB::table('call_commission_setup')
+                ->where('call_id', $application->call_id)
+                ->first();
+
+            if ($setup) {
+                $commission = \Modules\Evaluation\Models\Commission::with([
+                    'members.user:id,name,surname',
+                ])->find($setup->commission_id);
+
+                if ($commission) {
+                    $callCommission = [
+                        'id'      => $commission->id,
+                        'name'    => $commission->name,
+                        'members' => $commission->members->map(fn ($m) => [
+                            'id'      => $m->id,
+                            'user_id' => $m->user_id,
+                            'name'    => $m->user?->name,
+                            'surname' => $m->user?->surname,
+                        ])->values(),
+                    ];
+                }
+            }
+        }
+
         return response()->json([
-            'application' => new ApplicationResource($application),
-            'form_schema' => $formSchema,
-            'answer'      => $latestAnswer,
+            'application'      => new ApplicationResource($application),
+            'form_schema'      => $formSchema,
+            'answer'           => $latestAnswer,
+            'call_commission'  => $callCommission,
         ]);
     }
 
