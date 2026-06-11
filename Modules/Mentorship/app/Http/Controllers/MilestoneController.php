@@ -3,17 +3,25 @@
 namespace Modules\Mentorship\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Exception;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Modules\Applications\Models\Application;
+use Modules\Applications\Models\Document;
+use Modules\Applications\Models\DocumentVersion;
 use Modules\Content\Enums\LanguageType;
 use Modules\IdentityAccess\Models\User;
 use Modules\Mentorship\Events\MilestoneStatusChanged;
 use Modules\Mentorship\Models\Milestone;
+use Modules\Programs\Models\Call;
 
 class MilestoneController extends Controller
 {
+    use AuthorizesRequests;
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Milestone::class);
@@ -34,7 +42,7 @@ class MilestoneController extends Controller
         return response()->json($milestones);
     }
 
-    
+
 
     public function show(Milestone $milestone): JsonResponse
     {
@@ -116,5 +124,83 @@ class MilestoneController extends Controller
         return response()->json([
             'message' => 'Míľnik bol úspešne odstránený.',
         ]);
+    }
+
+    public function fetchMilestonesForStudent(Request $request){
+        $this->authorize('fetchForStudent', Milestone::class);
+        $user = $request->user();
+
+        $calls = Call::whereHas('applications.team.members', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })
+            // Check pre stav výzvy: "V realizácii"
+            ->whereHas('statusOfCall', function ($query) {
+                $query->where('name', 'V realizácii')
+                ->orWhere('name', 'Uzavreté');
+            })
+            // Check pre stav prihlášky: "Aktívny projekt"
+            ->whereHas('applications', function ($query) use ($user) {
+                $query->whereHas('status', function ($q) {
+                    $q->where('name', 'Aktívny projekt')
+                    ->orWhere('name', 'Ukončené');
+                })
+                    ->whereHas('team.members', function ($q) use ($user) {
+                        $q->where('user_id', $user->id);
+                    });
+            })
+            ->with('milestones')
+            ->get();
+        return response()->json($calls, Response::HTTP_OK);
+    }
+
+
+    public function studentAnswer(Request $request, Milestone $milestone){
+        $this->authorize('studentAnswer', $milestone);
+        $validated = $request->validate([
+            'comment' => ['required', 'string', 'max:2000'],
+            'files' => ['nullable', 'array'],
+            'files.*' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,zip,txt', 'max:5120'],
+        ]);
+
+        $milestone = Milestone::findOrFail($milestone->id);
+        $milestone->comments()->create([
+            'comment_text' => $validated['comment'],
+            'user_id'      => $request->user()->id,
+            'parent_comment_id' => null
+        ]);
+
+        if (!empty($validated['files'])) {
+            DB::transaction(function () use ($milestone,$validated, $request) {
+            foreach ($validated['files'] as $file) {
+                    try {
+
+                        $path = $file->store('milestones/' . $milestone->id, 'private');
+                        $originalName = $file->getClientOriginalName();
+
+
+                        $doc = Document::create([
+                            'owner_id' => $request->user()->id,
+                            'security_classification_id' => 3,
+                        ]);
+
+
+                        $doc->versions()->create([
+                            'file_name' => $originalName,
+                            'file_path' => $path,
+                        ]);
+
+                        $milestone->documents()->attach($doc->id);
+
+                    } catch (\Exception $e) {
+                        \Log::error("Chyba pri nahrávaní súboru: " . $e->getMessage());
+                        throw $e;
+                    }
+
+            }
+                $milestone->update(['status' => 3]); //Poslane na hodnotenie
+            });
+        }
+
+        return response()->json($milestone,Response::HTTP_OK);
     }
 }

@@ -5,6 +5,7 @@ namespace Modules\Mentorship\Policies;
 use Illuminate\Auth\Access\HandlesAuthorization;
 use Modules\IdentityAccess\Models\User;
 use Modules\Mentorship\Models\Mentorship;
+use Modules\Mentorship\Models\Milestone;
 
 class MentorshipPolicy
 {
@@ -50,6 +51,8 @@ class MentorshipPolicy
         return $this->hasPermission($user, 'mentorship.edit_any')
             || $this->hasPermission($user, 'mentorship.edit_own');
     }
+
+
 
     public function delete(User $user, Mentorship $mentorship): bool
     {

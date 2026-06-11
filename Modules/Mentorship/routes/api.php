@@ -24,6 +24,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get   ('projects/{project}',                          [MentorshipController::class, 'projectDetail']);
         Route::put   ('projects/{project}/consultations/{session}',  [MentorshipController::class, 'updateConsultation']);
         Route::delete('projects/{project}/consultations/{session}',  [MentorshipController::class, 'deleteConsultation']);
+        Route::patch('/projects/{project}/milestones/{milestone}/dates', [MentorshipController::class, 'updateMilestoneDates']);
     });
 
     Route::get('/mentors', [MentorshipController::class, 'fetchMentors']);
@@ -40,4 +41,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('calls/{call}/milestones/{milestone}/documents', [MilestoneDocumentController::class, 'store']);
     Route::get('calls/{call}/milestones/{milestone}/documents/{document}/download', [MilestoneDocumentController::class, 'download']);
     Route::delete('calls/{call}/milestones/{milestone}/documents/{document}', [MilestoneDocumentController::class, 'destroy']);
+
+
+    Route::put('/update-milestone/{milestone}', [MilestoneController::class, 'studentAnswer']);
+    Route::get('/fetch-student-milestones', [MilestoneController::class, 'fetchMilestonesForStudent']);
 });

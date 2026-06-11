@@ -15,7 +15,7 @@ class ApplicationsDatabaseSeeder extends Seeder
         $this->call([
             StatusOfApplicationSeeder::class,
             TypeOfApplicationSeeder::class,
-            SecurityClasificationSeeder::class
+            SecurityClasificationSeeder::class,
         ]);
     }
 }

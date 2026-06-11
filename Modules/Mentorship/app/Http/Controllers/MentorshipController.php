@@ -132,7 +132,7 @@ class MentorshipController extends Controller
 
         // Teraz už $application->milestones obsahuje kompletne všetko a formatMilestone() nezlyhá
         $milestones = $application->milestones
-            ->sortBy('id') // 💎 Zoradí míľniky od najstaršieho po najnovší podľa dátumu
+            ->sortBy('id')
             ->map(fn (Milestone $m) => $this->formatMilestone($m))
             ->values();
 
@@ -207,6 +207,15 @@ class MentorshipController extends Controller
         $mentor      = $this->currentMentor($request);
         $application = $this->mentorApplicationOrFail($mentor->id, $project);
 
+        $user = $request->user(); // Načítanie prihláseného usera (mentora)
+
+        $hasEditAny  = $user->hasPermission('mentorship.edit_any');
+        $hasEditOwn  = $user->hasPermission('mentorship.edit_own');
+
+        // Ak nemá globálny prístup, ani nevlastní tento projekt, vyhodíme 403 Forbidden
+        if (! $hasEditAny && ! ($hasEditOwn)) {
+            abort(403, 'Nemáte oprávnenie na úpravu tohto míľnika.');
+        }
         /** @var Milestone $milestoneModel */
         $milestoneModel = $application->milestones->firstWhere('id', $milestone);
 
@@ -214,7 +223,6 @@ class MentorshipController extends Controller
 
         $currentSlug = $this->milestoneStatusSlug($milestoneModel);
 
-        // Pridali sme 'start_date' do hlavnej validácie prichádzajúcich dát
         $validated = $request->validate([
             'status'     => ['required', 'string', 'in:in_progress,completed,approved,returned,rejected'],
             'comment'    => ['nullable', 'string', 'max:5000'],
@@ -236,46 +244,38 @@ class MentorshipController extends Controller
             return response()->json(['message' => 'Neplatný požadovaný stav.'], 422);
         }
 
-        // ── VALIDÁCIA KOMENTÁRA (Pre vrátenie / zamietnutie) ──
+        // ── VALIDÁCIA KOMENTÁRA (vrátenie / zamietnutie) ──────────────────────
         if (in_array($targetSlug, ['returned', 'rejected'], true)) {
             $request->validate([
-                'comment' => ['required', 'string', 'min:20']
+                'comment' => ['required', 'string', 'min:20'],
             ], [
-                'comment.min' => 'Pre vrátenie alebo zamietnutie míľnika musíte zadať odôvodnenie (min. 20 znakov).'
+                'comment.min' => 'Pre vrátenie alebo zamietnutie míľnika musíte zadať odôvodnenie (min. 20 znakov).',
             ]);
         }
 
-        // ── AGILNÝ RE-DATING: Úprava termínov pre aktívne míľniky ──
-        // Ak mentor posiela nové dátumy a míľnik nie je uzavretý (Schválený/Zamietnutý), prepíšeme ich
+        // ── AGILNÝ RE-DATING ──────────────────────────────────────────────────
         if (! in_array($currentSlug, ['completed', 'rejected'], true)) {
             $dateUpdates = [];
 
-            if (! empty($validated['start_date'])) {
+            if ($currentSlug === 'pending' && ! empty($validated['start_date'])) {
                 $dateUpdates['start_date'] = $validated['start_date'];
             }
+
             if (! empty($validated['deadline'])) {
                 $dateUpdates['deadline'] = $validated['deadline'];
             }
 
             if (! empty($dateUpdates)) {
                 $milestoneModel->update($dateUpdates);
-                // Refreshneme model v pamäti, aby podmienky nižšie pracovali s novými dátumami
                 $milestoneModel->refresh();
             }
         }
 
-        // ── UNLOCK ACTION: pending → in_progress ────────────────────
+        // ── UNLOCK: pending → in_progress ────────────────────────────────────
         if ($requestedStatus === 'in_progress') {
             if ($currentSlug !== 'pending') {
                 return response()->json([
                     'message' => 'Míľnik nie je v stave „Plánované" a nemôže byť odomknutý.',
-                ], 422);
-            }
-
-            // 🔒 STRÍKTNÁ KONTROLA ŠTARTU: Odomknúť sa dá, len ak program/míľnik už podľa kalendára začal
-            if ($milestoneModel->start_date && $milestoneModel->start_date->isFuture()) {
-                return response()->json([
-                    'message' => 'Tento míľnik ešte nemôžete odomknúť. Podľa harmonogramu sa začína až: ' . $milestoneModel->start_date->format('d.m.Y'),
                 ], 422);
             }
 
@@ -286,23 +286,38 @@ class MentorshipController extends Controller
             }
 
             $inProgressStatus = MilestoneStatus::where('name', 'V riešení')->firstOrFail();
+            $oldStatusName = $milestoneModel->milestoneStatus?->name;
+
             $milestoneModel->update(['milestone_status_id' => $inProgressStatus->id]);
 
             $fresh = $milestoneModel->fresh();
             abort_if($fresh === null, 500);
             $fresh->load(['milestoneStatus', 'comments.user']);
+            $fresh->setRelation('application', $application);
+
+            // ZMENA TU: Posiela sa originálny názov "V riešení" namiesto 'in_progress'
+            event(new MilestoneStatusChanged(
+                $fresh,
+                $oldStatusName,
+                $inProgressStatus->name,
+                $mentor,
+                $this->resolveLanguageId($request),
+            ));
 
             return response()->json($this->formatMilestone($fresh));
         }
 
-        // ── MENTOR REVIEW GUARDS (Schválenie / Vrátenie / Zamietnutie) ──
+        // ── MENTOR REVIEW GUARDS ──────────────────────────────────────────────
         if (in_array($targetSlug, ['completed', 'approved'], true) && $currentSlug !== 'pending_approval') {
             return response()->json([
                 'message' => 'Tento míľnik momentálne nie je pripravený na schválenie mentora (študent ho ešte neodovzdal).',
             ], 422);
         }
 
-        if (in_array($targetSlug, ['returned', 'rejected'], true) && !in_array($currentSlug, ['pending_approval', 'in_progress', 'returned'], true)) {
+        if (
+            in_array($targetSlug, ['returned', 'rejected'], true)
+            && ! in_array($currentSlug, ['pending_approval', 'in_progress', 'returned'], true)
+        ) {
             return response()->json([
                 'message' => 'Tento míľnik momentálne nemôžete vrátiť ani zamietnuť.',
             ], 422);
@@ -314,7 +329,6 @@ class MentorshipController extends Controller
             ], 422);
         }
 
-        // Mapovanie na reálny názov v DB
         $targetDbName = match ($targetSlug) {
             'completed' => 'Schválené',
             'returned'  => 'Vrátené na doplnenie',
@@ -324,9 +338,7 @@ class MentorshipController extends Controller
         $targetStatus  = MilestoneStatus::where('name', $targetDbName)->firstOrFail();
         $oldStatusName = $milestoneModel->milestoneStatus?->name;
 
-
         $milestoneModel->update(['milestone_status_id' => $targetStatus->id]);
-
 
         if (in_array($targetSlug, ['returned', 'rejected'], true) && filled($request->input('comment'))) {
             MilestoneComment::create([
@@ -336,22 +348,80 @@ class MentorshipController extends Controller
             ]);
         }
 
-
         $freshMilestone = $milestoneModel->fresh();
         abort_if($freshMilestone === null, 500);
         $freshMilestone->load(['milestoneStatus', 'comments.user']);
-
         $freshMilestone->setRelation('application', $application);
 
+        // ZMENA TU: Posiela sa reálny slovenský názov z DB ($targetStatus->name) namiesto $targetSlug
         event(new MilestoneStatusChanged(
             $freshMilestone,
             $oldStatusName,
-            $targetSlug,
+            $targetStatus->name,
             $mentor,
             $this->resolveLanguageId($request),
         ));
 
         return response()->json($this->formatMilestone($freshMilestone));
+    }
+
+    public function updateMilestoneDates(Request $request, int $project, int $milestone): JsonResponse
+    {
+        $mentor      = $this->currentMentor($request);
+        $application = $this->mentorApplicationOrFail($mentor->id, $project);
+
+        /** @var Milestone $milestoneModel */
+        $milestoneModel = $application->milestones->firstWhere('id', $milestone);
+
+        abort_if($milestoneModel === null, 404);
+
+        $currentSlug = $this->milestoneStatusSlug($milestoneModel);
+
+        // Terminal states: nothing is editable
+        if (in_array($currentSlug, ['completed'], true)) {
+            return response()->json([
+                'message' => 'Dátumy uzavretého míľnika nie je možné upraviť.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'start_date' => ['nullable', 'date'],
+            'deadline'   => ['nullable', 'date'],
+        ]);
+
+        // Reject completely empty requests
+        if (empty($validated['start_date']) && empty($validated['deadline'])) {
+            return response()->json(['message' => 'Žiadne dátumy neboli zadané.'], 422);
+        }
+
+        $dateUpdates = [];
+
+        // start_date: Plánované only
+        if (! empty($validated['start_date'])) {
+            if ($currentSlug !== 'pending') {
+                return response()->json([
+                    'message' => 'Dátum začatia je možné zmeniť len v stave „Plánované".',
+                ], 422);
+            }
+            $dateUpdates['start_date'] = $validated['start_date'];
+        }
+
+        // deadline: every non-terminal state
+        if (! empty($validated['deadline'])) {
+            $dateUpdates['deadline'] = $validated['deadline'];
+        }
+
+        if (empty($dateUpdates)) {
+            return response()->json(['message' => 'Žiadne platné dátumy neboli zadané.'], 422);
+        }
+
+        $milestoneModel->update($dateUpdates);
+
+        $fresh = $milestoneModel->fresh();
+        abort_if($fresh === null, 500);
+        $fresh->load(['milestoneStatus', 'comments.user']);
+
+        return response()->json($this->formatMilestone($fresh));
     }
     /**
      * GET  /mentor/projects/{project}/consultations  — list
@@ -825,4 +895,6 @@ class MentorshipController extends Controller
         // status is already eager-loaded via PROJECT_WITH / mentorApplicationOrFail
         return $application->status?->name ?? '';
     }
+
+
 }

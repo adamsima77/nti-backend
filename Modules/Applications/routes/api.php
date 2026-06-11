@@ -5,6 +5,7 @@ use Modules\Applications\Http\Controllers\ApplicationController;
 use Modules\Applications\Http\Controllers\DocumentController;
 use Modules\Applications\Http\Controllers\StatusOfApplicationController;
 use Modules\Evaluation\Http\Controllers\EvaluationController;
+use Modules\Mentorship\Http\Controllers\MilestoneController;
 use Modules\Reporting\Http\Controllers\ExportController;
 
 
