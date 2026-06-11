@@ -561,7 +561,13 @@ class EvaluationController extends Controller
             ->firstOrFail();
 
         $applicationState = Application::where('id', $applicationId)->firstOrFail();
-        if($applicationState->active_status != 3){ // V Hodnotení
+        $sm = new \Modules\Applications\StateMachines\ApplicationStateMachine($applicationState);
+        $currentState = $sm->currentState();
+
+        if ($currentState === \Modules\Applications\StateMachines\ApplicationStateMachine::STATE_SUBMITTED) {
+            $sm->transitionTo(\Modules\Applications\StateMachines\ApplicationStateMachine::STATE_IN_EVALUATION);
+            $applicationState->refresh();
+        } elseif ($currentState !== \Modules\Applications\StateMachines\ApplicationStateMachine::STATE_IN_EVALUATION) {
             abort(403, "Prihlášku už nemôžete hodnotiť !");
         }
 

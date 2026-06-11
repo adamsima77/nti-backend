@@ -790,8 +790,17 @@ class CallController extends Controller
             ->with(['user:id,name,surname,email', 'commission:id,name'])
             ->first();
 
+        $locked = Call::findOrFail($id)->applications()
+            ->whereHas('statusHistory', function ($q) {
+                $q->where('status_of_application_id', function ($sq) {
+                    $sq->select('id')->from('status_of_application')
+                        ->where('name', 'V hodnotení')->limit(1);
+                })->whereRaw('id = (select max(id) from application_status_history where application_id = application.id)');
+            })
+            ->exists();
+
         if (! $setup && ! $repMember) {
-            return response()->json(['commission_setup' => null]);
+            return response()->json(['commission_setup' => null, 'locked' => $locked]);
         }
 
         if (! $setup && $repMember?->commission) {
@@ -810,6 +819,7 @@ class CallController extends Controller
                     'email' => $repMember->user->email,
                 ] : null,
             ],
+            'locked' => $locked,
         ]);
     }
 
@@ -861,14 +871,24 @@ class CallController extends Controller
 
         $this->authorize('update', $call);
 
-        if (DB::table('call_commission_setup')->where('call_id', $id)->exists()) {
-            return response()->json([
-                'message' => 'Komisia pre túto výzvu je už nastavená.',
-            ], 422);
-        }
-
         $isProgramB = str_contains(optional($call->program)->typeOfProgram?->name ?? '', 'B')
             || str_contains(optional($call->program)->name ?? '', 'B');
+
+        // Lock commission changes once any application is in evaluation
+        $hasEvaluatingApplication = $call->applications()
+            ->whereHas('statusHistory', function ($q) {
+                $q->where('status_of_application_id', function ($sq) {
+                    $sq->select('id')->from('status_of_application')
+                        ->where('name', 'V hodnotení')->limit(1);
+                })->whereRaw('id = (select max(id) from application_status_history where application_id = application.id)');
+            })
+            ->exists();
+
+        if ($hasEvaluatingApplication) {
+            return response()->json([
+                'message' => 'Komisiu nie je možné zmeniť — aspoň jedna prihláška je už v stave hodnotenia.',
+            ], 422);
+        }
 
         $validated = $request->validate([
             'commission_id'       => ['required', 'integer', 'exists:commission,id'],
@@ -891,6 +911,29 @@ class CallController extends Controller
         DB::transaction(function () use ($call, $validated, $isProgramB) {
             $commissionId     = $validated['commission_id'];
             $companyRepUserId = $validated['company_rep_user_id'] ?? null;
+
+            // Remove old setup and evaluations if commission is being changed
+            $oldSetup = DB::table('call_commission_setup')->where('call_id', $call->id)->first();
+            if ($oldSetup) {
+                $applicationIds = $call->applications()->pluck('id');
+
+                // Delete evaluations for call-specific members (company rep)
+                $callMemberIds = CommissionMember::where('call_id', $call->id)->pluck('id');
+                Evaluation::whereIn('application_id', $applicationIds)
+                    ->whereIn('commission_member_id', $callMemberIds)
+                    ->delete();
+
+                // Delete evaluations for regular members of the old commission
+                $oldMemberIds = CommissionMember::where('commission_id', $oldSetup->commission_id)
+                    ->whereNull('call_id')
+                    ->pluck('id');
+                Evaluation::whereIn('application_id', $applicationIds)
+                    ->whereIn('commission_member_id', $oldMemberIds)
+                    ->delete();
+
+                CommissionMember::where('call_id', $call->id)->delete();
+                DB::table('call_commission_setup')->where('call_id', $call->id)->delete();
+            }
 
             DB::table('call_commission_setup')->insert([
                 'call_id'       => $call->id,
@@ -938,6 +981,7 @@ class CallController extends Controller
                         'internal_note' => null,
                     ]);
                 }
+
             }
         });
 
@@ -991,8 +1035,8 @@ class CallController extends Controller
             ->where('active_status', '!=', 1) // exclude drafts
             ->get();
 
-        $data = $applications->map(function (Application $app) use ($totalMemberCount) {
-            $evaluations    = $app->evaluations;
+        $data = $applications->map(function (Application $app) use ($totalMemberCount, $allMemberIds) {
+            $evaluations    = $app->evaluations->filter(fn ($e) => $allMemberIds->contains($e->commission_member_id));
             $submittedCount = $evaluations->filter(fn ($e) => $e->submitted_at !== null)->count();
             $allEvaluated   = $totalMemberCount > 0 && $submittedCount === $totalMemberCount;
 

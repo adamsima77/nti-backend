@@ -215,6 +215,17 @@ class User extends Authenticatable
         return UserFactory::new();
     }
 
+    public function hasAnyRole(string|array ...$roles): bool
+    {
+        $roles = collect($roles)->flatten()->all();
+        return $this->roles()->whereIn('name', $roles)->exists();
+    }
+
+    public function hasRole(string $role): bool
+    {
+        return $this->roles()->where('name', $role)->exists();
+    }
+
     public function hasPermission(string $permission): bool
     {
         return $this->roles()

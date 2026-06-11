@@ -67,18 +67,18 @@ class CommissionController extends Controller
     {
         $commission = Commission::findOrFail($id);
 
-        // Prevent deletion if the commission is assigned to any currently active call.
-        // A call is considered active when its latest status (highest id in
-        // status_of_call_has_call) is NOT "Uzavreté".
-        $assignedToActiveCall = CommissionMember::where('commission_id', $id)
+        // Block deletion if any non-closed call assigned to this commission
+        // has an application currently in "V hodnotení" state.
+        // Closed calls ("Uzavreté") are exempt — their data can be cleaned up.
+        $lockedByEvaluation = \Modules\Evaluation\Models\CommissionMember::where('commission_id', $id)
             ->whereNotNull('call_id')
             ->whereExists(function ($query) {
+                // The call must not be closed
                 $query->selectRaw('1')
                     ->from('status_of_call_has_call as h')
                     ->join('status_of_call as s', 's.id', '=', 'h.status_of_call_id')
                     ->whereColumn('h.call_id', 'commission_member.call_id')
                     ->where('s.name', '!=', 'Uzavreté')
-                    // Only the latest status record for this call
                     ->whereNotExists(function ($inner) {
                         $inner->selectRaw('1')
                             ->from('status_of_call_has_call as h2')
@@ -86,27 +86,39 @@ class CommissionController extends Controller
                             ->whereColumn('h2.id', '>', 'h.id');
                     });
             })
+            ->whereExists(function ($query) {
+                // At least one application of that call is in "V hodnotení"
+                $query->selectRaw('1')
+                    ->from('application')
+                    ->whereColumn('application.call_id', 'commission_member.call_id')
+                    ->whereExists(function ($sq) {
+                        $sq->selectRaw('1')
+                            ->from('application_status_history as ash')
+                            ->join('status_of_application as soa', 'soa.id', '=', 'ash.status_of_application_id')
+                            ->whereColumn('ash.application_id', 'application.id')
+                            ->where('soa.name', 'V hodnotení')
+                            ->whereNotExists(function ($inner) {
+                                $inner->selectRaw('1')
+                                    ->from('application_status_history as ash2')
+                                    ->whereColumn('ash2.application_id', 'ash.application_id')
+                                    ->whereColumn('ash2.id', '>', 'ash.id');
+                            });
+                    });
+            })
             ->exists();
 
-        if ($assignedToActiveCall) {
+        if ($lockedByEvaluation) {
             return response()->json([
-                'message' => 'Komisiu nie je možné vymazať, pretože je priradená k aktívnej výzve.',
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        // Prevent deletion if any member has evaluations
-        $hasEvaluations = CommissionMember::where('commission_id', $id)
-            ->whereHas('evaluations')
-            ->exists();
-
-        if ($hasEvaluations) {
-            return response()->json([
-                'message' => 'Komisiu nie je možné vymazať, pretože jej členovia majú priradené hodnotenia.',
+                'message' => 'Komisiu nie je možné vymazať, pretože niektoré prihlášky sú práve v stave hodnotenia.',
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         DB::transaction(function () use ($commission) {
-            CommissionMember::where('commission_id', $commission->id)->delete();
+            $memberIds    = CommissionMember::where('commission_id', $commission->id)->pluck('id');
+            $evaluationIds = \Modules\Evaluation\Models\Evaluation::whereIn('commission_member_id', $memberIds)->pluck('id');
+            \Modules\Evaluation\Models\EvaluationScore::whereIn('evaluation_id', $evaluationIds)->delete();
+            \Modules\Evaluation\Models\Evaluation::whereIn('id', $evaluationIds)->delete();
+            CommissionMember::whereIn('id', $memberIds)->delete();
             $commission->delete();
         });
 
@@ -264,7 +276,7 @@ class CommissionController extends Controller
         return [
             'id'      => $commission->id,
             'name'    => $commission->name,
-            'members' => $members->merge($pending)->values(),
+            'members' => $members->toBase()->merge($pending)->values(),
         ];
     }
 }
