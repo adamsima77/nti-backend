@@ -16,29 +16,22 @@ class MilestoneSeeder extends Seeder
             return;
         }
 
-        foreach ($callIds->take(3) as $callId) {
-            $milestones = [
-                'Úvodná analýza a wireframy',
-                'MVP funkčné jadro backendu',
-                'Finálna akceptácia a nasadenie'
-            ];
-
-            foreach ($milestones as $index => $name) {
-                DB::table('project_milestones')->updateOrInsert(
-                    [
-                        'call_id' => $callId,
-                        'name'    => $name,
-                    ],
-                    [
-                        'call_id'             => $callId,
-                        'name'                => $name,
-                        'deadline'            => now()->addWeeks(($index + 1) * 2),
-                        'milestone_status_id' => $statusId,
-                        'created_at'          => now(),
-                        'updated_at'          => now(),
-                    ]
-                );
-            }
+        foreach ($callIds->take(2) as $callId) {
+            DB::table('project_milestones')->updateOrInsert(
+                [
+                    'call_id' => $callId,
+                    'name'    => 'Kickoff a zber podkladov',
+                ],
+                [
+                    'call_id'             => $callId,
+                    'name'                => 'Kickoff a zber podkladov',
+                    'start_date' => now(),
+                    'deadline'            => now()->addWeeks(2),
+                    'milestone_status_id' => $statusId,
+                    'created_at'          => now(),
+                    'updated_at'          => now(),
+                ]
+            );
         }
     }
 }

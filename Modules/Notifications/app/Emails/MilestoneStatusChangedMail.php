@@ -31,11 +31,22 @@ class MilestoneStatusChangedMail extends Mailable
         $recipientName = trim(($this->recipient->name ?? '').' '.($this->recipient->surname ?? ''));
         $actorName = trim(($this->changedBy->name ?? '').' '.($this->changedBy->surname ?? ''));
 
+
+        $oldStatusText = $this->oldStatus ?: '-';
+        $newStatusText = $this->newStatus ?: '-';
+
         $data = [
             'userName'      => $recipientName !== '' ? $recipientName : ($this->recipient->email ?? ''),
             'milestoneName' => $this->milestone->name,
-            'oldStatus'     => $this->oldStatus,
-            'newStatus'     => $this->newStatus,
+
+
+            'oldStatus'     => $oldStatusText,
+            'newStatus'     => $newStatusText,
+
+
+            'oldStatus ?? \'-\'' => $oldStatusText,
+            'newStatus ?? \'-\'' => $newStatusText,
+
             'deadline'      => optional($this->milestone->deadline)->format('d.m.Y'),
             'actorName'     => $actorName !== '' ? $actorName : ($this->changedBy->email ?? 'Mentor'),
             'projectId'     => $this->milestone->application?->id,

@@ -15,7 +15,7 @@ class MilestoneStatusChanged
     public function __construct(
         public Milestone $milestone,
         public ?string $oldStatus,
-        public ?string $newStatus,
+        public string $newStatus, 
         public User $changedBy,
         public int $languageId
     ) {}

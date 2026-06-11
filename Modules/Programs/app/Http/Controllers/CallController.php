@@ -776,9 +776,6 @@ class CallController extends Controller
                 'callCriteria.criterionTranslations:id,criterion_id,language_id,name',
                 'callTranslations.language:id,name',
             ])
-            ->whereHas('currentStatusHistory.status', fn ($q) =>
-            $q->where('name', 'Publikované')
-            )
             ->findOrFail($id);
 
         $isOpen = (bool) $call->is_open;
@@ -1183,7 +1180,7 @@ class CallController extends Controller
                         'changed_by'               => $user->id,
                     ]);
                 });
-            
+
             (new CallStateMachine($call))->transitionTo('Pridelené');
         });
 

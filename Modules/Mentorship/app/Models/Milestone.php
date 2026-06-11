@@ -34,6 +34,7 @@ class Milestone extends Model
         'start_date' => 'date',
     ];
 
+    //User is questionable
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'id');

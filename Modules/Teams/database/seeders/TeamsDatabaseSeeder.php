@@ -13,6 +13,7 @@ class TeamsDatabaseSeeder extends Seeder
     {
         $this->call([
             TeamRoleSeeder::class,
+            TeamSeeder::class,
         ]);
     }
 }
