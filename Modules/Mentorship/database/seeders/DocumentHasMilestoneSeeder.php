@@ -10,7 +10,7 @@ class DocumentHasMilestoneSeeder extends Seeder
     public function run(): void
     {
         $documentIds = DB::table('document')->orderBy('id')->pluck('id');
-        $milestoneIds = DB::table('milestone')->orderBy('id')->pluck('id');
+        $milestoneIds = DB::table('project_milestones')->orderBy('id')->pluck('id');
 
         if ($documentIds->isEmpty() || $milestoneIds->isEmpty()) {
             return;

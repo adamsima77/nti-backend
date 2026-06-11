@@ -111,7 +111,7 @@ class Application extends Model
 
     public function milestones(): HasMany
     {
-        return $this->hasMany(Milestone::class, 'project_id');
+        return $this->hasMany(Milestone::class, 'call_id', 'call_id');
     }
 
     public function mentorships(): HasMany

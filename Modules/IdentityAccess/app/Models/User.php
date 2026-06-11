@@ -23,6 +23,7 @@ use Modules\Notifications\Emails\VerifyEmailMail;
 use Modules\Notifications\Notifications\VerifyEmail as VerifyEmailNotification;
 use Modules\Organizations\Models\Organization;
 use Modules\Organizations\Models\UserOrganization;
+use Modules\Programs\Models\Call;
 use Modules\Students\Models\Student;
 use Modules\Teams\Models\Team;
 use Modules\Teams\Models\TeamMember;
@@ -115,6 +116,10 @@ class User extends Authenticatable
         )
             ->using(UserOrganization::class)
             ->withPivot('organization_role');
+    }
+
+    public function productOwners(): HasMany{
+        return $this->hasMany(Call::class, 'po_user_id');
     }
 
     public function teams(): BelongsToMany

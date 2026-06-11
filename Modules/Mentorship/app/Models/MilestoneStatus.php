@@ -13,6 +13,6 @@ class MilestoneStatus extends Model
 
     public function milestones(): HasMany
     {
-        return $this->hasMany(CallMilestone::class, 'milestone_status_id');
+        return $this->hasMany(Milestone::class, 'milestone_status_id');
     }
 }

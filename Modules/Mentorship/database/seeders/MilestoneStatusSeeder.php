@@ -15,6 +15,7 @@ class MilestoneStatusSeeder extends Seeder
             'Dokončené',
             'Schválené',
             'Zamietnuté',
+            'Vrátené na doplnenie'
         ];
 
         foreach ($items as $item) {

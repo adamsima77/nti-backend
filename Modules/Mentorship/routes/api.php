@@ -21,6 +21,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/admin/applications/{application}/mentors/{user}', [MentorshipController::class, 'assignMentor']);
        Route::get('/call-name', [MentorshipController::class, 'fetchMentorCalls']);
        Route::get('/fetch-detail/{application}', [MentorshipController::class, 'fetchDetail']);
+        Route::get   ('projects/{project}',                          [MentorshipController::class, 'projectDetail']);
+        Route::put   ('projects/{project}/consultations/{session}',  [MentorshipController::class, 'updateConsultation']);
+        Route::delete('projects/{project}/consultations/{session}',  [MentorshipController::class, 'deleteConsultation']);
     });
 
     Route::get('/mentors', [MentorshipController::class, 'fetchMentors']);

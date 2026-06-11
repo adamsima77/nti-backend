@@ -14,20 +14,45 @@ use Modules\Content\Enums\LanguageType;
 use Modules\IdentityAccess\Models\User;
 use Modules\Mentorship\Events\MentorSessionEvent;
 use Modules\Mentorship\Events\MilestoneStatusChanged;
+use Modules\Mentorship\Models\Mentorship;
 use Modules\Mentorship\Models\MentorshipSession;
 use Modules\Mentorship\Models\Milestone;
-use Modules\Mentorship\Models\Mentorship;
+use Modules\Mentorship\Models\MilestoneComment;
+use Modules\Mentorship\Models\MilestoneStatus;
 use Modules\Teams\Models\Team;
 
 class MentorshipController extends Controller
 {
     use AuthorizesRequests;
 
+    /**
+     * Shared eager-load set for every query that returns full project data.
+     *
+     * NOTE: Application::milestones() must be defined as:
+     *   return $this->hasMany(Milestone::class, 'call_id', 'call_id');
+     * because project_milestones links to call_id, not application_id.
+     *
+     * NOTE: Milestone has both a `comments` text column AND a `comments()`
+     * HasMany relation. Access the text column via getRawAttribute() — see
+     * formatMilestone() below.
+     */
+    private const PROJECT_WITH = [
+        'creator:id,name,surname,email',
+        'team.members',
+        'call.program.typeOfProgram',
+        'call.productOwner:id,name,surname,email',
+        'call.organization:id,name',
+        'milestones.milestoneStatus',
+        'milestones.comments.user',
+        'status:id,name',
+        'mentorships',
+    ];
+
     // ──────────────────────────────────────────────────────────────
     // Public routes
     // ──────────────────────────────────────────────────────────────
 
-    public function assignMentor(Request $request, Application $application, User $user)
+    public function assignMentor(Request $request, Application $application, User $user): JsonResponse
     {
         $this->authorize('assignMentor', Mentorship::class);
 
@@ -39,18 +64,16 @@ class MentorshipController extends Controller
         return response()->json(['message' => 'Mentor assigned successfully.'], Response::HTTP_OK);
     }
 
-    public function fetchMentors(Request $request)
+    public function fetchMentors(Request $request): JsonResponse
     {
-        $mentors = User::whereHas('roles', function ($query) {
-            $query->where('name', 'mentor');
-        })->get();
+        $mentors = User::whereHas('roles', fn ($q) => $q->where('name', 'mentor'))->get();
 
         return response()->json(['mentors' => $mentors], Response::HTTP_OK);
     }
 
     public function dashboard(Request $request): JsonResponse
     {
-        $mentor = $this->currentMentor($request);
+        $mentor   = $this->currentMentor($request);
         $projects = $this->mentorProjects($mentor->id, $request);
 
         return response()->json([
@@ -64,13 +87,13 @@ class MentorshipController extends Controller
             'projects' => $projects->take(5)->values(),
 
             'pendingActions' => $projects
-                ->filter(fn (array $project) => $project['pendingMilestone'] === true)
+                ->filter(fn (array $p) => $p['pendingMilestone'] === true)
                 ->take(5)
                 ->values()
-                ->map(fn (array $project) => [
-                    'id'      => 'project-' . $project['id'],
-                    'message' => sprintf('Projekt %s čaká na schválenie míľnika.', $project['name']),
-                    'link'    => '/mentor/projekty/' . $project['id'],
+                ->map(fn (array $p) => [
+                    'id'      => 'project-' . $p['id'],
+                    'message' => sprintf('Projekt %s čaká na schválenie míľnika.', $p['name']),
+                    'link'    => '/mentor/projekty/' . $p['id'],
                 ]),
 
             'recentConsultations' => collect($this->recentConsultations($mentor->id))->take(5)->values(),
@@ -87,42 +110,40 @@ class MentorshipController extends Controller
     /**
      * GET /mentor/projects/{id}
      *
-     * Returns a single project with all detail data in one request:
-     * milestones (with comments), consultations, team members, product owner.
-     * Replaces the old pattern of: fetchProjects() + fetchMilestones() + fetchConsultations().
+     * Single-request detail — milestones (with comments), consultations,
+     * team members and product owner all in one payload.
      */
     public function projectDetail(Request $request, int $project): JsonResponse
     {
         $mentor = $this->currentMentor($request);
 
         $application = Application::query()
-            ->with([
-                'creator:id,name,surname,email',
-                'team.members',
-                'call.program.typeOfProgram',
-                'milestones',
-                'status:id,name',
-                'mentorships',
-            ])
+            ->with(self::PROJECT_WITH)
             ->whereKey($project)
             ->whereHas('mentorships', fn ($q) => $q->where('mentor_user_id', $mentor->id))
             ->first();
 
         abort_if($application === null, 404);
 
+
+        if ($application->milestones->isNotEmpty()) {
+            $application->milestones->load(['milestoneStatus', 'comments.user']);
+        }
+
+        // Teraz už $application->milestones obsahuje kompletne všetko a formatMilestone() nezlyhá
         $milestones = $application->milestones
+            ->sortBy('id') // 💎 Zoradí míľniky od najstaršieho po najnovší podľa dátumu
             ->map(fn (Milestone $m) => $this->formatMilestone($m))
             ->values();
 
         $completed = $application->milestones
-            ->filter(fn ($m) => $this->isMilestoneCompleted($m->status))
+            ->filter(fn (Milestone $m) => $this->isMilestoneCompleted($m))
             ->count();
 
         $hasPendingApproval = $application->milestones->contains(
-            fn ($m) => $this->normalizeMilestoneStatus($m->status) === 'pending_approval',
+            fn (Milestone $m) => $this->milestoneStatusSlug($m) === 'pending_approval',
         );
 
-        // The mentorship row carries the assignment date
         $mentorship = $application->mentorships->firstWhere('mentor_user_id', $mentor->id);
 
         return response()->json([
@@ -134,17 +155,20 @@ class MentorshipController extends Controller
             'status'     => $this->projectStatus($application),
             'assignedAt' => $mentorship?->created_at?->format('d.m.Y'),
 
-            'productOwner' => $application->creator ? [
-                'name'  => trim(($application->creator->name ?? '') . ' ' . ($application->creator->surname ?? ''))
-                    ?: ($application->creator->email ?? 'Mentor'),
-                'email' => $application->creator->email,
-            ] : null,
+            'productOwner' => [
+                'name'         => trim(
+                    ($application->call?->productOwner?->name ?? '') . ' ' .
+                    ($application->call?->productOwner?->surname ?? '')
+                ),
+                'email'        => $application->call?->productOwner?->email ?? '',
+                'organization' => $application->call?->organization?->name ?? '',
+            ],
 
             'teamMembers' => $application->team
-                ? $application->team->members->map(fn (User $member) => [
-                    'id'   => $member->id,
-                    'name' => trim(($member->name ?? '') . ' ' . ($member->surname ?? ''))
-                        ?: ($member->email ?? ('Používateľ #' . $member->id)),
+                ? $application->team->members->map(fn (User $m) => [
+                    'id'   => $m->id,
+                    'name' => trim(($m->name ?? '') . ' ' . ($m->surname ?? ''))
+                        ?: ($m->email ?? ('Používateľ #' . $m->id)),
                     'role' => 'Člen tímu',
                 ])->values()
                 : [],
@@ -156,7 +180,6 @@ class MentorshipController extends Controller
             'pendingMilestone'    => $hasPendingApproval,
         ]);
     }
-
     public function consultations(Request $request): JsonResponse
     {
         $mentor = $this->currentMentor($request);
@@ -166,27 +189,122 @@ class MentorshipController extends Controller
 
     public function projectMilestones(Request $request, int $project): JsonResponse
     {
-        $mentor = $this->currentMentor($request);
+        $mentor      = $this->currentMentor($request);
         $application = $this->mentorApplicationOrFail($mentor->id, $project);
 
+        // Safeguard against null collection mappings
+        $milestones = $application->milestones ?? collect();
+
         return response()->json(
-            $application->milestones
-                ->map(fn (Milestone $milestone) => $this->formatMilestone($milestone))
+            $milestones
+                ->map(fn (Milestone $m) => $this->formatMilestone($m))
                 ->values(),
         );
     }
 
     public function updateMilestone(Request $request, int $project, int $milestone): JsonResponse
     {
-        $mentor = $this->currentMentor($request);
+        $mentor      = $this->currentMentor($request);
         $application = $this->mentorApplicationOrFail($mentor->id, $project);
-        $milestoneModel = $application->milestones()->whereKey($milestone)->firstOrFail();
 
-        $currentStatus = $this->normalizeMilestoneStatus($milestoneModel->status);
+        /** @var Milestone $milestoneModel */
+        $milestoneModel = $application->milestones->firstWhere('id', $milestone);
 
-        if ($currentStatus !== 'pending_approval') {
+        abort_if($milestoneModel === null, 404);
+
+        $currentSlug = $this->milestoneStatusSlug($milestoneModel);
+
+        // Pridali sme 'start_date' do hlavnej validácie prichádzajúcich dát
+        $validated = $request->validate([
+            'status'     => ['required', 'string', 'in:in_progress,completed,approved,returned,rejected'],
+            'comment'    => ['nullable', 'string', 'max:5000'],
+            'start_date' => ['nullable', 'date'],
+            'deadline'   => ['nullable', 'date'],
+        ]);
+
+        $requestedStatus = $validated['status'];
+
+        $targetSlug = match ($requestedStatus) {
+            'in_progress'           => 'in_progress',
+            'completed', 'approved' => 'completed',
+            'returned'              => 'returned',
+            'rejected'              => 'rejected',
+            default                 => null,
+        };
+
+        if ($targetSlug === null) {
+            return response()->json(['message' => 'Neplatný požadovaný stav.'], 422);
+        }
+
+        // ── VALIDÁCIA KOMENTÁRA (Pre vrátenie / zamietnutie) ──
+        if (in_array($targetSlug, ['returned', 'rejected'], true)) {
+            $request->validate([
+                'comment' => ['required', 'string', 'min:20']
+            ], [
+                'comment.min' => 'Pre vrátenie alebo zamietnutie míľnika musíte zadať odôvodnenie (min. 20 znakov).'
+            ]);
+        }
+
+        // ── AGILNÝ RE-DATING: Úprava termínov pre aktívne míľniky ──
+        // Ak mentor posiela nové dátumy a míľnik nie je uzavretý (Schválený/Zamietnutý), prepíšeme ich
+        if (! in_array($currentSlug, ['completed', 'rejected'], true)) {
+            $dateUpdates = [];
+
+            if (! empty($validated['start_date'])) {
+                $dateUpdates['start_date'] = $validated['start_date'];
+            }
+            if (! empty($validated['deadline'])) {
+                $dateUpdates['deadline'] = $validated['deadline'];
+            }
+
+            if (! empty($dateUpdates)) {
+                $milestoneModel->update($dateUpdates);
+                // Refreshneme model v pamäti, aby podmienky nižšie pracovali s novými dátumami
+                $milestoneModel->refresh();
+            }
+        }
+
+        // ── UNLOCK ACTION: pending → in_progress ────────────────────
+        if ($requestedStatus === 'in_progress') {
+            if ($currentSlug !== 'pending') {
+                return response()->json([
+                    'message' => 'Míľnik nie je v stave „Plánované" a nemôže byť odomknutý.',
+                ], 422);
+            }
+
+            // 🔒 STRÍKTNÁ KONTROLA ŠTARTU: Odomknúť sa dá, len ak program/míľnik už podľa kalendára začal
+            if ($milestoneModel->start_date && $milestoneModel->start_date->isFuture()) {
+                return response()->json([
+                    'message' => 'Tento míľnik ešte nemôžete odomknúť. Podľa harmonogramu sa začína až: ' . $milestoneModel->start_date->format('d.m.Y'),
+                ], 422);
+            }
+
+            if (! $this->previousMilestonesCompleted($application, $milestoneModel)) {
+                return response()->json([
+                    'message' => 'Najprv musíte schváliť predchádzajúce míľniky.',
+                ], 422);
+            }
+
+            $inProgressStatus = MilestoneStatus::where('name', 'V riešení')->firstOrFail();
+            $milestoneModel->update(['milestone_status_id' => $inProgressStatus->id]);
+
+            $fresh = $milestoneModel->fresh();
+            abort_if($fresh === null, 500);
+            $fresh->load(['milestoneStatus', 'comments.user']);
+
+            return response()->json($this->formatMilestone($fresh));
+        }
+
+        // ── MENTOR REVIEW GUARDS (Schválenie / Vrátenie / Zamietnutie) ──
+        if (in_array($targetSlug, ['completed', 'approved'], true) && $currentSlug !== 'pending_approval') {
             return response()->json([
-                'message' => 'Tento míľnik momentálne nie je pripravený na schválenie mentora.',
+                'message' => 'Tento míľnik momentálne nie je pripravený na schválenie mentora (študent ho ešte neodovzdal).',
+            ], 422);
+        }
+
+        if (in_array($targetSlug, ['returned', 'rejected'], true) && !in_array($currentSlug, ['pending_approval', 'in_progress', 'returned'], true)) {
+            return response()->json([
+                'message' => 'Tento míľnik momentálne nemôžete vrátiť ani zamietnuť.',
             ], 422);
         }
 
@@ -196,85 +314,56 @@ class MentorshipController extends Controller
             ], 422);
         }
 
-        $validated = $request->validate([
-            'status'  => ['required', 'string', 'in:completed,approved,rejected'],
-            'comment' => ['nullable', 'string', 'max:5000'],
-        ]);
+        // Mapovanie na reálny názov v DB
+        $targetDbName = match ($targetSlug) {
+            'completed' => 'Schválené',
+            'returned'  => 'Vrátené na doplnenie',
+            'rejected'  => 'Zamietnuté',
+        };
 
-        $targetStatus = in_array($validated['status'], ['completed', 'approved'], true)
-            ? 'completed'
-            : 'rejected';
+        $targetStatus  = MilestoneStatus::where('name', $targetDbName)->firstOrFail();
+        $oldStatusName = $milestoneModel->milestoneStatus?->name;
 
-        if ($targetStatus === 'rejected') {
-            $request->validate([
-                'comment' => ['required', 'string', 'min:20'],
+
+        $milestoneModel->update(['milestone_status_id' => $targetStatus->id]);
+
+
+        if (in_array($targetSlug, ['returned', 'rejected'], true) && filled($request->input('comment'))) {
+            MilestoneComment::create([
+                'milestone_id' => $milestoneModel->id,
+                'user_id'      => $mentor->id,
+                'comment_text' => (string) $request->input('comment'),
             ]);
         }
 
-        $oldStatus = $milestoneModel->status;
-
-        $milestoneModel->update(['status' => $targetStatus]);
-
-        if ($targetStatus === 'rejected' && filled($request->input('comment'))) {
-            $this->storeMilestoneComment($milestoneModel, $mentor->id, (string) $request->input('comment'));
-        }
 
         $freshMilestone = $milestoneModel->fresh();
-        $freshMilestone?->load(['application.team.members', 'application.creator', 'application.call']);
+        abort_if($freshMilestone === null, 500);
+        $freshMilestone->load(['milestoneStatus', 'comments.user']);
+
+        $freshMilestone->setRelation('application', $application);
 
         event(new MilestoneStatusChanged(
             $freshMilestone,
-            $oldStatus,
-            $targetStatus,
+            $oldStatusName,
+            $targetSlug,
             $mentor,
             $this->resolveLanguageId($request),
         ));
 
         return response()->json($this->formatMilestone($freshMilestone));
     }
-
+    /**
+     * GET  /mentor/projects/{project}/consultations  — list
+     * POST /mentor/projects/{project}/consultations  — create
+     */
     public function projectConsultations(Request $request, int $project): JsonResponse
     {
         $mentor = $this->currentMentor($request);
-
         $this->mentorApplicationOrFail($mentor->id, $project);
 
         if ($request->isMethod('post')) {
-
-            $validated = $request->validate([
-                'title'       => ['required', 'string', 'max:255'],
-                'type'        => ['required', 'in:online,offline'],
-                'scheduled_at' => ['required', 'date'],
-                'meeting_url' => ['nullable', 'url'],
-                'agenda'      => ['nullable', 'string', 'max:5000'],
-                'duration'    => ['required', 'integer', 'min:1'],
-            ]);
-
-            if ($validated['type'] === 'online' && empty($validated['meeting_url'])) {
-                return response()->json([
-                    'message' => 'Pre online stretnutie je potrebné zadať odkaz.',
-                ], 422);
-            }
-
-            $mentorshipId = $this->mentorshipId($mentor->id, $project);
-
-            $mentorSession = MentorshipSession::create([
-                'mentorship_id' => $mentorshipId,
-                'created_by'    => $mentor->id,
-                'title'         => $validated['title'],
-                'type'          => $validated['type'],
-                'meeting_url'   => $validated['meeting_url'] ?? null,
-                'scheduled_at'  => $validated['scheduled_at'],
-                'agenda'        => $validated['agenda'] ?? null,
-                'duration'      => $validated['duration'],
-                'status'        => 'scheduled',
-            ]);
-
-            event(new MentorSessionEvent($mentorSession));
-
-            return response()->json([
-                'message' => 'Mentoringové sedenie bolo naplánované.',
-            ], 201);
+            return $this->handleStoreConsultation($request, $mentor, $project);
         }
 
         return response()->json(
@@ -285,6 +374,83 @@ class MentorshipController extends Controller
     public function storeConsultation(Request $request, int $project): JsonResponse
     {
         return $this->projectConsultations($request, $project);
+    }
+
+    /**
+     * PUT /mentor/projects/{project}/consultations/{session}
+     */
+    public function updateConsultation(Request $request, int $project, int $session): JsonResponse
+    {
+        $mentor = $this->currentMentor($request);
+
+        $exists = DB::table('mentorship_session as ms')
+            ->join('mentorship as m', 'm.id', '=', 'ms.mentorship_id')
+            ->where('ms.id', $session)
+            ->where('m.mentor_user_id', $mentor->id)
+            ->where('m.application_id', $project)
+            ->exists();
+
+        abort_if(! $exists, 404);
+
+        $validated = $request->validate([
+            'title'        => ['required', 'string', 'max:255'],
+            'type'         => ['required', 'in:online,offline'],
+            'scheduled_at' => ['required', 'date'],
+            'meeting_url'  => ['nullable', 'url'],
+            'agenda'       => ['nullable', 'string', 'max:5000'],
+            'duration'     => ['required', 'integer', 'min:1'],
+        ]);
+
+        if ($validated['type'] === 'online' && empty($validated['meeting_url'])) {
+            return response()->json([
+                'message' => 'Pre online stretnutie je potrebné zadať odkaz.',
+            ], 422);
+        }
+
+        DB::table('mentorship_session')
+            ->where('id', $session)
+            ->update([
+                'title'        => $validated['title'],
+                'type'         => $validated['type'],
+                'scheduled_at' => $validated['scheduled_at'],
+                'meeting_url'  => $validated['meeting_url'] ?? null,
+                'agenda'       => $validated['agenda'] ?? null,
+                'duration'     => $validated['duration'],
+                'updated_at'   => now(),
+            ]);
+
+        $row = DB::table('mentorship_session')->where('id', $session)->first();
+
+        return response()->json([
+            'id'          => (int) $row->id,
+            'title'       => $row->title ?? 'Konzultácia',
+            'date'        => Carbon::parse($row->scheduled_at)->format('d.m.Y'),
+            'duration'    => (int) ($row->duration ?? 60),
+            'type'        => $row->type,
+            'summary'     => mb_strimwidth(trim(strip_tags((string) $row->agenda)), 0, 200, '…'),
+            'actionItems' => [],
+        ]);
+    }
+
+    /**
+     * DELETE /mentor/projects/{project}/consultations/{session}
+     */
+    public function deleteConsultation(Request $request, int $project, int $session): JsonResponse
+    {
+        $mentor = $this->currentMentor($request);
+
+        $mentorshipId = DB::table('mentorship_session as ms')
+            ->join('mentorship as m', 'm.id', '=', 'ms.mentorship_id')
+            ->where('ms.id', $session)
+            ->where('m.mentor_user_id', $mentor->id)
+            ->where('m.application_id', $project)
+            ->value('ms.mentorship_id');
+
+        abort_if($mentorshipId === null, 404);
+
+        DB::table('mentorship_session')->where('id', $session)->delete();
+
+        return response()->json(['message' => 'Konzultácia bola odstránená.']);
     }
 
     public function storeFeedback(Request $request, int $project): JsonResponse
@@ -305,6 +471,42 @@ class MentorshipController extends Controller
     // Private helpers
     // ──────────────────────────────────────────────────────────────
 
+    private function handleStoreConsultation(Request $request, User $mentor, int $project): JsonResponse
+    {
+        $validated = $request->validate([
+            'title'        => ['required', 'string', 'max:255'],
+            'type'         => ['required', 'in:online,offline'],
+            'scheduled_at' => ['required', 'date'],
+            'meeting_url'  => ['nullable', 'url'],
+            'agenda'       => ['nullable', 'string', 'max:5000'],
+            'duration'     => ['required', 'integer', 'min:1'],
+        ]);
+
+        if ($validated['type'] === 'online' && empty($validated['meeting_url'])) {
+            return response()->json([
+                'message' => 'Pre online stretnutie je potrebné zadať odkaz.',
+            ], 422);
+        }
+
+        $mentorshipId = $this->mentorshipId($mentor->id, $project);
+
+        $mentorSession = MentorshipSession::create([
+            'mentorship_id' => $mentorshipId,
+            'created_by'    => $mentor->id,
+            'title'         => $validated['title'],
+            'type'          => $validated['type'],
+            'meeting_url'   => $validated['meeting_url'] ?? null,
+            'scheduled_at'  => $validated['scheduled_at'],
+            'agenda'        => $validated['agenda'] ?? null,
+            'duration'      => $validated['duration'],
+            'status'        => 'scheduled',
+        ]);
+
+        event(new MentorSessionEvent($mentorSession));
+
+        return response()->json(['message' => 'Mentoringové sedenie bolo naplánované.'], 201);
+    }
+
     private function currentMentor(Request $request): User
     {
         $user = $request->user();
@@ -318,44 +520,32 @@ class MentorshipController extends Controller
     private function mentorProjects(int $mentorId, Request $request)
     {
         $query = Application::query()
-            ->with([
-                'creator:id,name,surname,email',
-                'team.members',
-                'call.program.typeOfProgram',
-                'milestones',
-                'status:id,name',
-                'mentorships',
-            ])
-            ->whereHas('mentorships', function ($q) use ($mentorId) {
-                $q->where('mentor_user_id', $mentorId);
-            });
+            ->with(self::PROJECT_WITH)
+            ->whereHas('mentorships', fn ($q) => $q->where('mentor_user_id', $mentorId));
 
         if ($request->filled('status')) {
             $query->where('active_status', $request->status);
         }
 
         if ($request->filled('program')) {
-            $query->whereHas('call', function ($q) use ($request) {
-                $q->where('program_id', $request->program);
-            });
+            $query->whereHas('call', fn ($q) => $q->where('program_id', $request->program));
         }
 
-        $paginator = $query->orderByDesc('created_by')->paginate(30);
-
+        $paginator   = $query->orderByDesc('created_by')->paginate(30);
         $transformed = collect($paginator->items())->map(function (Application $application) use ($mentorId) {
             $milestones = $application->milestones
-                ->map(fn ($m) => $this->formatMilestone($m))
+                ->map(fn (Milestone $m) => $this->formatMilestone($m))
                 ->values();
 
             $completed = $application->milestones
-                ->filter(fn ($m) => $this->isMilestoneCompleted($m->status))
+                ->filter(fn (Milestone $m) => $this->isMilestoneCompleted($m))
                 ->count();
 
             $nextMilestone = $application->milestones
-                ->first(fn ($m) => ! $this->isMilestoneCompleted($m->status));
+                ->first(fn (Milestone $m) => ! $this->isMilestoneCompleted($m));
 
             $hasPendingApproval = $application->milestones->contains(
-                fn ($m) => $this->normalizeMilestoneStatus($m->status) === 'pending_approval',
+                fn (Milestone $m) => $this->milestoneStatusSlug($m) === 'pending_approval',
             );
 
             return [
@@ -364,7 +554,6 @@ class MentorshipController extends Controller
                 'teamName' => $application->team?->name,
                 'program'  => $application->call?->program?->typeOfProgram?->name
                     ?? $application->call?->program?->name,
-
                 'status'     => $this->projectStatus($application),
                 'assignedAt' => $application->mentorships
                     ->firstWhere('mentor_user_id', $mentorId)
@@ -378,7 +567,7 @@ class MentorshipController extends Controller
                 ] : null,
 
                 'teamMembers' => $application->team
-                    ? $application->team->members->map(fn ($m) => [
+                    ? $application->team->members->map(fn (User $m) => [
                         'id'   => $m->id,
                         'name' => trim(($m->name ?? '') . ' ' . ($m->surname ?? ''))
                             ?: ($m->email ?? ('Používateľ #' . $m->id)),
@@ -386,8 +575,8 @@ class MentorshipController extends Controller
                     ])->values()
                     : [],
 
-                'teamSize'           => $application->team ? $application->team->members->count() : 0,
-                'consultationsCount' => $this->consultationsCount($mentorId, (int) $application->id),
+                'teamSize'            => $application->team ? $application->team->members->count() : 0,
+                'consultationsCount'  => $this->consultationsCount($mentorId, (int) $application->id),
                 'milestonesCompleted' => $completed,
                 'milestonesTotal'     => $application->milestones->count(),
                 'nextMilestone'       => $nextMilestone?->name,
@@ -401,16 +590,14 @@ class MentorshipController extends Controller
         return $paginator;
     }
 
+    /**
+     * Load a single application, scoped to the mentor, with milestones and
+     * their relations eagerly loaded. Aborts 404 if not found or not owned.
+     */
     private function mentorApplicationOrFail(int $mentorId, int $projectId): Application
     {
         $application = Application::query()
-            ->with([
-                'creator:id,name,surname,email',
-                'team.members',
-                'call.program.typeOfProgram',
-                'milestones',
-                'status:id,name',
-            ])
+            ->with(self::PROJECT_WITH)
             ->whereKey($projectId)
             ->whereHas('mentorships', fn ($q) => $q->where('mentor_user_id', $mentorId))
             ->first();
@@ -422,8 +609,7 @@ class MentorshipController extends Controller
 
     private function mentorshipId(int $mentorId, int $projectId): int
     {
-        $id = DB::table('mentorship')
-            ->where('mentor_user_id', $mentorId)
+        $id = Mentorship::where('mentor_user_id', $mentorId)
             ->where('application_id', $projectId)
             ->value('id');
 
@@ -441,11 +627,6 @@ class MentorshipController extends Controller
             ->count();
     }
 
-    /**
-     * Full consultation rows for a single project — includes real duration,
-     * real title, and correctly reads the `ms.title` column.
-     * Used by both projectDetail() and projectConsultations() GET.
-     */
     private function consultationsForProjectDetailed(int $mentorId, int $projectId)
     {
         return DB::table('mentorship_session as ms')
@@ -454,35 +635,21 @@ class MentorshipController extends Controller
             ->where('m.application_id', $projectId)
             ->orderByDesc('ms.scheduled_at')
             ->get([
-                'ms.id',
-                'ms.title',
-                'ms.scheduled_at',
-                'ms.agenda',
-                'ms.type',
-                'ms.duration',
+                'ms.id', 'ms.title', 'ms.scheduled_at', 'ms.agenda',
+                'ms.type', 'ms.duration', 'ms.meeting_url',    // ← meeting_url added
             ])
-            ->map(function ($row) {
-                return [
-                    'id'          => (int) $row->id,
-                    'title'       => $row->title ?? 'Konzultácia',
-                    'date'        => Carbon::parse($row->scheduled_at)->format('d.m.Y'),
-                    'duration'    => (int) ($row->duration ?? 60),
-                    'type'        => $row->type,
-                    'summary'     => mb_strimwidth(trim(strip_tags((string) $row->agenda)), 0, 200, '…'),
-                    'actionItems' => [],
-                ];
-            })
+            ->map(fn ($row) => [
+                'id'          => (int) $row->id,
+                'title'       => $row->title ?? 'Konzultácia',
+                'date'        => Carbon::parse($row->scheduled_at)->format('d.m.Y'),
+                'scheduledAt' => $row->scheduled_at,            // ← for edit modal pre-fill
+                'duration'    => (int) ($row->duration ?? 60),
+                'type'        => $row->type,
+                'meetingUrl'  => $row->meeting_url,             // ← for join link
+                'summary'     => mb_strimwidth(trim(strip_tags((string) $row->agenda)), 0, 200, '…'),
+                'actionItems' => [],
+            ])
             ->values();
-    }
-
-    /**
-     * @deprecated  Use consultationsForProjectDetailed() for all new code.
-     *              Kept only because allConsultations() references it via the
-     *              paginator — will be removed once that endpoint is refactored.
-     */
-    private function consultationsForProject(int $mentorId, int $projectId)
-    {
-        return $this->consultationsForProjectDetailed($mentorId, $projectId);
     }
 
     private function recentConsultations(int $mentorId)
@@ -526,144 +693,122 @@ class MentorshipController extends Controller
         $paginator = $query->orderByDesc('ms.scheduled_at')
             ->paginate(30, [
                 'ms.id', 'ms.title', 'ms.scheduled_at', 'ms.agenda',
-                'ms.type', 'ms.duration',
+                'ms.type', 'ms.duration', 'ms.meeting_url',    // ← added
                 'a.id as project_id', 'c.name as project_name',
             ]);
 
-        $transformed = collect($paginator->items())->map(function ($row) {
-            return [
-                'id'          => (int) $row->id,
-                'projectId'   => (int) $row->project_id,
-                'projectName' => $row->project_name ?? ('Projekt #' . $row->project_id),
-                'title'       => $row->title ?? 'Konzultácia',
-                'type'        => $row->type,
-                'date'        => Carbon::parse($row->scheduled_at)->format('d.m.Y'),
-                'duration'    => (int) ($row->duration ?? 60),
-                'summary'     => mb_strimwidth(trim(strip_tags((string) $row->agenda)), 0, 180, '…'),
-                'actionItems' => [],
-            ];
-        });
+        $transformed = collect($paginator->items())->map(fn ($row) => [
+            'id'          => (int) $row->id,
+            'projectId'   => (int) $row->project_id,
+            'projectName' => $row->project_name ?? ('Projekt #' . $row->project_id),
+            'title'       => $row->title ?? 'Konzultácia',
+            'type'        => $row->type,
+            'meetingUrl'  => $row->meeting_url,                // ← added
+            'date'        => Carbon::parse($row->scheduled_at)->format('d.m.Y'),
+            'scheduledAt' => $row->scheduled_at,               // ← added
+            'duration'    => (int) ($row->duration ?? 60),
+            'summary'     => mb_strimwidth(trim(strip_tags((string) $row->agenda)), 0, 180, '…'),
+            'actionItems' => [],
+        ]);
 
         return $paginator->setCollection($transformed);
     }
 
+    /**
+     * Build the serialisable milestone array for API responses.
+     *
+     * IMPORTANT: Milestone has both a `comments` text column and a
+     * `comments()` HasMany relation. When the relation is loaded, Laravel
+     * returns the Collection for `$milestone->comments`. To read the raw text
+     * column we use getAttributes() to bypass the relation resolver.
+     */
     private function formatMilestone(Milestone $milestone): array
     {
+
+        $descriptionText = $milestone->getAttributes()['comments'] ?? null;
+
+
+        $commentsCollection = $milestone->comments()->get();
+
         return [
             'id'          => $milestone->id,
             'title'       => $milestone->name,
             'dueDate'     => $milestone->deadline?->format('Y-m-d'),
-            'status'      => $this->normalizeMilestoneStatus($milestone->status),
-            'description' => $milestone->comments,
-            'comments'    => $this->milestoneComments($milestone->id),
+            'status'      => $this->milestoneStatusSlug($milestone),
+            'description' => $descriptionText,
+            'comments'    => $commentsCollection->map(fn (MilestoneComment $c) => [
+                'id'     => $c->id,
+                'author' => trim(($c->user?->name ?? '') . ' ' . ($c->user?->surname ?? ''))
+                    ?: ($c->user?->email ?? 'Používateľ'),
+                'date'   => $c->created_at?->format('d.m.Y'),
+                'text'   => (string) $c->comment_text,
+            ])->values(),
         ];
     }
 
-    private function normalizeMilestoneStatus(?string $status): string
+    /**
+     * Normalise a MilestoneStatus name to one of our canonical slugs:
+     * pending | in_progress | pending_approval | completed | rejected
+     */
+    private function normalizeMilestoneStatus(?string $statusName): string
     {
-        $value = mb_strtolower(trim((string) $status));
-
-        if (
-            in_array($value, ['completed', 'approved', 'schvalene', 'schválené'], true)
-            || str_contains($value, 'dokončen')
-            || str_contains($value, 'dokon')
-            || preg_match('/\bschválen/u', $value) === 1
-            || preg_match('/\bschvalen/u', $value) === 1
-        ) {
-            return 'completed';
+        if (! $statusName) {
+            return 'pending';
         }
 
-        if (str_contains($value, 'reject') || str_contains($value, 'zamiet')) {
-            return 'rejected';
-        }
-
-        if (
-            in_array($value, ['pending_approval', 'pending_review'], true)
-            || str_contains($value, 'pending_approval')
-            || str_contains($value, 'pending_review')
-            || str_contains($value, 'čaká na schválenie')
-        ) {
-            return 'pending_approval';
-        }
-
-        if (
-            in_array($value, ['in_progress', 'active'], true)
-            || str_contains($value, 'progress')
-            || str_contains($value, 'prebie')
-            || str_contains($value, 'aktív')
-        ) {
-            return 'in_progress';
-        }
-
-        return 'pending';
+        return match ($statusName) {
+            'Plánované'            => 'pending',
+            'V riešení'            => 'in_progress',
+            'Dokončené'            => 'pending_approval',
+            'Schválené'            => 'completed',
+            'Zamietnuté'           => 'rejected',
+            'Vrátené na doplnenie' => 'returned',   // ← was 'rejected'
+            default                => 'pending',
+        };
     }
 
+    /**
+     * Convenience wrapper — resolves the slug from the already-loaded relation
+     * so callers never have to reach into the relation manually.
+     */
+    private function milestoneStatusSlug(Milestone $milestone): string
+    {
+        return $this->normalizeMilestoneStatus($milestone->milestoneStatus?->name);
+    }
+
+    private function isMilestoneCompleted(Milestone $milestone): bool
+    {
+        $slug = $this->milestoneStatusSlug($milestone);
+        return in_array($slug, ['completed', 'rejected'], true);
+    }
+
+    /**
+     * Returns true when all milestones with an earlier deadline/id than
+     * $milestone are already completed. Uses the in-memory collection to
+     * avoid an extra query (milestones must be eager-loaded beforehand).
+     */
     private function previousMilestonesCompleted(Application $application, Milestone $milestone): bool
     {
-        $ordered = $application->milestones()
-            ->orderBy('deadline')
-            ->orderBy('id')
-            ->get();
+        $milestones = $application->milestones ?? collect();
+
+        if ($milestones->isEmpty()) {
+            return true;
+        }
+
+
+        $ordered = $milestones->sortBy('id');
 
         foreach ($ordered as $item) {
             if ($item->id === $milestone->id) {
                 return true;
             }
 
-            if (! $this->isMilestoneCompleted($item->status)) {
+            if (! $this->isMilestoneCompleted($item)) {
                 return false;
             }
         }
 
         return true;
-    }
-
-    private function storeMilestoneComment(Milestone $milestone, int $userId, string $text): void
-    {
-        $callId = Application::query()->whereKey($milestone->project_id)->value('call_id');
-
-        if ($callId === null) {
-            return;
-        }
-
-        $legacyMilestoneId = DB::table('milestone')
-            ->where('call_id', $callId)
-            ->where('name', $milestone->name)
-            ->value('id');
-
-        if ($legacyMilestoneId === null) {
-            return;
-        }
-
-        DB::table('milestone_comments')->insert([
-            'milestone_id'      => $legacyMilestoneId,
-            'user_id'           => $userId,
-            'parent_comment_id' => null,
-            'comment_text'      => $text,
-            'created_at'        => now(),
-            'updated_at'        => now(),
-        ]);
-    }
-
-    private function milestoneComments(int $milestoneId)
-    {
-        return DB::table('milestone_comments as mc')
-            ->join('users as u', 'u.id', '=', 'mc.user_id')
-            ->where('mc.milestone_id', $milestoneId)
-            ->orderBy('mc.created_at')
-            ->get(['mc.id', 'mc.comment_text', 'mc.created_at', 'u.name', 'u.surname', 'u.email'])
-            ->map(fn ($row) => [
-                'id'     => (int) $row->id,
-                'author' => trim(($row->name ?? '') . ' ' . ($row->surname ?? '')) ?: ($row->email ?? 'Používateľ'),
-                'date'   => Carbon::parse($row->created_at)->format('d.m.Y'),
-                'text'   => (string) $row->comment_text,
-            ])
-            ->values();
-    }
-
-    private function isMilestoneCompleted(?string $status): bool
-    {
-        return $this->normalizeMilestoneStatus($status) === 'completed';
     }
 
     private function resolveLanguageId(Request $request): int
@@ -677,8 +822,7 @@ class MentorshipController extends Controller
 
     private function projectStatus(Application $application): string
     {
-        $status = Application::with(['status'])->where('id', $application->id)->first();
-
-        return $status->status->name ?? '';
+        // status is already eager-loaded via PROJECT_WITH / mentorApplicationOrFail
+        return $application->status?->name ?? '';
     }
 }
