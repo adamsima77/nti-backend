@@ -11,13 +11,13 @@ use Illuminate\Support\Str;
 use Modules\Applications\Models\Document;
 use Modules\Applications\Models\DocumentVersion;
 use Modules\Applications\Models\SecurityClassification;
-use Modules\Mentorship\Models\CallMilestone;
+use Modules\Mentorship\Models\Milestone;
 use Modules\Programs\Models\Call;
 
 class MilestoneDocumentController extends Controller
 {
 
-    public function index(Request $request, Call $call, CallMilestone $milestone): JsonResponse
+    public function index(Request $request, Call $call, Milestone $milestone): JsonResponse
     {
         abort_if($milestone->call_id !== $call->id, 404);
 
@@ -26,7 +26,7 @@ class MilestoneDocumentController extends Controller
         return response()->json(['documents' => $docs]);
     }
 
-    public function store(Request $request, Call $call, CallMilestone $milestone): JsonResponse
+    public function store(Request $request, Call $call, Milestone $milestone): JsonResponse
     {
         abort_if($milestone->call_id !== $call->id, 404);
 
@@ -64,7 +64,7 @@ class MilestoneDocumentController extends Controller
         return response()->json($this->formatDocument($document), 201);
     }
 
-    public function download(Request $request, Call $call, CallMilestone $milestone, Document $document)
+    public function download(Request $request, Call $call, Milestone $milestone, Document $document)
     {
         abort_if($milestone->call_id !== $call->id, 404);
         abort_unless($milestone->documents()->where('document_id', $document->id)->exists(), 404);
@@ -76,7 +76,7 @@ class MilestoneDocumentController extends Controller
         return Storage::disk('local')->download($version->file_path, $version->file_name);
     }
 
-    public function destroy(Request $request, Call $call, CallMilestone $milestone, Document $document): JsonResponse
+    public function destroy(Request $request, Call $call, Milestone $milestone, Document $document): JsonResponse
     {
         abort_if($milestone->call_id !== $call->id, 404);
         abort_unless($milestone->documents()->where('document_id', $document->id)->exists(), 404);

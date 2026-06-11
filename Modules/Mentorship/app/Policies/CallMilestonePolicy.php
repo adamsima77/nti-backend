@@ -5,7 +5,7 @@ namespace Modules\Mentorship\Policies;
 use Illuminate\Auth\Access\HandlesAuthorization;
 use Illuminate\Support\Facades\DB;
 use Modules\IdentityAccess\Models\User;
-use Modules\Mentorship\Models\CallMilestone;
+use Modules\Mentorship\Models\Milestone;
 use Modules\Mentorship\Models\Mentorship;
 use Modules\Programs\Models\Call;
 
@@ -22,24 +22,30 @@ class CallMilestonePolicy
         return null;
     }
 
-    public function viewAny(User $user, Call $call): bool
+    public function viewAny(User $user, ?Call $call = null): bool
     {
+        if ($call === null) {
+            return false;
+        }
         return $this->isOrgAdminOrPo($user, $call)
             || $this->isAssignedMentor($user, $call);
     }
 
-    public function create(User $user, Call $call): bool
+    public function create(User $user, ?Call $call = null): bool
     {
+        if ($call === null) {
+            return false;
+        }
         return $this->isOrgAdminOrPo($user, $call);
     }
 
-    public function update(User $user, CallMilestone $milestone): bool
+    public function update(User $user, Milestone $milestone): bool
     {
         return $this->isOrgAdminOrPo($user, $milestone->call)
             || $this->isAssignedMentor($user, $milestone->call);
     }
 
-    public function delete(User $user, CallMilestone $milestone): bool
+    public function delete(User $user, Milestone $milestone): bool
     {
         return $this->isOrgAdminOrPo($user, $milestone->call);
     }

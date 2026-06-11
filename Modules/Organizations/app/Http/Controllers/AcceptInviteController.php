@@ -82,8 +82,10 @@ class AcceptInviteController extends Controller
             $orgName   = $invite->organization->name;
             $memberName = trim($user->name.' '.$user->surname) ?: $user->email;
 
+            $orgAdminRoleId = \Modules\Organizations\Models\OrganizationRole::where('name', 'org_admin')->value('id');
+
             $orgAdmins = $invite->organization->users()
-                ->wherePivot('organization_role', 'org_admin')
+                ->wherePivot('organization_role', $orgAdminRoleId)
                 ->get();
 
             foreach ($orgAdmins as $admin) {

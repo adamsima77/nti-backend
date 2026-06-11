@@ -9,7 +9,14 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Modules\IdentityAccess\Enums\UserStatus;
+use Modules\IdentityAccess\Models\Role;
+use Modules\Organizations\Events\OrganizationMemberInvited;
+use Modules\Organizations\Models\Organization;
+use Modules\Organizations\Models\OrganizationInvitation;
 use App\Services\Pdf\PdfService;
 use Modules\Applications\Models\Application;
 use Modules\Applications\Models\ApplicationStatusHistory;
@@ -404,8 +411,12 @@ class CallController extends Controller
                     ?? $this->resolveCallTypeByProgram($validated['program_id'])->id;
 
                 if ($request->filled('po_email')) {
-                    $poUser = \Modules\IdentityAccess\Models\User::where('email', $request->po_email)->first();
-                    $validated['po_user_id'] = $poUser?->id;
+                    $poUser = $this->resolveOrInvitePoUser(
+                        $request->po_email,
+                        $validated['organization_id'] ?? null,
+                        $request->cookie('i18n_redirected', 'sk'),
+                    );
+                    $validated['po_user_id'] = $poUser->id;
                 }
 
                 $call = Call::create([
@@ -560,7 +571,16 @@ class CallController extends Controller
         }
 
         try{
-        return DB::transaction(function () use ($validated, $call): JsonResponse {
+        return DB::transaction(function () use ($validated, $call, $request): JsonResponse {
+
+            if ($request->filled('po_email') && empty($validated['po_user_id'])) {
+                $poUser = $this->resolveOrInvitePoUser(
+                    $request->po_email,
+                    $validated['organization_id'] ?? $call->organization_id,
+                    $request->cookie('i18n_redirected', 'sk'),
+                );
+                $validated['po_user_id'] = $poUser->id;
+            }
 
             $call->update(
                 collect($validated)
@@ -1150,6 +1170,69 @@ class CallController extends Controller
     // ─────────────────────────────────────────────────────────────────────────
     //  PRIVATE HELPERS
     // ─────────────────────────────────────────────────────────────────────────
+
+    private function resolveOrInvitePoUser(string $email, ?int $organizationId, string $lang = 'sk'): \Modules\IdentityAccess\Models\User
+    {
+        $email = mb_strtolower(trim($email));
+        $user  = \Modules\IdentityAccess\Models\User::where('email', $email)->first();
+
+        if (! $user) {
+            $user = \Modules\IdentityAccess\Models\User::create([
+                'name'      => preg_replace('/@.*$/', '', $email),
+                'surname'   => '',
+                'email'     => $email,
+                'password'  => Hash::make(Str::random(32)),
+                'status_id' => UserStatus::PENDING_EMAIL->value,
+            ]);
+        }
+
+        $orgRole = Role::where('name', 'organization')->first();
+        if ($orgRole && ! $user->roles()->where('name', 'organization')->exists()) {
+            $user->roles()->attach($orgRole->id);
+        }
+
+        if ($organizationId) {
+            $poRole      = OrganizationRole::where('name', 'org_product_owner')->firstOrFail();
+            $organization = Organization::find($organizationId);
+
+            $memberExists = DB::table('user_organization')
+                ->where('user_id', $user->id)
+                ->where('organization_id', $organizationId)
+                ->exists();
+
+            if ($memberExists) {
+                DB::table('user_organization')
+                    ->where('user_id', $user->id)
+                    ->where('organization_id', $organizationId)
+                    ->update(['organization_role' => $poRole->id]);
+            } else {
+                DB::table('user_organization')->insert([
+                    'user_id'           => $user->id,
+                    'organization_id'   => $organizationId,
+                    'organization_role' => $poRole->id,
+                ]);
+
+                if ($organization) {
+                    $invite = OrganizationInvitation::create([
+                        'token'                => Str::random(64),
+                        'email'                => $email,
+                        'organization_id'      => $organizationId,
+                        'organization_role_id' => $poRole->id,
+                        'expires_at'           => now()->addHours(72),
+                    ]);
+
+                    event(new OrganizationMemberInvited(
+                        invitation:   $invite,
+                        organization: $organization,
+                        roleLabel:    'Product Owner',
+                        lang:         $lang === 'en' ? 'en' : 'sk',
+                    ));
+                }
+            }
+        }
+
+        return $user;
+    }
 
     private function syncPoUserOrgRole(Call $call): void
     {

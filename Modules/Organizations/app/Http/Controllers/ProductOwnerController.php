@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Modules\Mentorship\Models\CallMilestone;
+use Modules\Mentorship\Models\Milestone;
 use Modules\Mentorship\Models\MilestoneComment;
 use Modules\Mentorship\Models\MilestoneStatus;
 use Modules\Mentorship\StateMachines\MilestoneStateMachine;
@@ -54,15 +54,15 @@ class ProductOwnerController extends Controller
         $doneStatusIds = MilestoneStatus::whereIn('name', ['Dokončené', 'Schválené'])->pluck('id');
         $pendingStatusId = MilestoneStatus::where('name', 'Dokončené')->value('id');
 
-        $openBacklog = CallMilestone::where('call_id', $call->id)
+        $openBacklog = Milestone::where('call_id', $call->id)
             ->whereIn('milestone_status_id', $openStatusIds)
             ->count();
 
-        $doneBacklog = CallMilestone::where('call_id', $call->id)
+        $doneBacklog = Milestone::where('call_id', $call->id)
             ->whereIn('milestone_status_id', $doneStatusIds)
             ->count();
 
-        $pendingApprovals = CallMilestone::where('call_id', $call->id)
+        $pendingApprovals = Milestone::where('call_id', $call->id)
             ->where('milestone_status_id', $pendingStatusId)
             ->count();
 
@@ -147,22 +147,22 @@ class ProductOwnerController extends Controller
 
         $doneStatusId = MilestoneStatus::where('name', MilestoneStateMachine::STATE_DONE)->value('id');
 
-        $milestones = CallMilestone::where('call_id', $call->id)
+        $milestones = Milestone::where('call_id', $call->id)
             ->where('milestone_status_id', $doneStatusId)
             ->with('milestoneStatus')
-            ->orderBy('due_date')
+            ->orderBy('deadline')
             ->get()
             ->map(fn ($m) => [
                 'id'       => $m->id,
                 'name'     => $m->name,
-                'due_date' => $m->due_date?->toDateString(),
+                'due_date' => $m->deadline?->toDateString(),
                 'status'   => $m->milestoneStatus?->name,
             ]);
 
         return response()->json(['milestones' => $milestones]);
     }
 
-    public function approveMilestone(Request $request, Call $call, CallMilestone $milestone): JsonResponse
+    public function approveMilestone(Request $request, Call $call, Milestone $milestone): JsonResponse
     {
         $this->authorizePoCall($request, $call);
         abort_if($milestone->call_id !== $call->id, 403);
@@ -188,7 +188,7 @@ class ProductOwnerController extends Controller
         return response()->json(['message' => 'Míľnik bol schválený.', 'status' => MilestoneStateMachine::STATE_APPROVED]);
     }
 
-    public function rejectMilestone(Request $request, Call $call, CallMilestone $milestone): JsonResponse
+    public function rejectMilestone(Request $request, Call $call, Milestone $milestone): JsonResponse
     {
         $this->authorizePoCall($request, $call);
         abort_if($milestone->call_id !== $call->id, 403);

@@ -2,7 +2,7 @@
 
 namespace Modules\Mentorship\StateMachines;
 
-use Modules\Mentorship\Models\CallMilestone;
+use Modules\Mentorship\Models\Milestone;
 use Modules\Mentorship\Models\MilestoneStatus;
 
 class MilestoneStateMachine
@@ -21,7 +21,7 @@ class MilestoneStateMachine
         self::STATE_APPROVED    => [],
     ];
 
-    public function __construct(private CallMilestone $milestone) {}
+    public function __construct(private Milestone $milestone) {}
 
     public function currentState(): string
     {
@@ -35,7 +35,7 @@ class MilestoneStateMachine
         return in_array($targetState, self::TRANSITIONS[$this->currentState()] ?? [], true);
     }
 
-    public function transitionTo(string $targetState): CallMilestone
+    public function transitionTo(string $targetState): Milestone
     {
         if (! $this->canTransitionTo($targetState)) {
             throw new \InvalidArgumentException(

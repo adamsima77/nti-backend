@@ -20,6 +20,7 @@ class Milestone extends Model
 
     protected $fillable = [
         'name',
+        'description',
         'deadline',
         'status',
         'comments',
@@ -29,7 +30,7 @@ class Milestone extends Model
     ];
 
     protected $casts = [
-        'deadline' => 'date',
+        'deadline'   => 'date',
         'start_date' => 'date',
     ];
 
