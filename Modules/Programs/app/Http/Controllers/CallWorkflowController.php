@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Modules\Programs\Models\Call;
 use Modules\Programs\StateMachines\CallStateMachine;
+use Modules\Programs\StateMachines\CallStateMachineProgramA;
 
 class CallWorkflowController extends Controller
 {
@@ -39,7 +40,7 @@ class CallWorkflowController extends Controller
      */
     public function show(Call $call)
     {
-        $machine = new CallStateMachine($call);
+        $machine = $this->machineFor($call);
 
         return response()->json([
             'current_state'         => $machine->currentState(),
@@ -74,7 +75,7 @@ class CallWorkflowController extends Controller
             'note'  => ['nullable', 'string'],
         ]);
 
-        $machine = new CallStateMachine($call);
+        $machine = $this->machineFor($call);
 
         if (!$machine->canTransitionTo($validated['state'])) {
             return response()->json([
@@ -98,7 +99,16 @@ class CallWorkflowController extends Controller
         return response()->json([
             'message'               => 'Stav výzvy bol úspešne zmenený na "' . $validated['state'] . '".',
             'current_state'         => $validated['state'],
-            'available_transitions' => (new CallStateMachine($call->fresh()))->availableTransitions(),
+            'available_transitions' => $this->machineFor($call->fresh())->availableTransitions(),
         ], Response::HTTP_OK);
+    }
+
+    private function machineFor(Call $call): CallStateMachine|CallStateMachineProgramA
+    {
+        $call->loadMissing('program');
+
+        return $call->program_id === 1
+            ? new CallStateMachineProgramA($call)
+            : new CallStateMachine($call);
     }
 }

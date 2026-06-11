@@ -25,6 +25,11 @@ class CallExport implements FromView, ShouldAutoSize, WithEvents
         $deadlineFrom = $this->filters['deadline_from'] ?? request('deadline_from');
         $deadlineTo   = $this->filters['deadline_to'] ?? request('deadline_to');
 
+        $callId = $this->filters['call_id'] ?? null;
+        if (!empty($callId)) {
+            $query->where('id', $callId);
+        }
+
         if (!empty($status)) {
             $mainTable = $query->getModel()->getTable();
 

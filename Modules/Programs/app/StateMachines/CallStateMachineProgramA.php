@@ -2,6 +2,7 @@
 
 namespace Modules\Programs\StateMachines;
 
+use Modules\Programs\Events\CallClosed;
 use Modules\Programs\Models\Call;
 use Modules\Programs\Models\StatusOfCall;
 use Modules\Programs\Models\StatusOfCallHasCall;
@@ -40,7 +41,7 @@ class CallStateMachineProgramA
         return $this->call
             ->statusHistory()
             ->with('status')
-            ->latest()
+            ->latest('id')
             ->first()
             ?->status
             ?->name ?? self::STATE_DRAFT;
@@ -85,11 +86,17 @@ class CallStateMachineProgramA
 
         $status = StatusOfCall::where('name', $targetState)->firstOrFail();
 
-        return StatusOfCallHasCall::create([
+        $record = StatusOfCallHasCall::create([
             'call_id'           => $this->call->id,
             'status_of_call_id' => $status->id,
             'note'              => $note,
         ]);
+
+        if ($targetState === self::STATE_CLOSED) {
+            CallClosed::dispatch($this->call);
+        }
+
+        return $record;
     }
 
     public function availableTransitions(): array

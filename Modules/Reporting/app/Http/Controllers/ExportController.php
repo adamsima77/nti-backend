@@ -408,14 +408,11 @@ private function buildApplicationExportQuery(array $filters)
     {
         $call = Call::query()
             ->with([
-                'program:id,name',
+                'program.typeOfProgram:id,name',
                 'organization:id,name',
                 'currentStatusHistory.status:id,name',
-                'callCriteria:id,name',
+                'callCriteria.criterionTranslations',
             ])
-            ->whereHas('currentStatusHistory.status', function ($query) {
-                $query->where('name', 'Publikované');
-            })
             ->findOrFail($id);
 
         if ($request->boolean('async')) {
@@ -427,10 +424,10 @@ private function buildApplicationExportQuery(array $filters)
                 Call::class,
                 $call->id,
                 [
-                    'program:id,name',
+                    'program.typeOfProgram:id,name',
                     'organization:id,name',
                     'currentStatusHistory.status:id,name',
-                    'callCriteria:id,name',
+                    'callCriteria.criterionTranslations',
                 ],
                 'programs::pdf.project-report',
                 'call'
@@ -575,6 +572,89 @@ private function buildApplicationExportQuery(array $filters)
             'status_url' => route('api.exports.show', ['exportRequest' => $exportRequest]),
             'download_url' => route('api.exports.download', ['exportRequest' => $exportRequest]),
         ];
+    }
+
+    public function callReport(Request $request, int $callId, string $format = 'pdf', QueuedExportService $queuedExportService, PdfService $pdfService)
+    {
+        $relations = [
+            'program.typeOfProgram:id,name',
+            'organization:id,name',
+            'productOwner:id,name,surname,email',
+            'currentStatusHistory.status:id,name',
+            'callCriteria.criterionTranslations',
+            'applications' => fn ($q) => $q->whereHas('status', fn ($q) => $q->where('name', 'Schválené')),
+            'applications.team.members:id,name,surname,email',
+            'applications.mentorships.mentor:id,name,surname,email',
+            'applications.kpis',
+            'applications.outputs',
+            'applications.milestones',
+        ];
+
+        $call = Call::with($relations)->findOrFail($callId);
+
+        $format   = 'pdf';
+        $fileName = "project-report-{$callId}.pdf";
+
+        if ($format === 'pdf') {
+            if ($request->boolean('async')) {
+                return $this->queuePdfResponse(
+                    $request,
+                    $queuedExportService,
+                    'call_pdf',
+                    $fileName,
+                    Call::class,
+                    $callId,
+                    [
+                        'program.typeOfProgram:id,name',
+                        'organization:id,name',
+                        'productOwner:id,name,surname,email',
+                        'currentStatusHistory.status:id,name',
+                        'callCriteria.criterionTranslations',
+                        'applications.team.members:id,name,surname,email',
+                        'applications.mentorships.mentor:id,name,surname,email',
+                        'applications.kpis',
+                        'applications.outputs',
+                        'applications.milestones',
+                    ],
+                    'programs::pdf.project-report',
+                    'call'
+                );
+            }
+
+            return $pdfService->download('programs::pdf.project-report', ['call' => $call], $fileName);
+        }
+
+        $writerType = $format === 'csv' ? \Maatwebsite\Excel\Excel::CSV : \Maatwebsite\Excel\Excel::XLSX;
+
+        if ($request->boolean('async')) {
+            return $this->queueExcelResponse(
+                $request,
+                $queuedExportService,
+                'call_pdf',
+                $fileName,
+                CallExport::class,
+                $writerType,
+                [['call_id' => $callId]]
+            );
+        }
+
+        return Excel::download(new CallExport(['call_id' => $callId]), $fileName, $writerType);
+    }
+
+    public function callClosureReport(Request $request, int $callId): JsonResponse
+    {
+        $exportRequest = ExportRequest::where('export_key', 'call_pdf')
+            ->where('file_name', "project-report-{$callId}.pdf")
+            ->latest()
+            ->first();
+
+        if (!$exportRequest) {
+            return response()->json(['message' => 'Report pre tento call neexistuje.'], 404);
+        }
+
+        return response()->json([
+            'export_request' => $this->formatExportRequest($request, $exportRequest),
+        ]);
     }
 
     protected function authorizeExportRequest(Request $request, ExportRequest $exportRequest): void

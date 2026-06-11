@@ -18,6 +18,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('exports/{exportRequest}', [ExportController::class, 'showExportRequest'])->name('exports.show');
     Route::get('exports/{exportRequest}/download', [ExportController::class, 'downloadExportRequest'])->name('exports.download');
+    Route::get('v1/admin/calls/{callId}/closure-report', [ExportController::class, 'callClosureReport'])->name('api.calls.closure-report');
+    Route::get('v1/admin/calls/{callId}/report/{format?}', [ExportController::class, 'callReport'])->name('api.calls.report');
     Route::get('evaluations/export/{format?}', [ExportController::class, 'evaluations'])->name('evaluations.export');
 
     // ProjectKpi routes
