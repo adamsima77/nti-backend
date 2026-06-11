@@ -12,19 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('document_has_milestone', function (Blueprint $table) {
-            $table->unsignedBigInteger('document_id');
-            $table->unsignedBigInteger('milestone_id');
-
+            $table->foreignId('document_id')->constrained('document');
+            $table->foreignId('milestone_id')->constrained('project_milestones');
             $table->primary(['document_id', 'milestone_id']);
-            $table->index('milestone_id', 'idx_doc_ms_ms');
-
-            $table->foreign('document_id')
-                ->references('id')
-                ->on('document');
-
-            $table->foreign('milestone_id')
-                ->references('id')
-                ->on('milestone');
         });
     }
 

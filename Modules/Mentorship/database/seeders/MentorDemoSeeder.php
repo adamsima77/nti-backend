@@ -12,7 +12,10 @@ class MentorDemoSeeder extends Seeder
 {
     public function run(): void
     {
+        // 1. Načítanie demo mentora
         $mentor = User::query()->where('email', DemoMentorUserSeeder::EMAIL)->first();
+
+        // 2. Načítanie aplikácií / projektov
         $applications = Application::query()
             ->with(['creator:id,name,surname,email'])
             ->orderBy('id')
@@ -23,36 +26,66 @@ class MentorDemoSeeder extends Seeder
             return;
         }
 
+        // 3. Vytiahnutie ID stavov priamo zo seederu podľa názvu
+        $statuses = DB::table('milestone_status')->pluck('id', 'name')->toArray();
+
+        $plannedId    = $statuses['Plánované'] ?? 1;
+        $inProgressId = $statuses['V riešení'] ?? 2;
+        $completedId  = $statuses['Dokončené'] ?? 3;  // pending_approval na frontende
+        $approvedId   = $statuses['Schválené'] ?? 4;   // completed na frontende
+        $rejectedId   = $statuses['Zamietnuté'] ?? 5;
+        $returnedId   = $statuses['Vrátené na doplnenie'] ?? 6;
+
+        // 4. Rozšírené šablóny míľnikov (Chronologická postupnosť procesov)
         $milestoneTemplates = [
             [
-                'name' => 'Analýza a návrh architektúry',
-                'description' => 'Dokumentácia technickej architektúry, ERD diagram, API kontrakt.',
-                'deadline' => now()->addDays(10),
-                'status' => 'completed',
-                'comments' => [
-                    ['author' => 'mentor', 'text' => 'Skvelá práca, architektúra je čistá. Odporúčam pridať rate limiting do API kontraktu.'],
-                    ['author' => 'creator', 'text' => 'Zapracované, ďakujeme za feedback.'],
+                'name'       => '1. Analýza požiadaviek a špecifikácia',
+                'start_date' => now()->subWeeks(4),
+                'deadline'   => now()->subDays(5),
+                'status_id'  => $approvedId, // 🟢 Schválené (Minulosť)
+                'comments'   => [
+                    ['author' => 'mentor', 'text' => 'Analýza schválená. Zadanie spĺňa všetky biznis požiadavky inkubátora.'],
                 ],
             ],
             [
-                'name' => 'MVP — funkčný prototyp',
-                'description' => 'Základná funkcionalita s najdôležitejšími flowmi.',
-                'deadline' => now()->addWeeks(3),
-                'status' => 'pending_approval',
-                'comments' => [
-                    ['author' => 'creator', 'text' => 'MVP je hotový, čakáme na schválenie mentora.'],
+                'name'       => '2. Architektonický návrh a ERD',
+                'start_date' => now()->subWeeks(2),
+                'deadline'   => now()->addDays(4),
+                'status_id'  => $approvedId, // 🟠 OPRAVENÉ na Vrátené na doplnenie (Oranžový stav pre revíziu)
+                'comments'   => [
+                    ['author' => 'creator', 'text' => 'Posielame prvý návrh diagramov.'],
+                    ['author' => 'mentor', 'text' => 'Chýba vám tam relácia medzi aplikáciou a výzvou cez call_id. Prerobte a doplňte to prosím.'],
                 ],
             ],
             [
-                'name' => 'Integrácia a finalizácia',
-                'description' => 'Napojenie na externé služby a príprava odovzdania.',
-                'deadline' => now()->addWeeks(6),
-                'status' => 'in_progress',
-                'comments' => [],
+                'name'       => '3. Vývoj základného MVP',
+                'start_date' => now()->subDays(10),
+                'deadline'   => now()->addWeeks(2),
+                'status_id'  => $completedId, // 🔵 Dokončené (Čaká na akciu mentora Schváliť / Vrátiť)
+                'comments'   => [
+                    ['author' => 'creator', 'text' => 'MVP prototyp je nasadený na stagingu. Všetky základné CRUD operácie fungujú.'],
+                ],
+            ],
+            [
+                'name'       => '4. API Integrácia a Autentifikácia',
+                'start_date' => now()->subDays(8),
+                'deadline'   => now()->subDays(2), // 🔴 OVERDUE: Štart nastal, deadline vypršal a stále je "V riešení"
+                'status_id'  => $completedId,
+                'comments'   => [
+                    ['author' => 'creator', 'text' => 'Zasekli sme sa na OAuth integrácii, pracujeme na tom.'],
+                ],
+            ],
+            [
+                'name'       => '5. Finálne testovanie a nasadenie',
+                'start_date' => now()->addWeeks(2), // 🔒 BUDÚCNOSŤ: Štart nastane až o 2 týždne, ideálne na testovanie odomknutia (422 error)!
+                'deadline'   => now()->addWeeks(6),
+                'status_id'  => $plannedId, // ⚪ Plánované
+                'comments'   => [],
             ],
         ];
 
         foreach ($applications as $applicationIndex => $application) {
+            // Prepojenie mentorship väzby
             DB::table('mentorship')->updateOrInsert(
                 [
                     'mentor_user_id' => $mentor->id,
@@ -61,56 +94,38 @@ class MentorDemoSeeder extends Seeder
                 [
                     'mentor_user_id' => $mentor->id,
                     'application_id' => $application->id,
-                    'created_at' => now()->subDays(12 - $applicationIndex),
+                    'created_at' => now()->subDays(15 - $applicationIndex),
                     'updated_at' => now(),
                 ]
             );
 
-            $milestoneIds = [];
-
             foreach ($milestoneTemplates as $milestoneIndex => $template) {
-                $legacyMilestoneId = DB::table('milestone')->updateOrInsert(
+                // Zápis míľnikov vrátane start_date do project_milestones
+                DB::table('project_milestones')->updateOrInsert(
                     [
                         'call_id' => $application->call_id,
-                        'name' => $template['name'],
+                        'name'    => $template['name'],
                     ],
                     [
-                        'call_id' => $application->call_id,
-                        'name' => $template['name'],
-                        'description' => $template['description'],
-                        'due_date' => $template['deadline'],
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'call_id'             => $application->call_id,
+                        'name'                => $template['name'],
+                        'start_date'          => $template['start_date']->toDateString(), // 💎 OPRAVENÉ: Zápis start_date
+                        'deadline'            => $template['deadline']->toDateString(),
+                        'milestone_status_id' => $template['status_id'],
+                        'comments'            => null,
+                        'created_at'          => now()->subDays(10),
+                        'updated_at'          => now(),
                     ]
                 );
 
-                $projectMilestoneId = DB::table('project_milestones')->updateOrInsert(
-                    [
-                        'project_id' => $application->id,
-                        'name' => $template['name'],
-                    ],
-                    [
-                        'project_id' => $application->id,
-                        'name' => $template['name'],
-                        'deadline' => $template['deadline']->toDateString(),
-                        'status' => $template['status'],
-                        'comments' => $template['description'],
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]
-                );
-
+                // Získanie ID práve vytvoreného míľnika pre komentáre
                 $milestoneId = DB::table('project_milestones')
-                    ->where('project_id', $application->id)
-                    ->where('name', $template['name'])
-                    ->value('id');
-
-                $legacyMilestoneId = DB::table('milestone')
                     ->where('call_id', $application->call_id)
                     ->where('name', $template['name'])
                     ->value('id');
 
-                if ($legacyMilestoneId !== null) {
+                if ($milestoneId !== null) {
+                    // Seedovanie komentárov
                     foreach ($template['comments'] as $commentIndex => $commentTemplate) {
                         $author = $commentTemplate['author'] === 'mentor'
                             ? $mentor
@@ -118,28 +133,23 @@ class MentorDemoSeeder extends Seeder
 
                         DB::table('milestone_comments')->updateOrInsert(
                             [
-                                'milestone_id' => $legacyMilestoneId,
-                                'user_id' => $author->id,
-                                'parent_comment_id' => null,
+                                'milestone_id' => $milestoneId,
                                 'comment_text' => $commentTemplate['text'],
                             ],
                             [
-                                'milestone_id' => $legacyMilestoneId,
-                                'user_id' => $author->id,
+                                'milestone_id'      => $milestoneId,
+                                'user_id'           => $author->id,
                                 'parent_comment_id' => null,
-                                'comment_text' => $commentTemplate['text'],
-                                'created_at' => now()->subDays(10 - $commentIndex),
-                                'updated_at' => now(),
+                                'comment_text'      => $commentTemplate['text'],
+                                'created_at'        => now()->subDays(5 - $commentIndex),
+                                'updated_at'        => now(),
                             ]
                         );
                     }
                 }
-
-                if ($milestoneId !== null) {
-                    $milestoneIds[] = $milestoneId;
-                }
             }
 
+            // Zachovanie logovania konzultácií
             $existingMentorshipId = DB::table('mentorship')
                 ->where('mentor_user_id', $mentor->id)
                 ->where('application_id', $application->id)
@@ -151,20 +161,20 @@ class MentorDemoSeeder extends Seeder
                 DB::table('mentorship_session')->updateOrInsert(
                     [
                         'mentorship_id' => $existingMentorshipId,
-                        'created_by' => $mentor->id,
+                        'created_by'   => $mentor->id,
                         'scheduled_at' => $scheduledAt,
                     ],
                     [
                         'mentorship_id' => $existingMentorshipId,
-                        'created_by' => $mentor->id,
-                        'title' => 'Pravidelná konzultácia k projektu',
-                        'type' => 'offline',
-                        'meeting_url' => null,
+                        'created_by'   => $mentor->id,
+                        'title'        => 'Pravidelná konzultácia k projektu',
+                        'type'         => 'offline',
+                        'meeting_url'  => null,
                         'scheduled_at' => $scheduledAt,
-                        'agenda' => 'Stabilný demo záznam konzultácie pre mentor dashboard.',
-                        'status' => 'completed',
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'agenda'       => 'Stabilný demo záznam konzultácie pre mentor dashboard.',
+                        'status'       => 'completed',
+                        'created_at'   => now(),
+                        'updated_at'   => now(),
                     ]
                 );
             }

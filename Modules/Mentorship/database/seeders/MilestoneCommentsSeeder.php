@@ -9,7 +9,7 @@ class MilestoneCommentsSeeder extends Seeder
 {
     public function run(): void
     {
-        $milestoneId = DB::table('milestone')->orderBy('id')->value('id');
+        $milestoneId = DB::table('project_milestones')->orderBy('id')->value('id');
         $userId = DB::table('users')->orderBy('id')->value('id');
 
         if ($milestoneId === null || $userId === null) {

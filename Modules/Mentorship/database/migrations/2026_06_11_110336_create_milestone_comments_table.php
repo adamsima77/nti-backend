@@ -13,27 +13,11 @@ return new class extends Migration
     {
         Schema::create('milestone_comments', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->unsignedBigInteger('milestone_id');
-            $table->unsignedBigInteger('user_id');
-            $table->unsignedBigInteger('parent_comment_id')->nullable();
+            $table->foreignId('milestone_id')->constrained('project_milestones');
+            $table->foreignId('user_id')->constrained('users');
+            $table->foreignId('parent_comment_id')->nullable()->constrained('milestone_comments');
             $table->text('comment_text');
             $table->timestamps();
-
-            $table->index('milestone_id', 'idx_ms_comment_ms');
-            $table->index('user_id', 'idx_ms_comment_user');
-            $table->index('parent_comment_id', 'idx_ms_comment_parent');
-
-            $table->foreign('milestone_id')
-                ->references('id')
-                ->on('milestone');
-
-            $table->foreign('user_id')
-                ->references('id')
-                ->on('users');
-
-            $table->foreign('parent_comment_id')
-                ->references('id')
-                ->on('milestone_comments');
         });
     }
 

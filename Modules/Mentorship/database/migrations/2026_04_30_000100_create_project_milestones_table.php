@@ -14,17 +14,13 @@ return new class extends Migration
         Schema::create('project_milestones', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('name', 255);
-            $table->date('deadline');
-            $table->string('status', 120);
+            $table->date('start_date')->nullable();
+            $table->date('deadline')->nullable();
+            $table->foreignId('milestone_status_id')->default(1)
+                ->constrained('milestone_status');
             $table->text('comments')->nullable();
-            $table->unsignedBigInteger('project_id');
+            $table->foreignId('call_id')->constrained('call');
             $table->timestamps();
-
-            $table->index('project_id', 'idx_project_milestones_project');
-
-            $table->foreign('project_id')
-                ->references('id')
-                ->on('application');
         });
     }
 
@@ -34,7 +30,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('project_milestones', function (Blueprint $table) {
-            $table->dropForeign(['project_id']);
+            $table->dropForeign(['call_id']);
+            $table->dropForeign(['milestone_status_id']);
         });
 
         Schema::dropIfExists('project_milestones');

@@ -19,7 +19,7 @@ class MilestoneComment extends Model
 
     public function milestone(): BelongsTo
     {
-        return $this->belongsTo(CallMilestone::class, 'milestone_id');
+        return $this->belongsTo(Milestone::class, 'milestone_id');
     }
 
     public function user(): BelongsTo
