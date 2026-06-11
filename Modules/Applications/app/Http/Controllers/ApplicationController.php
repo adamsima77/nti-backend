@@ -915,9 +915,9 @@ class ApplicationController extends Controller
     {
         $this->authorize('view', $application);
 
-        $app_answer = ApplicationAnswer::where('application_id', $application->id)->firstOrFail();
+        $app_answer = ApplicationAnswer::where('application_id', $application->id)->first();
 
-        return response()->json($app_answer->answer);
+        return response()->json($app_answer?->answer);
     }
 
     public function downloadPdf(Request $request, int $id, PdfService $pdfService, QueuedExportService $queuedExportService)
