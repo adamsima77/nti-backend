@@ -219,7 +219,7 @@ class CallSeeder extends Seeder
                 'budget_type' => 'contractor',
                 'tech_spec' => 'Požaduje sa skúsenosť s Pythonom, deploymentom modelov na AWS a integráciou cez REST API.',
                 'tech_tags' => ['Python', 'PyTorch', 'FastAPI', 'Next.js', 'OpenAI API'],
-                'max_teams' => 3,
+
             ],
             [
                 'program_id' => isset($programs[2]) ? $programs[2]->id : $programs->first()->id,
@@ -236,7 +236,7 @@ class CallSeeder extends Seeder
                 'budget_type' => 'contractor',
                 'tech_spec' => 'Algoritmus musí zvládnuť spracovanie veľkého množstva geodát s nízkou latenciou.',
                 'tech_tags' => ['Go', 'TypeScript', 'Node.js', 'Redis', 'Docker'],
-                'max_teams' => 6,
+
             ],
             [
                 'program_id' => isset($programs[2]) ? $programs[2]->id : $programs->first()->id,
@@ -253,7 +253,7 @@ class CallSeeder extends Seeder
                 'budget_type' => 'grant',
                 'tech_spec' => 'Očakáva sa implementácia skriptov pre penetračné testovanie s dokumentáciou podľa ISO 27001.',
                 'tech_tags' => ['Rust', 'Python', 'Linux', 'Kubernetes', 'Wireshark'],
-                'max_teams' => 4,
+
             ],
         ];
 
@@ -279,7 +279,7 @@ class CallSeeder extends Seeder
                 $attributes['budget_type']            = $data['budget_type'];
                 $attributes['tech_spec']              = $data['tech_spec'];
                 $attributes['tech_tags']              = $data['tech_tags'];
-                $attributes['max_teams']              = $data['max_teams'];
+
                 $attributes['qualification_stack_id'] = null;
             } else {
                 $attributes['organization_id']         = null;
@@ -289,7 +289,7 @@ class CallSeeder extends Seeder
                 $attributes['budget_type']            = 'grant';
                 $attributes['tech_spec']              = null;
                 $attributes['tech_tags']              = null;
-                $attributes['max_teams']              = 0;
+
                 $attributes['qualification_stack_id'] = $qStack?->id;
             }
 
