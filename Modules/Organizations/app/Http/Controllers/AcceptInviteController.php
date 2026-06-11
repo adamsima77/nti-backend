@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\IdentityAccess\Models\User;
+use Modules\Notifications\Models\NotificationCategory;
+use Modules\Notifications\Models\Notifications;
+use Modules\Organizations\Models\Organization;
 use Modules\Organizations\Models\OrganizationInvitation;
 
 class AcceptInviteController extends Controller
@@ -72,6 +75,31 @@ class AcceptInviteController extends Controller
         // Mark invite as accepted
         $invite->accepted_at = now();
         $invite->save();
+
+        $categoryId = NotificationCategory::query()->where('slug', 'team')->value('id');
+        if ($categoryId !== null) {
+            $lang      = $request->cookie('i18n_redirected', 'sk');
+            $orgName   = $invite->organization->name;
+            $memberName = trim($user->name.' '.$user->surname) ?: $user->email;
+
+            $orgAdmins = $invite->organization->users()
+                ->wherePivot('organization_role', 'org_admin')
+                ->get();
+
+            foreach ($orgAdmins as $admin) {
+                Notifications::query()->create([
+                    'user_id'                  => $admin->id,
+                    'notification_category_id' => $categoryId,
+                    'notifiable_type'          => Organization::class,
+                    'notifiable_id'            => $invite->organization_id,
+                    'title'                    => $lang === 'en' ? 'Member accepted invitation' : 'Člen prijal pozvánku',
+                    'body'                     => $lang === 'en'
+                        ? $memberName.' has accepted the invitation to join "'.$orgName.'". Their account is pending NTI admin approval.'
+                        : $memberName.' prijal/a pozvánku do organizácie „'.$orgName.'". Účet čaká na schválenie administrátorom NTI.',
+                    'is_read'                  => false,
+                ]);
+            }
+        }
 
         return response()->json([
             'message' => 'Účet bol aktivovaný. Môžete sa prihlásiť.',

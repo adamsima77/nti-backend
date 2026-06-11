@@ -2,6 +2,9 @@
 
 namespace Modules\Programs\StateMachines;
 
+use Modules\IdentityAccess\Models\User;
+use Modules\Notifications\Models\NotificationCategory;
+use Modules\Notifications\Models\Notifications;
 use Modules\Programs\Events\CallClosed;
 use Modules\Programs\Models\Call;
 use Modules\Programs\Models\StatusOfCall;
@@ -96,11 +99,57 @@ class CallStateMachineProgramA
             CallClosed::dispatch($this->call);
         }
 
+        $this->notifyCallStatusChange($targetState);
+
         return $record;
     }
 
     public function availableTransitions(): array
     {
         return self::TRANSITIONS[$this->currentState()] ?? [];
+    }
+
+    private function notifyCallStatusChange(string $newStatus): void
+    {
+        $categoryId = NotificationCategory::query()->where('slug', 'status_change')->value('id');
+        if ($categoryId === null) {
+            return;
+        }
+
+        $this->call->loadMissing('organization.users');
+
+        $lang     = request()->cookie('i18n_redirected', 'sk');
+        $callName = $this->call->name ?? ('Call #'.$this->call->id);
+        $title    = $lang === 'en' ? 'Call status changed' : 'Zmena stavu výzvy';
+        $body     = $lang === 'en'
+            ? 'The status of call "'.$callName.'" has changed to: '.$newStatus.'.'
+            : 'Stav výzvy „'.$callName.'" sa zmenil na: '.$newStatus.'.';
+
+        $recipients = collect();
+
+        foreach ($this->call->organization?->users ?? [] as $user) {
+            if ($user->pivot->organization_role === 'org_admin') {
+                $recipients->push($user);
+            }
+        }
+
+        if ($this->call->po_user_id !== null) {
+            $po = User::find($this->call->po_user_id);
+            if ($po !== null) {
+                $recipients->push($po);
+            }
+        }
+
+        $recipients->unique('id')->each(function (User $user) use ($categoryId, $title, $body) {
+            Notifications::query()->create([
+                'user_id'                  => $user->id,
+                'notification_category_id' => $categoryId,
+                'notifiable_type'          => Call::class,
+                'notifiable_id'            => $this->call->id,
+                'title'                    => $title,
+                'body'                     => $body,
+                'is_read'                  => false,
+            ]);
+        });
     }
 }

@@ -759,6 +759,74 @@ class EmailTemplateSeeder extends Seeder
     If you received this by mistake, please contact the organisation administrator.
 </p>',
             ],
+            [
+                'slug'      => 'application_status_changed',
+                'subject'   => 'Application {{ $applicationRef }} status update',
+                'type'      => 'transactional',
+                'is_active' => true,
+                'body_html' => '<h2 style="margin:0 0 8px; font-size:22px; font-weight:600; color:#0a1628;">
+    Hi, {{ $userName }}!
+</h2>
+
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    The status of your application has changed. See the details below.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:24px;">
+    <tr>
+        <td style="background:#f0fdf4; border-left:4px solid #16a34a; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:#0a1628;">
+                Application: {{ $applicationRef }}
+            </p>
+            <p style="margin:0 0 4px; font-size:14px; color:#64748b;">
+                Call: <strong>{{ $callName }}</strong>
+            </p>
+            <p style="margin:0 0 4px; font-size:14px; color:#64748b;">
+                New status: <strong style="color:#0a1628;">{{ $newStatus }}</strong>
+            </p>
+        </td>
+    </tr>
+</table>
+
+<p style="margin:0 0 16px; font-size:14px; color:#64748b; line-height:1.6;">
+    {{ $note }}
+</p>
+
+<p style="margin:0; font-size:12px; color:#94a3b8; line-height:1.6;">
+    If you have any questions, contact us at
+    <a href="mailto:support@nti.sk" style="color:#64748b;">support@nti.sk</a>.
+</p>',
+            ],
+            [
+                'slug'      => 'call_pending_approval',
+                'subject'   => 'Call "{{ $callName }}" is pending approval',
+                'type'      => 'transactional',
+                'is_active' => true,
+                'body_html' => '<h2 style="margin:0 0 8px; font-size:22px; font-weight:600; color:#0a1628;">
+    Hi, {{ $userName }}!
+</h2>
+
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    A new call has been submitted for approval. Please review it and approve or reject it.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td style="background:#fff7ed; border-left:4px solid #f97316; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:#0a1628;">
+                Call pending approval
+            </p>
+            <p style="margin:0; font-size:14px; color:#64748b; line-height:1.6;">
+                Name: <strong>{{ $callName }}</strong>
+            </p>
+        </td>
+    </tr>
+</table>
+
+<p style="margin:0; font-size:12px; color:#94a3b8; line-height:1.6;">
+    Please log in to the admin portal and process this request.
+</p>',
+            ],
         ];
 
         foreach ($templates as $template) {

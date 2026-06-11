@@ -13,6 +13,8 @@ use Modules\Evaluation\Models\CommissionMember;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\IdentityAccess\Models\User;
 use Modules\IdentityAccess\Models\Role;
+use Modules\Notifications\Models\NotificationCategory;
+use Modules\Notifications\Models\Notifications;
 
 class AcceptCommissionInviteController extends Controller
 {
@@ -81,6 +83,22 @@ class AcceptCommissionInviteController extends Controller
 
         $invite->accepted_at = now();
         $invite->save();
+
+        $categoryId = NotificationCategory::query()->where('slug', 'evaluation')->value('id');
+        if ($categoryId !== null) {
+            $lang = $request->cookie('i18n_redirected', 'sk');
+            Notifications::query()->create([
+                'user_id'                  => $user->id,
+                'notification_category_id' => $categoryId,
+                'notifiable_type'          => CommissionMember::class,
+                'notifiable_id'            => $invite->commission_id,
+                'title'                    => $lang === 'en' ? 'Evaluation tab unlocked' : 'Záložka Hodnotenie je dostupná',
+                'body'                     => $lang === 'en'
+                    ? 'As a company representative, you have been added to the evaluation commission "'.$invite->commission->name.'". After logging in, you will find the Evaluation section in the sidebar where you can review and rate submitted applications.'
+                    : 'Ako zástupca firmy ste boli pridaný do hodnotiacej komisie „'.$invite->commission->name.'". Po prihlásení nájdete v bočnom menu záložku Hodnotenie, kde môžete prezerať a hodnotiť podané prihlášky.',
+                'is_read'                  => false,
+            ]);
+        }
 
         return response()->json([
             'message' => 'Účet bol aktivovaný. Môžete sa prihlásiť po schválení administrátorom NTI.',

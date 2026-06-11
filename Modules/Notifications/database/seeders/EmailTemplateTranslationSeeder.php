@@ -297,6 +297,70 @@ class EmailTemplateTranslationSeeder extends Seeder
     Ak ste túto správu dostali omylom, kontaktujte administrátora NTI.
 </p>',
             ],
+            'application_status_changed' => [
+                'subject'   => 'Zmena stavu prihlášky {{ $applicationRef }}',
+                'body_html' => '
+<h2 style="margin:0 0 8px; font-size:22px; font-weight:600; color:#0a1628;">
+    Ahoj, {{ $userName }}!
+</h2>
+
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    Stav vašej prihlášky sa zmenil. Nižšie nájdete aktuálne informácie.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:24px;">
+    <tr>
+        <td style="background:#f0fdf4; border-left:4px solid #16a34a; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:#0a1628;">
+                Prihláška: {{ $applicationRef }}
+            </p>
+            <p style="margin:0 0 4px; font-size:14px; color:#64748b;">
+                Výzva: <strong>{{ $callName }}</strong>
+            </p>
+            <p style="margin:0 0 4px; font-size:14px; color:#64748b;">
+                Nový stav: <strong style="color:#0a1628;">{{ $newStatus }}</strong>
+            </p>
+        </td>
+    </tr>
+</table>
+
+<p style="margin:0 0 16px; font-size:14px; color:#64748b; line-height:1.6;">
+    {{ $note }}
+</p>
+
+<p style="margin:0; font-size:12px; color:#94a3b8; line-height:1.6;">
+    Ak máte otázky, kontaktujte nás na
+    <a href="mailto:support@nti.sk" style="color:#64748b;">support@nti.sk</a>.
+</p>',
+            ],
+            'call_pending_approval' => [
+                'subject'   => 'Výzva „{{ $callName }}" čaká na schválenie',
+                'body_html' => '
+<h2 style="margin:0 0 8px; font-size:22px; font-weight:600; color:#0a1628;">
+    Ahoj, {{ $userName }}!
+</h2>
+
+<p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
+    Bola odoslaná nová výzva na schválenie. Prosím, skontrolujte ju a schváľte alebo zamietnte.
+</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+    <tr>
+        <td style="background:#fff7ed; border-left:4px solid #f97316; border-radius:8px; padding:20px;">
+            <p style="margin:0 0 8px; font-size:14px; font-weight:600; color:#0a1628;">
+                Výzva čakajúca na schválenie
+            </p>
+            <p style="margin:0; font-size:14px; color:#64748b; line-height:1.6;">
+                Názov: <strong>{{ $callName }}</strong>
+            </p>
+        </td>
+    </tr>
+</table>
+
+<p style="margin:0; font-size:12px; color:#94a3b8; line-height:1.6;">
+    Prihláste sa do administrátorského portálu a spracujte túto žiadosť.
+</p>',
+            ],
             'team_invite' => [
                 'subject'   => 'Pozvánka do tímu: {{ $teamName }}',
                 'body_html' => '

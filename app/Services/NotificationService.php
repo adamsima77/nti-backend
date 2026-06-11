@@ -2,8 +2,9 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Collection;
+use Modules\Applications\Events\ApplicationStatusChanged;
 use Modules\Applications\Models\Application;
+use Modules\Content\Enums\LanguageType;
 use Modules\Evaluation\Models\Evaluation;
 use Modules\IdentityAccess\Models\User;
 use Modules\Notifications\Models\NotificationCategory;
@@ -109,59 +110,12 @@ class NotificationService
      */
     public function notifyTeamApplicationStatusChange(Application $application, string $status, ?string $note, ?User $changedBy = null): void
     {
-        $application->loadMissing(['team.members', 'creator']);
+        $languageId = request()->cookie('i18n_redirected', 'sk') === 'en'
+            ? LanguageType::ENGLISH->value
+            : LanguageType::SLOVAK->value;
 
-        $recipients = collect();
-        if ($application->creator) {
-            $recipients->push($application->creator);
-        }
+        $newStatus = $application->status?->name ?? $status;
 
-        foreach ($application->team?->members ?? [] as $member) {
-            $recipients->push($member);
-        }
-
-        if ($changedBy) {
-            $recipients = $recipients->filter(fn($u) => $u->id !== $changedBy->id);
-        }
-
-        $recipients = $recipients->unique('id')->values();
-        if ($recipients->isEmpty()) {
-            return;
-        }
-
-        $categoryId = NotificationCategory::query()->where('slug', 'status_change')->value('id')
-            ?? NotificationCategory::query()->where('slug', 'application')->value('id');
-
-        if ($categoryId === null) {
-            return;
-        }
-
-        $statusLower = mb_strtolower($status);
-
-        if (str_contains($statusLower, 'supplement') || str_contains($statusLower, 'dopln')) {
-            $title = 'Prihláška vrátená na doplnenie';
-            $body = sprintf('Prihláška č. %d bola vrátená na doplnenie. %s', $application->id, $note ?? '');
-        } elseif (str_contains($statusLower, 'approve') || str_contains($statusLower, 'schv')) {
-            $title = 'Prihláška schválená';
-            $body = sprintf('Prihláška č. %d bola schválená.', $application->id);
-        } elseif (str_contains($statusLower, 'reject') || str_contains($statusLower, 'zamiet')) {
-            $title = 'Prihláška zamietnutá';
-            $body = sprintf('Prihláška č. %d bola zamietnutá. %s', $application->id, $note ?? '');
-        } else {
-            $title = 'Zmena stavu prihlášky';
-            $body = sprintf('Stav prihlášky č. %d sa zmenil. %s', $application->id, $note ?? '');
-        }
-
-        foreach ($recipients as $recipient) {
-            Notifications::query()->create([
-                'user_id' => $recipient->id,
-                'notification_category_id' => $categoryId,
-                'notifiable_type' => Application::class,
-                'notifiable_id' => $application->id,
-                'title' => $title,
-                'body' => $body,
-                'is_read' => false,
-            ]);
-        }
+        event(new ApplicationStatusChanged($application, $newStatus, $note, $changedBy, $languageId));
     }
 }

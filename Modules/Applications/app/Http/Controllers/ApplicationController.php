@@ -20,6 +20,7 @@ use Modules\Applications\Models\Applications;
 use Modules\Applications\Models\StatusOfApplication;
 use Modules\Applications\Models\TypeOfApplication;
 use Modules\Applications\StateMachines\ApplicationStateMachine;
+use App\Services\NotificationService;
 use Modules\Content\Models\Language;
 use Modules\Evaluation\Models\Commission;
 use Modules\Evaluation\Models\CommissionMember;
@@ -71,6 +72,14 @@ class ApplicationController extends Controller
                 $note = $request->input('note', null);
                 $stateMachine->transitionTo($targetStateName, $note);
             });
+
+            $application->load(['status', 'team.members', 'creator', 'call']);
+            app(NotificationService::class)->notifyTeamApplicationStatusChange(
+                $application,
+                $targetStateName,
+                $request->input('note'),
+                $request->user(),
+            );
 
             return response()->json([
                 'message' => 'Stav úspešne zmenený!'
