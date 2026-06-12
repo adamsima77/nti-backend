@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="sk">
+<html lang="{{ $lang ?? 'sk' }}">
 <head>
     <meta charset="utf-8">
     <style>
@@ -18,42 +18,45 @@
 </head>
 <body>
 
-<h1>Záverečný projektový report</h1>
-<p class="muted">Výzva #{{ $call->id }} &nbsp;|&nbsp; Vygenerované: {{ now()->format('d.m.Y H:i') }}</p>
+@php
+$l = \Modules\Reporting\Support\CallReportLabels::get($lang ?? 'sk');
 
-{{-- ZÁKLADNÉ ÚDAJE --}}
-<h2>Základné údaje</h2>
+$tr = $call->callTranslations->firstWhere('language.name', $lang ?? 'sk')
+    ?? $call->callTranslations->first();
+$callName        = $tr->name        ?? $call->name        ?? '-';
+$callDescription = $tr->description ?? $call->description ?? '-';
+@endphp
+
+<h1>{{ $l['title'] }}</h1>
+<p class="muted">{{ str_replace(':id', $call->id, $l['generated']) }} {{ now()->format('d.m.Y H:i') }}</p>
+
+<h2>{{ $l['basic_info'] }}</h2>
 <table>
-    <tr><th>Názov výzvy</th><td>{{ $call->name ?? '-' }}</td></tr>
-    <tr><th>Program</th><td>{{ $call->program->typeOfProgram->name ?? '-' }}</td></tr>
-    <tr><th>Partner / Firma</th><td>{{ $call->organization->name ?? '-' }}</td></tr>
-    <tr><th>Product Owner</th><td>{{ $call->productOwner ? $call->productOwner->name . ' ' . $call->productOwner->surname . ' (' . $call->productOwner->email . ')' : '-' }}</td></tr>
-    <tr><th>Deadline prihlášok</th><td>{{ $call->application_deadline?->format('d.m.Y') ?? '-' }}</td></tr>
-    <tr><th>Začiatok projektu</th><td>{{ $call->project_start?->format('d.m.Y') ?? '-' }}</td></tr>
-    <tr><th>Koniec projektu</th><td>{{ $call->project_end?->format('d.m.Y') ?? '-' }}</td></tr>
-    <tr><th>Rozpočet</th><td>{{ $call->budget ? number_format($call->budget, 2, ',', ' ') . ' €' : '-' }}</td></tr>
-    <tr><th>Aktuálny stav</th><td><span class="badge">{{ $call->currentStatusHistory?->status?->name ?? '-' }}</span></td></tr>
+    <tr><th>{{ $l['call_name'] }}</th><td>{{ $callName }}</td></tr>
+    <tr><th>{{ $l['program'] }}</th><td>{{ $call->program->typeOfProgram->name ?? '-' }}</td></tr>
+    <tr><th>{{ $l['partner'] }}</th><td>{{ $call->organization->name ?? '-' }}</td></tr>
+    <tr><th>{{ $l['product_owner'] }}</th><td>{{ $call->productOwner ? $call->productOwner->name . ' ' . $call->productOwner->surname . ' (' . $call->productOwner->email . ')' : '-' }}</td></tr>
+    <tr><th>{{ $l['deadline'] }}</th><td>{{ $call->application_deadline?->format('d.m.Y') ?? '-' }}</td></tr>
+    <tr><th>{{ $l['project_start'] }}</th><td>{{ $call->project_start?->format('d.m.Y') ?? '-' }}</td></tr>
+    <tr><th>{{ $l['project_end'] }}</th><td>{{ $call->project_end?->format('d.m.Y') ?? '-' }}</td></tr>
+    <tr><th>{{ $l['budget'] }}</th><td>{{ $call->budget ? number_format($call->budget, 2, ',', ' ') . ' €' : '-' }}</td></tr>
+    <tr><th>{{ $l['status'] }}</th><td><span class="badge">{{ $call->currentStatusHistory?->status?->name ?? '-' }}</span></td></tr>
 </table>
 
-<h2>Popis zadania</h2>
-<p>{{ $call->description ?? '-' }}</p>
+<h2>{{ $l['description'] }}</h2>
+<p>{{ $callDescription }}</p>
 
-{{-- TÍM A MENTOR --}}
 @php $application = $call->applications->first(); @endphp
 
 @if ($application)
 
-<h2>Realizujúci tím</h2>
+<h2>{{ $l['team'] }}</h2>
 @if ($application->team)
 <table>
-    <tr><th>Názov tímu</th><td>{{ $application->team->name }}</td></tr>
+    <tr><th>{{ $l['team_name'] }}</th><td>{{ $application->team->name }}</td></tr>
 </table>
 <table>
-    <tr>
-        <th>#</th>
-        <th>Meno</th>
-        <th>Email</th>
-    </tr>
+    <tr><th>#</th><th>{{ $l['name'] }}</th><th>{{ $l['email'] }}</th></tr>
     @forelse ($application->team->members as $member)
     <tr>
         <td>{{ $loop->iteration }}</td>
@@ -61,60 +64,74 @@
         <td>{{ $member->email }}</td>
     </tr>
     @empty
-    <tr><td colspan="3" class="section-empty">Žiadni členovia</td></tr>
+    <tr><td colspan="3" class="section-empty">{{ $l['no_members'] }}</td></tr>
     @endforelse
 </table>
 @else
-<p class="section-empty">Tím nebol pridelený.</p>
+<p class="section-empty">{{ $l['no_team'] }}</p>
 @endif
 
-<h2>Mentor</h2>
+<h2>{{ $l['mentor'] }}</h2>
 @forelse ($application->mentorships as $mentorship)
 <table>
-    <tr><th>Meno</th><td>{{ $mentorship->mentor->name }} {{ $mentorship->mentor->surname }}</td></tr>
-    <tr><th>Email</th><td>{{ $mentorship->mentor->email }}</td></tr>
+    <tr><th>{{ $l['name'] }}</th><td>{{ $mentorship->mentor->name }} {{ $mentorship->mentor->surname }}</td></tr>
+    <tr><th>{{ $l['email'] }}</th><td>{{ $mentorship->mentor->email }}</td></tr>
 </table>
 @empty
-<p class="section-empty">Mentor nebol pridelený.</p>
+<p class="section-empty">{{ $l['no_mentor'] }}</p>
 @endforelse
 
-{{-- KPI --}}
-<h2>KPI metriky</h2>
+@php $commission = $call->commission->first(); @endphp
+<h2>{{ $l['commission'] }}</h2>
+@if ($commission)
+<table>
+    <tr><th>{{ $l['commission_name'] }}</th><td>{{ $commission->name }}</td></tr>
+</table>
+@php $evaluators = $commission->members->whereNull('call_id'); @endphp
+@if ($evaluators->isNotEmpty())
+<table>
+    <tr><th>#</th><th>{{ $l['name'] }}</th><th>{{ $l['email'] }}</th></tr>
+    @foreach ($evaluators as $member)
+    <tr>
+        <td>{{ $loop->iteration }}</td>
+        <td>{{ $member->user->name }} {{ $member->user->surname }}</td>
+        <td>{{ $member->user->email }}</td>
+    </tr>
+    @endforeach
+</table>
+@endif
+@php $rep = $call->commissionCompanyRep; @endphp
+@if ($rep?->user)
+<table>
+    <tr><th>{{ $l['company_rep'] }}</th><td>{{ $rep->user->name }} {{ $rep->user->surname }} ({{ $rep->user->email }})</td></tr>
+</table>
+@endif
+@else
+<p class="section-empty">{{ $l['no_commission'] }}</p>
+@endif
+
+<h2>{{ $l['kpi'] }}</h2>
 @if ($application->kpis->isNotEmpty())
 <table>
-    <tr>
-        <th>Metrika</th>
-        <th>Cieľ</th>
-        <th>Skutočnosť</th>
-        <th>Plnenie</th>
-    </tr>
+    <tr><th>{{ $l['metric'] }}</th><th>{{ $l['target'] }}</th><th>{{ $l['actual'] }}</th><th>{{ $l['achievement'] }}</th></tr>
     @foreach ($application->kpis as $kpi)
     @php $pct = $kpi->achievement_percentage; @endphp
     <tr>
         <td>{{ $kpi->metric_name }}@if($kpi->unit) ({{ $kpi->unit }})@endif</td>
         <td>{{ $kpi->target_value ?? '-' }}</td>
         <td>{{ $kpi->actual_value ?? '-' }}</td>
-        <td class="{{ $kpi->isTargetMet() ? 'kpi-met' : 'kpi-unmet' }}">
-            {{ $pct !== null ? number_format($pct, 1) . ' %' : '-' }}
-        </td>
+        <td class="{{ $kpi->isTargetMet() ? 'kpi-met' : 'kpi-unmet' }}">{{ $pct !== null ? number_format($pct, 1) . ' %' : '-' }}</td>
     </tr>
     @endforeach
 </table>
 @else
-<p class="section-empty">Žiadne KPI neboli zadané.</p>
+<p class="section-empty">{{ $l['no_kpi'] }}</p>
 @endif
 
-{{-- VÝSTUPY --}}
-<h2>Projektové výstupy</h2>
+<h2>{{ $l['outputs'] }}</h2>
 @if ($application->outputs->isNotEmpty())
 <table>
-    <tr>
-        <th>Výstup</th>
-        <th>Typ</th>
-        <th>Plánované odovzdanie</th>
-        <th>Skutočné odovzdanie</th>
-        <th>Stav</th>
-    </tr>
+    <tr><th>{{ $l['output'] }}</th><th>{{ $l['type'] }}</th><th>{{ $l['planned_delivery'] }}</th><th>{{ $l['actual_delivery'] }}</th><th>{{ $l['status'] }}</th></tr>
     @foreach ($application->outputs as $output)
     <tr>
         <td>{{ $output->output_name }}</td>
@@ -126,20 +143,13 @@
     @endforeach
 </table>
 @else
-<p class="section-empty">Žiadne výstupy neboli zadané.</p>
+<p class="section-empty">{{ $l['no_outputs'] }}</p>
 @endif
 
-{{-- MÍĽNIKY --}}
-<h2>Projektové míľniky</h2>
+<h2>{{ $l['milestones'] }}</h2>
 @if ($application->milestones->isNotEmpty())
 <table>
-    <tr>
-        <th>#</th>
-        <th>Názov</th>
-        <th>Deadline</th>
-        <th>Stav</th>
-        <th>Komentár</th>
-    </tr>
+    <tr><th>#</th><th>{{ $l['milestone_name'] }}</th><th>{{ $l['milestone_deadline'] }}</th><th>{{ $l['milestone_status'] }}</th><th>{{ $l['milestone_comment'] }}</th></tr>
     @foreach ($application->milestones->sortBy('deadline') as $milestone)
     <tr>
         <td>{{ $loop->iteration }}</td>
@@ -151,22 +161,17 @@
     @endforeach
 </table>
 @else
-<p class="section-empty">Žiadne míľniky neboli zadané.</p>
+<p class="section-empty">{{ $l['no_milestones'] }}</p>
 @endif
 
 @else
-<p class="section-empty">K tejto výzve neexistuje schválená prihláška.</p>
+<p class="section-empty">{{ $l['no_application'] }}</p>
 @endif
 
-{{-- KRITÉRIÁ --}}
-<h2>Hodnotiace kritériá</h2>
+<h2>{{ $l['criteria'] }}</h2>
 @if ($call->callCriteria->isNotEmpty())
 <table>
-    <tr>
-        <th>#</th>
-        <th>Kritérium</th>
-        <th>Váha</th>
-    </tr>
+    <tr><th>#</th><th>{{ $l['criterion'] }}</th><th>{{ $l['weight'] }}</th></tr>
     @foreach ($call->callCriteria as $criterion)
     <tr>
         <td>{{ $loop->iteration }}</td>
@@ -176,7 +181,7 @@
     @endforeach
 </table>
 @else
-<p class="section-empty">Žiadne kritériá.</p>
+<p class="section-empty">{{ $l['no_criteria'] }}</p>
 @endif
 
 </body>

@@ -7,9 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Modules\Evaluation\Models\CommissionMember;
 use Modules\Applications\Models\Application;
+use Modules\Evaluation\Models\Commission;
 use Modules\IdentityAccess\Models\User;
 use Modules\Organizations\Models\Organization;
+
 
 class Call extends Model
 {
@@ -98,6 +101,16 @@ class Call extends Model
     public function applications(): HasMany
     {
         return $this->hasMany(Application::class, 'call_id');
+    }
+
+    public function commission(): BelongsToMany
+    {
+        return $this->belongsToMany(Commission::class, 'call_commission_setup', 'call_id', 'commission_id');
+    }
+
+    public function commissionCompanyRep(): HasOne
+    {
+        return $this->hasOne(CommissionMember::class, 'call_id');
     }
 
     public function formSchemas(): HasMany

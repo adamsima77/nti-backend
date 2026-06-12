@@ -21,6 +21,7 @@ use Modules\Reporting\Exports\CallExport;
 use Modules\Reporting\Exports\EvaluationExport;
 use Modules\Reporting\Exports\UserExport;
 use Modules\Reporting\Models\ExportRequest;
+use Modules\Reporting\Support\CallReportLabels;
 use Modules\Teams\Models\Team;
 
 class ExportController extends Controller
@@ -527,7 +528,8 @@ private function buildApplicationExportQuery(array $filters)
         int $modelId,
         array $relations,
         string $view,
-        string $dataKey
+        string $dataKey,
+        array $extraData = []
     ): JsonResponse {
         $exportRequest = $queuedExportService->queue(
             (int) $request->user()->id,
@@ -537,10 +539,11 @@ private function buildApplicationExportQuery(array $filters)
             $fileName,
             [
                 'model_class' => $modelClass,
-                'model_id' => $modelId,
-                'relations' => $relations,
-                'view' => $view,
-                'data_key' => $dataKey,
+                'model_id'    => $modelId,
+                'relations'   => $relations,
+                'view'        => $view,
+                'data_key'    => $dataKey,
+                'extra_data'  => $extraData,
             ]
         );
 
@@ -576,26 +579,15 @@ private function buildApplicationExportQuery(array $filters)
 
     public function callReport(Request $request, int $callId, string $format = 'pdf', QueuedExportService $queuedExportService, PdfService $pdfService)
     {
-        $relations = [
-            'program.typeOfProgram:id,name',
-            'organization:id,name',
-            'productOwner:id,name,surname,email',
-            'currentStatusHistory.status:id,name',
-            'callCriteria.criterionTranslations',
-            'applications' => fn ($q) => $q->whereHas('status', fn ($q) => $q->where('name', 'Schválené')),
-            'applications.team.members:id,name,surname,email',
-            'applications.mentorships.mentor:id,name,surname,email',
-            'applications.kpis',
-            'applications.outputs',
-            'applications.milestones',
-        ];
+        $lang = in_array($request->query('lang'), ['sk', 'en']) ? $request->query('lang') : 'sk';
+
+        $relations = CallReportLabels::relations();
 
         $call = Call::with($relations)->findOrFail($callId);
 
-        $format   = 'pdf';
-        $fileName = "project-report-{$callId}.pdf";
-
         if ($format === 'pdf') {
+            $fileName = "project-report-{$callId}-{$lang}.pdf";
+
             if ($request->boolean('async')) {
                 return $this->queuePdfResponse(
                     $request,
@@ -604,41 +596,31 @@ private function buildApplicationExportQuery(array $filters)
                     $fileName,
                     Call::class,
                     $callId,
-                    [
-                        'program.typeOfProgram:id,name',
-                        'organization:id,name',
-                        'productOwner:id,name,surname,email',
-                        'currentStatusHistory.status:id,name',
-                        'callCriteria.criterionTranslations',
-                        'applications.team.members:id,name,surname,email',
-                        'applications.mentorships.mentor:id,name,surname,email',
-                        'applications.kpis',
-                        'applications.outputs',
-                        'applications.milestones',
-                    ],
+                    $relations,
                     'programs::pdf.project-report',
-                    'call'
+                    'call',
+                    ['lang' => $lang]
                 );
             }
 
-            return $pdfService->download('programs::pdf.project-report', ['call' => $call], $fileName);
+            return $pdfService->download('programs::pdf.project-report', ['call' => $call, 'lang' => $lang], $fileName);
         }
 
-        $writerType = $format === 'csv' ? \Maatwebsite\Excel\Excel::CSV : \Maatwebsite\Excel\Excel::XLSX;
+        $fileName = "project-report-{$callId}-{$lang}.xlsx";
 
         if ($request->boolean('async')) {
             return $this->queueExcelResponse(
                 $request,
                 $queuedExportService,
-                'call_pdf',
+                'call_report',
                 $fileName,
                 CallExport::class,
-                $writerType,
-                [['call_id' => $callId]]
+                \Maatwebsite\Excel\Excel::XLSX,
+                [['call_id' => $callId, 'lang' => $lang]]
             );
         }
 
-        return Excel::download(new CallExport(['call_id' => $callId]), $fileName, $writerType);
+        return Excel::download(new CallExport(['call_id' => $callId, 'lang' => $lang]), $fileName, \Maatwebsite\Excel\Excel::XLSX);
     }
 
     public function callClosureReport(Request $request, int $callId): JsonResponse

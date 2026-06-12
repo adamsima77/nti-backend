@@ -157,10 +157,11 @@ class GenerateExportRequestFileJob implements ShouldQueue
             $query->with($relations);
         }
 
-        $model = $query->findOrFail($modelId);
+        $model      = $query->findOrFail($modelId);
+        $extraData  = $meta['extra_data'] ?? [];
 
         $pdfService = app(PdfService::class);
-        Storage::disk($disk)->put($path, $pdfService->render($view, [$dataKey => $model], (array) $options));
+        Storage::disk($disk)->put($path, $pdfService->render($view, array_merge([$dataKey => $model], $extraData), (array) $options));
     }
 
     protected function generatePdfFromView(string $view, mixed $viewData, array $options, string $disk, string $path): void
