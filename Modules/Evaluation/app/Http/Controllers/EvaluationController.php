@@ -36,45 +36,45 @@ class EvaluationController extends Controller
         return response()->json(['commissions' => $com], Response::HTTP_OK);
     }
 
-    public function fetchForEvaluator(Request $request)
-    {
-        $this->authorize('viewEvaluations', Evaluation::class);
-        $evaluator_id = $request->user()->id;
+public function fetchForEvaluator(Request $request)
+{
+    $this->authorize('viewEvaluations', Evaluation::class);
+    $evaluator_id = $request->user()->id;
 
-        $idOfEvaluator = CommissionMember::where('user_id', $evaluator_id)->first();
+    $idOfEvaluator = CommissionMember::where('user_id', $evaluator_id)->first();
 
-        if (!$idOfEvaluator) {
-            return response()->json(['evaluations' => []], Response::HTTP_OK);
-        }
-
-        $evaluations = Evaluation::with([
-            'application' => function ($query) use ($idOfEvaluator) {
-                $query->with(['status']);
-                $query->with([
-                    'call' => function ($query) use ($idOfEvaluator) {
-                        $query->withCount(['applications as vsetky_moje_na_hodnotenie_count' => function ($q) use ($idOfEvaluator) {
-                            $q->whereHas('evaluations', function ($evalQuery) use ($idOfEvaluator) {
-                                $evalQuery->where('commission_member_id', $idOfEvaluator->id);
-                            });
-                        }]);
-
-                        $query->withCount(['applications as moje_uz_ohodnotene_count' => function ($q) use ($idOfEvaluator) {
-                            $q->whereHas('evaluations', function ($evalQuery) use ($idOfEvaluator) {
-                                $evalQuery->where('commission_member_id', $idOfEvaluator->id)
-                                    ->whereNotNull('decision_id');
-                            });
-                        }]);
-                    }
-                ]);
-            },
-            'scores',
-            'decision'
-        ])
-            ->where('commission_member_id', $idOfEvaluator->id)
-            ->get();
-
-        return response()->json(['evaluations' => $evaluations], Response::HTTP_OK);
+    if (!$idOfEvaluator) {
+        return response()->json(['evaluations' => []], Response::HTTP_OK);
     }
+
+    $evaluations = Evaluation::with([
+        'application' => function ($query) use ($idOfEvaluator) {
+            $query->with(['status']);
+            $query->with([
+                'call' => function ($query) use ($idOfEvaluator) {
+                    $query->withCount(['applications as vsetky_moje_na_hodnotenie_count' => function ($q) use ($idOfEvaluator) {
+                        $q->whereHas('evaluations', function ($evalQuery) use ($idOfEvaluator) {
+                            $evalQuery->where('commission_member_id', $idOfEvaluator->id);
+                        });
+                    }]);
+
+                    $query->withCount(['applications as moje_uz_ohodnotene_count' => function ($q) use ($idOfEvaluator) {
+                        $q->whereHas('evaluations', function ($evalQuery) use ($idOfEvaluator) {
+                            $evalQuery->where('commission_member_id', $idOfEvaluator->id)
+                                ->whereNotNull('submitted_at'); // ← oprava: submitted_at namiesto decision_id
+                        });
+                    }]);
+                }
+            ]);
+        },
+        'scores',
+        'decision'
+    ])
+        ->where('commission_member_id', $idOfEvaluator->id)
+        ->get();
+
+    return response()->json(['evaluations' => $evaluations], Response::HTTP_OK);
+}
 
 
 
@@ -714,91 +714,93 @@ class EvaluationController extends Controller
         return response()->json($applications);
     }
 
-    public function dashboard(Request $request): JsonResponse
-    {
-        $commissionMemberIds = $this->resolveCommissionMemberIds($request);
-        $currentCommissionMemberId = $commissionMemberIds->first();
+public function dashboard(Request $request): JsonResponse
+{
+    $commissionMemberIds = $this->resolveCommissionMemberIds($request);
+    $currentCommissionMemberId = $commissionMemberIds->first();
 
-        if ($currentCommissionMemberId === null) {
-            return response()->json([
-                'stats' => ['total' => 0, 'pending' => 0, 'evaluated' => 0, 'decided' => 0],
-                'calls' => [],
-                'applications' => [],
-                'recentApplications' => [],
-                'urgentApplications' => [],
-            ]);
-        }
-
-        $assignedApplicationIds = Evaluation::whereIn('commission_member_id', $commissionMemberIds)
-            ->pluck('application_id')
-            ->unique();
-
-        $applications = Application::query()
-            ->with(['call.program.typeOfProgram:id,name', 'team.members', 'status:id,name'])
-            ->whereIn('id', $assignedApplicationIds)
-            ->whereNotNull('submitted_at')
-            ->latest('id')
-            ->get();
-
-        $evaluations = Evaluation::query()
-            ->with('scores')
-            ->whereIn('application_id', $assignedApplicationIds)
-            ->get();
-
-        $myDecisions = $evaluations->where('commission_member_id', $currentCommissionMemberId)
-            ->whereNotNull('submitted_at')
-            ->whereNotNull('decision_id');
-
-        $myDecidedApplicationIds = $myDecisions->pluck('application_id');
-
-        $applicationMetrics = [];
-        foreach ($evaluations as $evaluation) {
-            $total = $this->evaluationTotal($evaluation);
-            $applicationMetrics[$evaluation->application_id]['totals'][] = $total;
-
-            if ((int) $evaluation->commission_member_id === $currentCommissionMemberId) {
-                $applicationMetrics[$evaluation->application_id]['my_score'] = $total;
-                $applicationMetrics[$evaluation->application_id]['my_decision'] = $evaluation->decision_id;
-            }
-        }
-
-        $summaries = $applications->map(function (Application $application) use ($applicationMetrics, $currentCommissionMemberId) {
-            $summary = $this->applicationSummary($application, $currentCommissionMemberId);
-            $summary['has_decision'] = isset($applicationMetrics[$application->id]['my_decision']);
-            return $summary;
-        })->values();
-
-        $assignedCallIds = $applications->pluck('call_id')->unique()->filter();
-
-        $calls = ProgramCall::query()
-            ->withCount('applications')
-            ->with(['program.typeOfProgram:id,name', 'currentStatusHistory.status:id,name', 'callCriteria.criterionTranslations:id,criterion_id,language_id,name', 'applications.team.members', 'applications.status:id,name'])
-            ->whereIn('id', $assignedCallIds)
-            ->get()
-            ->map(fn (ProgramCall $call) => $this->callPayload($call, $currentCommissionMemberId))
-            ->values();
-
-        $stats = [
-            'total' => $summaries->count(),
-            'pending' => $summaries->filter(fn (array $summary) =>
-                !$myDecidedApplicationIds->contains($summary['id']) &&
-                in_array($summary['status'], ['submitted', 'under_review', 'evaluating', 'supplement'], true)
-            )->count(),
-            'evaluated' => $summaries->filter(fn (array $summary) => isset($summary['my_score']) && $summary['my_score'] !== null)->count(),
-            'decided' => $myDecidedApplicationIds->count(),
-        ];
-
+    if ($currentCommissionMemberId === null) {
         return response()->json([
-            'stats' => $stats,
-            'calls' => $calls,
-            'applications' => $summaries,
-            'recentApplications' => $summaries->take(3)->values(),
-            'urgentApplications' => $summaries->filter(fn (array $summary) =>
-                !$myDecidedApplicationIds->contains($summary['id']) &&
-                in_array($summary['status'], ['submitted', 'under_review', 'evaluating'], true)
-            )->values(),
+            'stats' => ['total' => 0, 'pending' => 0, 'evaluated' => 0, 'decided' => 0],
+            'calls' => [],
+            'applications' => [],
+            'recentApplications' => [],
+            'urgentApplications' => [],
         ]);
     }
+
+    $assignedApplicationIds = Evaluation::whereIn('commission_member_id', $commissionMemberIds)
+        ->pluck('application_id')
+        ->unique();
+
+    $applications = Application::query()
+        ->with(['call.program.typeOfProgram:id,name', 'team.members', 'status:id,name'])
+        ->whereIn('id', $assignedApplicationIds)
+        ->whereNotNull('submitted_at')
+        ->latest('id')
+        ->get();
+
+    $evaluations = Evaluation::query()
+        ->with('scores')
+        ->whereIn('application_id', $assignedApplicationIds)
+        ->get();
+
+    $myDecisions = $evaluations->where('commission_member_id', $currentCommissionMemberId)
+        ->whereNotNull('submitted_at')
+        ->whereNotNull('decision_id');
+
+    $myDecidedApplicationIds = $myDecisions->pluck('application_id');
+
+    $applicationMetrics = [];
+    foreach ($evaluations as $evaluation) {
+        $total = $this->evaluationTotal($evaluation);
+        $applicationMetrics[$evaluation->application_id]['totals'][] = $total;
+
+        if ((int) $evaluation->commission_member_id === $currentCommissionMemberId) {
+            $applicationMetrics[$evaluation->application_id]['my_score'] = $total;
+            $applicationMetrics[$evaluation->application_id]['my_decision'] = $evaluation->decision_id;
+            $applicationMetrics[$evaluation->application_id]['my_submitted_at'] = $evaluation->submitted_at;
+        }
+    }
+
+    $summaries = $applications->map(function (Application $application) use ($applicationMetrics, $currentCommissionMemberId) {
+        $summary = $this->applicationSummary($application, $currentCommissionMemberId);
+        $summary['has_decision'] = isset($applicationMetrics[$application->id]['my_decision']);
+        $summary['my_submitted_at'] = $applicationMetrics[$application->id]['my_submitted_at'] ?? null;
+        return $summary;
+    })->values();
+
+    $assignedCallIds = $applications->pluck('call_id')->unique()->filter();
+
+    $calls = ProgramCall::query()
+        ->withCount('applications')
+        ->with(['program.typeOfProgram:id,name', 'currentStatusHistory.status:id,name', 'callCriteria.criterionTranslations:id,criterion_id,language_id,name', 'applications.team.members', 'applications.status:id,name'])
+        ->whereIn('id', $assignedCallIds)
+        ->get()
+        ->map(fn (ProgramCall $call) => $this->callPayload($call, $currentCommissionMemberId))
+        ->values();
+
+    $stats = [
+        'total' => $summaries->count(),
+        'pending' => $summaries->filter(fn (array $summary) =>
+            !$myDecidedApplicationIds->contains($summary['id']) &&
+            in_array($summary['status'], ['submitted', 'under_review', 'evaluating', 'supplement'], true)
+        )->count(),
+        'evaluated' => $summaries->filter(fn (array $summary) => !empty($summary['my_submitted_at']))->count(),
+        'decided' => $myDecidedApplicationIds->count(),
+    ];
+
+    return response()->json([
+        'stats' => $stats,
+        'calls' => $calls,
+        'applications' => $summaries,
+        'recentApplications' => $summaries->take(3)->values(),
+        'urgentApplications' => $summaries->filter(fn (array $summary) =>
+            !$myDecidedApplicationIds->contains($summary['id']) &&
+            in_array($summary['status'], ['submitted', 'under_review', 'evaluating'], true)
+        )->values(),
+    ]);
+}
     /*
     public function calls(Request $request): JsonResponse
     {

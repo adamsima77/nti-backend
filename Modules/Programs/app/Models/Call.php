@@ -11,6 +11,7 @@ use Modules\Evaluation\Models\CommissionMember;
 use Modules\Applications\Models\Application;
 use Modules\Evaluation\Models\Commission;
 use Modules\IdentityAccess\Models\User;
+use Modules\Mentorship\Models\Milestone;
 use Modules\Organizations\Models\Organization;
 
 
@@ -48,6 +49,10 @@ class Call extends Model
         'tech_tags' => 'array',
         'budget' => 'decimal:2',
     ];
+
+    public function milestones(): HasMany{
+        return $this->hasMany(Milestone::class);
+    }
 
     public function qualificationStack(): BelongsTo{
         return $this->belongsTo(QualificationStack::class);

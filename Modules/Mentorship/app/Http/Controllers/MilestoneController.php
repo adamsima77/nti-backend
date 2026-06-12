@@ -126,31 +126,51 @@ class MilestoneController extends Controller
         ]);
     }
 
-    public function fetchMilestonesForStudent(Request $request){
-        $this->authorize('fetchForStudent', Milestone::class);
+    public function fetchMilestonesForStudent(Request $request)
+    {
         $user = $request->user();
 
-        $calls = Call::whereHas('applications.team.members', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
-        })
-            // Check pre stav výzvy: "V realizácii"
-            ->whereHas('statusOfCall', function ($query) {
-                $query->where('name', 'V realizácii')
-                ->orWhere('name', 'Uzavreté');
+        if (!$user || !$user->isStudent()) {
+            return response()->json(['message' => 'This action is unauthorized.'], 403);
+        }
+
+        $activeStatuses = ['Aktívny projekt', 'Onboarding', 'Ukončené'];
+
+        $calls = Call::query()
+            ->whereHas('applications.team.members', function ($query) use ($user) {
+                $query->where('user_id', $user->id);
             })
-            // Check pre stav prihlášky: "Aktívny projekt"
-            ->whereHas('applications', function ($query) use ($user) {
-                $query->whereHas('status', function ($q) {
-                    $q->where('name', 'Aktívny projekt')
-                    ->orWhere('name', 'Ukončené');
+            ->whereHas('applications', function ($query) use ($user, $activeStatuses) {
+                $query->whereHas('status', function ($q) use ($activeStatuses) {
+                    $q->whereIn('name', $activeStatuses);
                 })
                     ->whereHas('team.members', function ($q) use ($user) {
                         $q->where('user_id', $user->id);
                     });
             })
-            ->with('milestones')
+            ->with([
+                'currentStatusHistory.status',
+                'applications' => function ($query) use ($user, $activeStatuses) {
+                    $query->whereHas('status', fn($q) => $q->whereIn('name', $activeStatuses))
+                        ->whereHas('team.members', fn($q) => $q->where('user_id', $user->id));
+                },
+                'milestones' => function ($query) {
+                    $query->orderBy('deadline', 'asc');
+                }
+            ])
+            ->orderBy('created_at', 'desc')
             ->get();
-        return response()->json($calls, Response::HTTP_OK);
+
+            $formattedCalls = $calls->map(function (Call $call) {
+            $milestones = $call->applications->flatMap(function ($application) {
+                return $application->milestones ?? [];
+            })->values();
+            $call->setRelation('milestones', $milestones);
+            $call->status_of_call = $call->currentStatusHistory?->status;
+            return $call;
+        });
+
+        return response()->json($formattedCalls, Response::HTTP_OK);
     }
 
 

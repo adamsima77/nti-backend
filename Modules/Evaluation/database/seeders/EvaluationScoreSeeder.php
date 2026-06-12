@@ -11,6 +11,8 @@ class EvaluationScoreSeeder extends Seeder
 {
     public function run(): void
     {
+        //Commented for testing workflow
+        /*
         $evaluation = Evaluation::query()
             ->orderBy('id')
             ->first();
@@ -41,5 +43,6 @@ class EvaluationScoreSeeder extends Seeder
                 ]
             );
         }
+        */
     }
 }

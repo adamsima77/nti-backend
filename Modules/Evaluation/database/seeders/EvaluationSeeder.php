@@ -13,6 +13,8 @@ class EvaluationSeeder extends Seeder
 {
     public function run(): void
     {
+        //Commented for testing workflow
+        /*
         $applicationIds = Application::query()
             ->orderBy('id')
             ->pluck('id');
@@ -42,5 +44,7 @@ class EvaluationSeeder extends Seeder
                 ]
             );
         }
+         */
     }
+
 }

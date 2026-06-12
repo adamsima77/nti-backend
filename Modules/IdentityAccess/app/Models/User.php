@@ -28,7 +28,7 @@ use Modules\Students\Models\Student;
 use Modules\Teams\Models\Team;
 use Modules\Teams\Models\TeamMember;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail // New
 {
     use HasFactory, SoftDeletes, HasApiTokens, Notifiable;
 

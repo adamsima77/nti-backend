@@ -21,6 +21,12 @@ class ContentServiceProvider extends ModuleServiceProvider
                 Limit::perHour(10)->by($request->input('email')),
             ];
         });
+
+        RateLimiter::for('public-content', function (Request $request) {
+            return [
+                Limit::perMinute(100)->by($request->ip()),
+            ];
+        });
     }
 
     protected string $name = 'Content';

@@ -43,6 +43,7 @@ public function fetchLogs(Request $request)
         $systemEvents = SystemEvent::with('user:id,email')
             ->whereIn('event_type', [EventType::SYSTEM_ERROR, EventType::SECURITY_ALERT])
             ->where('created_at', '>', now()->subHours(48))->get()
+            ->toBase()
             ->map(fn(SystemEvent $e) => (object) [
                 'id'          => $e->id,
                 'source'      => 'system_event',
@@ -61,6 +62,7 @@ public function fetchLogs(Request $request)
 
         $auditEvents = AuditCompliance::with('actor:id,email')
             ->where('time_of_action', '>', now()->subHours(48))->get()
+            ->toBase()
             ->map(fn(AuditCompliance $e) => (object) [
                 'id'          => $e->id,
                 'source'      => 'audit_event',

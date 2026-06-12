@@ -2,7 +2,10 @@
 
 namespace Modules\AuditCompliance\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Modules\Applications\Models\Application;
 use Modules\AuditCompliance\Models\AuditCompliance;
 use Modules\AuditCompliance\Observers\ApplicationObserver;
@@ -36,7 +39,7 @@ class AuditComplianceServiceProvider extends ModuleServiceProvider
     public function boot(): void
     {
         parent::boot();
-
+        $this->registerRateLimiting();
         User::observe(UserObserver::class);
         Student::observe(StudentObserver::class);
         Application::observe(ApplicationObserver::class);
@@ -49,5 +52,14 @@ class AuditComplianceServiceProvider extends ModuleServiceProvider
         Gate::policy(AuditCompliance::class, AuditEventPolicy::class);
 
         $this->loadViewsFrom(module_path('AuditCompliance', 'Resources/Views'), 'audit-compliance');
+    }
+
+    public function registerRateLimiting(): void
+    {
+        RateLimiter::for('audit', function (Request $request) {
+            $userId = $request->user()?->id ?? 'guest';
+            $key = sha1($userId . '|' . $request->ip());
+            return Limit::perMinute(200)->by($key);
+        });
     }
 }
