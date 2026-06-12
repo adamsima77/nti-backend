@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Modules\Content\Enums\LanguageType;
 use Modules\Content\Events\ContactMessageSubmitted;
 use Modules\Content\Models\ContactSubmission;
 use Modules\IdentityAccess\Models\ConsentType;
@@ -58,7 +59,10 @@ class ContactSubmissionController extends Controller
             ]);
         }
 
-        event(new ContactMessageSubmitted($submission));
+
+
+        $languageId = LanguageType::SLOVAK->value; //Temporary
+        event(new ContactMessageSubmitted($submission, $languageId));
 
         return response()->json(['message' => 'Contact submission created!'], Response::HTTP_CREATED);
     }

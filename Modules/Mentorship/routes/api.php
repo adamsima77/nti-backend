@@ -21,7 +21,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::apiResource('milestones', MilestoneController::class)->except(['index', 'show']);
 
 
-        Route::put('/update-milestone/{milestone}', [MilestoneController::class, 'studentAnswer']);
+        Route::post('/update-milestone/{milestone}', [MilestoneController::class, 'studentAnswer']);
 
         Route::prefix('mentor')->group(function () {
             Route::post('projects/{project}/consultations', [MentorshipController::class, 'storeConsultation']);

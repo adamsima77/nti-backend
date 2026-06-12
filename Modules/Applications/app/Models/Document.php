@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Modules\IdentityAccess\Models\User;
 
 class Document extends Model
@@ -21,6 +22,13 @@ class Document extends Model
     {
         return $this->belongsTo(User::class, 'owner_id');
     }
+
+    public function latestVersion(): HasOne
+    {
+        return $this->hasOne(DocumentVersion::class, 'document_id')
+            ->ofMany('id', 'max');
+    }
+
 
     public function securityClassification(): BelongsTo
     {

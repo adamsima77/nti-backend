@@ -24,8 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('document_has_milestone', function (Blueprint $table) {
-            $table->dropForeign(['document_id']);
-            $table->dropForeign(['milestone_id']);
+            Schema::dropIfExists('document_has_milestone');
         });
 
         Schema::dropIfExists('document_has_milestone');

@@ -33,14 +33,13 @@ class StudentDashboardController
     {
         $userId = (int) $request->user()->id;
 
-        // --- Teams (loaded first so we can reuse member counts in applications) ---
+        // --- 1. TEAMS (Strictly limited to 4 records via Eloquent) ---
         $roleMap   = TeamRole::query()->pluck('name', 'id');
         $userTeams = Team::query()
             ->with('members')
             ->whereHas('members', fn ($q) => $q->where('user_id', $userId))
+            ->take(4)
             ->get();
-
-        $teamMemberCounts = $userTeams->mapWithKeys(fn (Team $t) => [$t->id => $t->members->count()]);
 
         $teams = $userTeams->map(function (Team $team) use ($userId, $roleMap) {
             $me = $team->members->firstWhere('id', $userId);
@@ -55,36 +54,41 @@ class StudentDashboardController
             ];
         })->values();
 
-        // --- All user applications (lean: no milestone or document relations yet) ---
+        // --- 2. STATS & RECENT APPLICATIONS (Loaded cleanly via Eloquent scopes) ---
+        // Fetch snapshot profiles of applications belonging to the user's teams
         $allApplications = Application::query()
             ->with([
                 'status:id,name',
                 'call:id,name,application_deadline',
                 'team:id,name',
+                'team.members', // Eager loaded to dynamically compute counts safely without raw aggregates
             ])
             ->withCount('documents')
             ->whereHas('team.members', fn ($q) => $q->where('user_id', $userId))
             ->latest('id')
             ->get();
 
-        // --- Milestones: second targeted query, only for active project apps ---
+        // --- 3. TARGETED MILESTONES EAGER-LOADING ---
         $activeIds = $allApplications
             ->filter(fn ($a) => in_array($a->status?->name, self::ACTIVE_PROJECT_STATUSES))
             ->pluck('id');
 
         if ($activeIds->isNotEmpty()) {
             Application::query()
-                ->with('milestones')
+                ->with('milestones.milestoneStatus')
                 ->whereIn('id', $activeIds)
                 ->get()
                 ->each(fn ($a) => $allApplications->find($a->id)?->setRelation('milestones', $a->milestones));
         }
 
+        // Slice the applications collection downward right before compiling data fields
+        $recentApplications = $allApplications->take(4);
+
         return response()->json([
             'stats'                        => $this->buildStats($allApplications),
-            'applications'                 => $this->buildRecentApplications($allApplications, $teamMemberCounts),
-            'actions'                      => $this->buildActions($allApplications),
-            'deadlines'                    => $this->buildDeadlines($allApplications),
+            'applications'                 => $this->buildRecentApplications($recentApplications),
+            'actions'                      => $this->buildActions($recentApplications),
+            'deadlines'                    => $this->buildDeadlines($recentApplications),
             'teams'                        => $teams,
             'activeProjectsWithMilestones' => $this->buildActiveProjects($allApplications, $activeIds),
         ]);
@@ -102,26 +106,22 @@ class StudentDashboardController
         ];
     }
 
-    private function buildRecentApplications(Collection $applications, Collection $teamMemberCounts): Collection
+    private function buildRecentApplications(Collection $applications): Collection
     {
         return $applications
-            ->take(4)
             ->map(fn ($app) => [
                 'id'          => $app->id,
                 'title'       => $app->call?->name ?? "Prihláška #{$app->id}",
                 'team'        => $app->team?->name,
-                'program'     => null, // extend when program translation is needed
-                'status'      =>  $this->mapStatusSlug($app->status?->name),
+                'program'     => null,
+                'status'      => $this->mapStatusSlug($app->status?->name),
                 'submittedAt' => $app->submitted_at?->format('d.m.Y'),
-                'members'     => $teamMemberCounts->get($app->team_id, 0),
+                'members'     => $app->team && $app->team->relationLoaded('members') ? $app->team->members->count() : 0,
                 'documents'   => $app->documents_count ?? 0,
             ])
             ->values();
     }
 
-    /**
-     * Required actions: only applications in "Vyžiadané doplnenie" state.
-     */
     private function buildActions(Collection $applications): Collection
     {
         return $applications
@@ -134,7 +134,7 @@ class StudentDashboardController
             ->values();
     }
 
-    private function mapStatusSlug(?string $statusName): string
+    private function mapStatusSlug(?string $statusName=""): string
     {
         return match($statusName) {
             'Draft'                => 'draft',
@@ -151,10 +151,6 @@ class StudentDashboardController
         };
     }
 
-    /**
-     * Upcoming deadlines from call.application_deadline.
-     * Only future deadlines for applications still in the pipeline.
-     */
     private function buildDeadlines(Collection $applications): Collection
     {
         $skip = [...self::APPROVED_STATUSES, ...self::REJECTED_STATUSES];
@@ -162,22 +158,16 @@ class StudentDashboardController
         return $applications
             ->filter(function ($app) use ($skip) {
                 $deadline = $app->call?->application_deadline;
-                if (! $deadline) {
+                if (! $deadline || in_array($app->status?->name, $skip)) {
                     return false;
                 }
-                if (in_array($app->status?->name, $skip)) {
-                    return false;
-                }
-
                 return $deadline->isFuture();
             })
             ->sortBy(fn ($app) => $app->call->application_deadline->timestamp)
-            ->take(5)
             ->map(fn ($app) => [
                 'id'       => $app->id,
                 'title'    => $app->call?->name ?? "Prihláška #{$app->id}",
                 'deadline' => $app->call->application_deadline->format('d.m.Y'),
-                // diffInDays truncates; max(1,...) ensures same-day deadline shows as 1
                 'daysLeft' => max(1, (int) now()->diffInDays($app->call->application_deadline, false)),
             ])
             ->values();
@@ -192,13 +182,27 @@ class StudentDashboardController
         return $applications
             ->filter(fn ($a) => $activeIds->contains($a->id))
             ->map(function ($app) {
-                $milestones = collect($app->relationLoaded('milestones') ? $app->milestones : [])
-                    ->map(fn ($m) => [
-                        'id'      => $m->id,
-                        'title'   => $m->name,
-                        'dueDate' => $m->deadline?->format('d.m.Y'),
-                        'status'  => $this->milestoneStatus($m->status),
-                    ])
+                $rawMilestones = $app->milestones ?? collect();
+
+                $milestones = collect($rawMilestones)
+                    ->map(function ($m) {
+                        $statusName = $m->milestoneStatus?->name ?? '';
+
+                        $normalizedStatus = match ($statusName) {
+                            'Schválené', 'Dokončené' => 'completed',
+                            'V riešení'             => 'in_progress',
+                            'Vrátené na doplnenie'  => 'returned',
+                            'Zamietnuté'            => 'rejected',
+                            default                 => 'planned',
+                        };
+
+                        return [
+                            'id'      => $m->id,
+                            'title'   => $m->name ?? 'Míľnik',
+                            'dueDate' => $m->deadline ? $m->deadline->format('d.m.Y') : '',
+                            'status'  => $normalizedStatus,
+                        ];
+                    })
                     ->values();
 
                 return [
@@ -210,19 +214,5 @@ class StudentDashboardController
                 ];
             })
             ->values();
-    }
-
-    private function milestoneStatus(?string $status): string
-    {
-        $s = mb_strtolower((string) $status);
-
-        if (str_contains($s, 'complete') || str_contains($s, 'dokon')) {
-            return 'completed';
-        }
-        if (str_contains($s, 'progress') || str_contains($s, 'prebie') || str_contains($s, 'aktu')) {
-            return 'in_progress';
-        }
-
-        return 'pending';
     }
 }
