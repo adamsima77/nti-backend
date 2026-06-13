@@ -36,7 +36,7 @@ class ResetPasswordMail extends Mailable
                 'subject'   => $template?->subject ?? '',
                 'body_html' => $template?->render([
                         'url'  => $url,
-                        'user' => $this->user,
+                        'userName' => $this->user->name,
                     ]) ?? '',
             ]);
     }

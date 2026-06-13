@@ -7,7 +7,7 @@ use Modules\Evaluation\Http\Controllers\EvaluationController;
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
-    Route::middleware(['throttle:200,1'])->prefix('v1/admin/commissions')->group(function () {
+    Route::middleware(['throttle:500,1'])->prefix('v1/admin/commissions')->group(function () {
         Route::get('/',                           [CommissionController::class, 'index']);
         Route::post('/',                          [CommissionController::class, 'store']);
         Route::put('/{id}',                       [CommissionController::class, 'update']);
@@ -16,7 +16,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::delete('/{id}/members/{memberId}', [CommissionController::class, 'removeMember']);
         Route::get('/evaluators',                 [CommissionController::class, 'evaluators']);
     });
-    Route::middleware(['throttle:200,1'])->group(function () {
+    Route::middleware(['throttle:500,1'])->group(function () {
         Route::get('/evaluations/pending', [EvaluationController::class, 'pending']);
         Route::post('evaluations/{application_id}/score', [EvaluationController::class, 'storeScore']);
         Route::prefix('evaluator')->group(function () {

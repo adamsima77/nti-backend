@@ -67,7 +67,7 @@ Route::apiResource('contact', ContactSubmissionController::class)
     ->middleware(['throttle:contact']);
 
 
-Route::middleware(['auth:sanctum', 'verified', 'throttle:200,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'verified', 'throttle:500,1'])->group(function () {
     Route::get('/publicated-articles', [CmsStatsController::class, 'publicatedArticles']);
     Route::get('/partner-count', [CmsStatsController::class, 'partnerCount']);
     Route::get('/faq-count', [CmsStatsController::class, 'faqCount']);

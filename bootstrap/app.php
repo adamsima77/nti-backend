@@ -62,7 +62,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 : 500;
 
             $isServerError   = $statusCode >= 500;
-            $isSecurityAlert = $statusCode === 403;
+            $isSecurityAlert = $statusCode === 403 || $statusCode === 429;
 
             if ($isServerError || $isSecurityAlert) {
                 $rawUserId = auth()->id();

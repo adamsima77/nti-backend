@@ -126,76 +126,79 @@ class MilestoneController extends Controller
         ]);
     }
 
-    public function fetchMilestonesForStudent(Request $request)
-    {
-        $user = $request->user();
 
-        if (!$user || !$user->isStudent()) {
-            return response()->json(['message' => 'This action is unauthorized.'], 403);
-        }
+public function fetchMilestonesForStudent(Request $request)
+{
+    $user = $request->user();
 
-        $activeStatuses = ['Aktívny projekt', 'Onboarding', 'Ukončené'];
-
-        $calls = Call::query()
-            ->whereHas('applications.team.members', function ($query) use ($user) {
-                $query->where('user_id', $user->id);
-            })
-            ->whereHas('applications', function ($query) use ($user, $activeStatuses) {
-                $query->whereHas('status', function ($q) use ($activeStatuses) {
-                    $q->whereIn('name', $activeStatuses);
-                })
-                    ->whereHas('team.members', function ($q) use ($user) {
-                        $q->where('user_id', $user->id);
-                    });
-            })
-            ->with([
-                'currentStatusHistory.status',
-
-                // Load milestones with their documents + each document's latest version
-                // so the frontend can display file names and trigger downloads.
-                'milestones' => function ($query) {
-                    $query->with([
-                        'documents' => function ($q) {
-                            // latestVersion is a hasOne relationship on Document that
-                            // resolves to the versions() hasMany ordered by id desc.
-                            $q->with('latestVersion');
-
-
-                        },
-                        'comments' => function ($q) {
-                            $q->with('user:id,name,surname');
-                        },
-                    ])->orderBy('id', 'asc');
-                },
-
-                // Load the student's application(s) for this call, with mentorships
-                'applications' => function ($query) use ($user, $activeStatuses) {
-                    $query
-                        ->whereHas('status', fn($q) => $q->whereIn('name', $activeStatuses))
-                        ->whereHas('team.members', fn($q) => $q->where('user_id', $user->id))
-                        ->select(['id', 'call_id', 'team_id', 'active_status']) // ← removed academic_flag
-                        ->with([
-                            'mentorships' => function ($q) {
-                                $q->select(['id', 'application_id', 'mentor_user_id', 'created_at'])
-                                    ->with([
-                                        'mentor' => function ($q) {
-                                            $q->select(['id', 'name', 'surname', 'email']);
-                                        },
-                                    ]);
-                            },
-                        ]);
-                },
-            ])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $formattedCalls = $calls->map(function (Call $call) {
-            $call->status_of_call = $call->currentStatusHistory?->status;
-            return $call;
-        });
-
-        return response()->json($formattedCalls, Response::HTTP_OK);
+    if (!$user || !$user->isStudent()) {
+        return response()->json(['message' => 'This action is unauthorized.'], 403);
     }
+
+    $activeStatuses = ['Aktívny projekt', 'Onboarding', 'Ukončené'];
+
+    $calls = Call::query()
+        ->whereHas('applications.team.members', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })
+        ->whereHas('applications', function ($query) use ($user, $activeStatuses) {
+            $query->whereHas('status', function ($q) use ($activeStatuses) {
+                $q->whereIn('name', $activeStatuses);
+            })
+                ->whereHas('team.members', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                });
+        })
+        ->with([
+            'currentStatusHistory.status',
+
+            // Load milestones with their documents + each document's latest version
+            // so the frontend can display file names and trigger downloads.
+            'milestones' => function ($query) {
+                $query->with([
+                    'documents' => function ($q) {
+                        // latestVersion is a hasOne relationship on Document that
+                        // resolves to the versions() hasMany ordered by id desc.
+                        $q->with('latestVersion');
+                    },
+                    'comments' => function ($q) {
+                        $q->with('user:id,name,surname');
+                    },
+                ])->orderBy('id', 'asc');
+            },
+
+            // Load the student's application(s) for this call, with mentorships & sessions
+            'applications' => function ($query) use ($user, $activeStatuses) {
+                $query
+                    ->whereHas('status', fn($q) => $q->whereIn('name', $activeStatuses))
+                    ->whereHas('team.members', fn($q) => $q->where('user_id', $user->id))
+                    ->select(['id', 'call_id', 'team_id', 'active_status']) // ← removed academic_flag
+                    ->with([
+                        'mentorships' => function ($q) {
+                            $q->select(['id', 'application_id', 'mentor_user_id', 'created_at'])
+                                ->with([
+                                    'mentor' => function ($q) {
+                                        $q->select(['id', 'name', 'surname', 'email']);
+                                    },
+                                    // Eager load the sessions relation from Mentorship model
+                                    'sessions' => function ($q) {
+                                        $q->orderBy('scheduled_at', 'desc'); // Optional: orders sessions by date
+                                    }
+                                ]);
+                        },
+                    ]);
+            },
+        ])
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+    $formattedCalls = $calls->map(function (Call $call) {
+        $call->status_of_call = $call->currentStatusHistory?->status;
+        return $call;
+    });
+
+    return response()->json($formattedCalls, Response::HTTP_OK);
+}
 
     public function studentAnswer(Request $request, Milestone $milestone)
     {

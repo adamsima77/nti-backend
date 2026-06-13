@@ -20,9 +20,19 @@ class DocumentController extends Controller
     public function store(Request $request): JsonResponse
     {
         $this->authorize('create', Document::class);
+        $globallyAllowedMimes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'csv'];
+        $requestedMimes = $request->input('accept');
+
+        if ($requestedMimes) {
+            $requestedArray = explode(',', str_replace(['.', ' '], '', $requestedMimes));
+            $safeMimesArray = array_intersect($requestedArray, $globallyAllowedMimes);
+            $allowedMimes = !empty($safeMimesArray) ? implode(',', $safeMimesArray) : 'pdf';
+        } else {
+            $allowedMimes = 'pdf,docx';
+        }
 
         $validated = $request->validate([
-            'file' => ['required', 'file', 'mimes:pdf,docx'],
+            'file' => ['required', 'file', 'mimes:' . $allowedMimes, 'max:10240'],
         ]);
 
         $user = $request->user();

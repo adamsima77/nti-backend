@@ -109,6 +109,7 @@ class MentorDemoSeeder extends Seeder
                     [
                         'call_id'             => $application->call_id,
                         'name'                => $template['name'],
+                        'start_date'          => $template['start_date']->toDateString(),
                         'deadline'            => $template['deadline']->toDateString(),
                         'milestone_status_id' => $template['status_id'],
                         'comments'            => null,

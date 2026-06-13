@@ -312,7 +312,7 @@ class EmailTemplateSeeder extends Seeder
                 'body_html' => '
 <h1 style="margin:0 0 16px; font-size:24px;">Reset your password</h1>
 <p style="margin:0 0 24px; font-size:15px; color:#64748b; line-height:1.6;">
-    Hello {{ $user->name }},<br><br>
+    Hello {{ $userName }},<br><br>
     We received a request to reset your password. Click the button below to set a new one.
 </p>
 

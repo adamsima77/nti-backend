@@ -59,7 +59,7 @@ class AuditComplianceServiceProvider extends ModuleServiceProvider
         RateLimiter::for('audit', function (Request $request) {
             $userId = $request->user()?->id ?? 'guest';
             $key = sha1($userId . '|' . $request->ip());
-            return Limit::perMinute(200)->by($key);
+            return Limit::perMinute(500)->by($key);
         });
     }
 }

@@ -24,7 +24,7 @@ class ContentServiceProvider extends ModuleServiceProvider
 
         RateLimiter::for('public-content', function (Request $request) {
             return [
-                Limit::perMinute(100)->by($request->ip()),
+                Limit::perMinute(500)->by($request->ip()),
             ];
         });
     }

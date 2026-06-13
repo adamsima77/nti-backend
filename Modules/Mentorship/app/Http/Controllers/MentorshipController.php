@@ -805,6 +805,7 @@ class MentorshipController extends Controller
             'id'          => $milestone->id,
             'title'       => $milestone->name,
             'dueDate'     => $milestone->deadline?->format('Y-m-d'),
+            'start_date' => $milestone->start_date?->format('Y-m-d'),
             'status'      => $this->milestoneStatusSlug($milestone),
             'description' => $descriptionText,
             'documents' => $docs,

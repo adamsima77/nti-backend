@@ -32,7 +32,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         });
     });
 
-    Route::middleware(['throttle:200,1'])->group(function () {
+    Route::middleware(['throttle:500,1'])->group(function () {
 
 
         Route::get('/mentors', [MentorshipController::class, 'fetchMentors']);
