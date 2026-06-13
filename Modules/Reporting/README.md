@@ -1,344 +1,442 @@
-# Reporting Module
+# Modul Reporting – Dokumentácia
 
-## Overview
+> Dashboardy, KPI metriky, výstupy projektov, exporty a admin reporty na platforme NTI.
 
-The **Reporting** module handles KPI tracking and project outputs management for the NTI (Nitriansky technologický inkubátor) system. It provides comprehensive REST APIs for creating, managing, and analyzing project performance metrics and deliverables.
+---
 
-## Features
+## Obsah
 
-### 1. **KPI Management** (Key Performance Indicators)
-- Create and track custom metrics for each application/project
-- Set target values and actual values
-- Calculate achievement percentage
-- Get KPI statistics for applications
-- Support for different units (%, EUR, count, etc.)
+1. [Prehľad modulu](#prehľad-modulu)
+2. [Adresárová štruktúra](#adresárová-štruktúra)
+3. [Modely a databázová schéma](#modely-a-databázová-schéma)
+4. [FormRequest triedy](#formrequest-triedy)
+5. [Export systém](#export-systém)
+6. [Kontroléry a logika](#kontroléry-a-logika)
+7. [API Routes](#api-routes)
+8. [Integrácie](#integrácie)
+9. [Chybové stavy](#chybové-stavy)
 
-### 2. **Project Output Management**
-- Define project deliverables/outputs
-- Track output status (pending, completed, delivered)
-- Monitor delivery timelines (planned vs actual)
-- Detect overdue outputs
-- Attach multiple documents to outputs
-- Mark outputs as delivered
+---
 
-### 3. **Authorization & Security**
-- Role-based access control (RBAC):
-  - **Admin**: Full access to all KPIs and outputs
-  - **Mentor**: Access to KPIs/outputs for assigned projects only
-  - **Creator**: Access to their own project's KPIs and outputs
-- Laravel Policies for fine-grained authorization
-- Audit logging for all operations
+## Prehľad modulu
 
-## Architecture
+Modul **Reporting** zabezpečuje:
+
+- KPI metriky pre projekty (cieľové a skutočné hodnoty)
+- Výstupy projektov (deliverables) s typmi a stavmi
+- Asynchrónne exporty žiadostí do XLSX/CSV/PDF
+- Dashboard počty pre adminov
+- Reporty o uzavretí výzvy (callClosureReport)
+- Logy a bezpečnostné záznamy pre super adminov
+
+> **Dôležité:** Tento modul je **jediný**, ktorý obsahuje `FormRequest` triedy. Ostatné moduly FormRequesty nepoužívajú.
+
+---
+
+## Adresárová štruktúra
 
 ```
 Modules/Reporting/
 ├── app/
 │   ├── Http/
 │   │   ├── Controllers/
+│   │   │   ├── ExportController.php
 │   │   │   ├── ProjectKpiController.php
-│   │   │   └── ProjectOutputController.php
-│   │   ├── Requests/
-│   │   │   ├── StoreProjectKpiRequest.php
-│   │   │   ├── UpdateProjectKpiRequest.php
-│   │   │   ├── StoreProjectOutputRequest.php
-│   │   │   └── UpdateProjectOutputRequest.php
-│   │   └── Resources/
-│   │       ├── ProjectKpiResource.php
-│   │       └── ProjectOutputResource.php
+│   │   │   ├── ProjectOutputController.php
+│   │   │   └── ReportingController.php
+│   │   └── Requests/                        # FormRequest triedy (len v tomto module)
+│   │       ├── StoreProjectKpiRequest.php
+│   │       └── StoreProjectOutputRequest.php
+│   ├── Jobs/
+│   │   └── GenerateExportRequestFileJob.php
 │   ├── Models/
+│   │   ├── ExportRequest.php
 │   │   ├── ProjectKpi.php
 │   │   └── ProjectOutput.php
 │   ├── Policies/
-│   │   ├── ProjectKpiPolicy.php
-│   │   └── ProjectOutputPolicy.php
-│   ├── Providers/
-│   │   ├── AuthServiceProvider.php
-│   │   ├── EventServiceProvider.php
-│   │   ├── ReportingServiceProvider.php
-│   │   └── RouteServiceProvider.php
-│   └── Exports/
+│   └── Providers/
+│       └── ReportingServiceProvider.php
 ├── database/
-│   └── migrations/
-│       ├── 2026_05_03_090000_create_project_kpi_table.php
-│       ├── 2026_05_03_090100_create_project_output_table.php
-│       └── 2026_05_03_090200_create_document_has_project_output_table.php
-├── routes/
-│   ├── api.php
-│   └── web.php
-├── API_DOCUMENTATION.md
-└── README.md
+│   ├── migrations/
+│   └── seeders/
+└── routes/
+    └── api.php
 ```
 
-## Database Schema
+---
 
-### Tables
+## Modely a databázová schéma
 
-#### `project_kpi`
-```sql
-- id (PK)
-- application_id (FK to application)
-- metric_name (string)
-- target_value (decimal)
-- actual_value (decimal, nullable)
-- unit (string, nullable) – e.g., '%', 'EUR', 'count'
-- description (text, nullable)
-- timestamps
+### ProjectKpi
+
+**Tabuľka:** `project_kpi`
+
+```
+project_kpi
+├── id
+├── application_id  (FK → application.id)
+├── metric_name     (string)
+├── target_value    (decimal)
+├── actual_value    (decimal, nullable)
+├── unit            (string, nullable)
+├── description     (text, nullable)
+└── timestamps
 ```
 
-#### `project_output`
-```sql
-- id (PK)
-- application_id (FK to application)
-- output_name (string)
-- description (text, nullable)
-- output_type (string, nullable)
-- status (enum: pending, completed, delivered)
-- planned_delivery (timestamp, nullable)
-- actual_delivery (timestamp, nullable)
-- timestamps
-```
-
-#### `document_has_project_output`
-```sql
-- document_id (FK, part of PK)
-- project_output_id (FK, part of PK)
-- created_at
-```
-
-## Models & Relations
-
-### ProjectKpi Model
-```php
-// Relations
-$kpi->application()  // BelongsTo Application
-
-// Methods
-$kpi->achievement_percentage  // Calculated property
-$kpi->isTargetMet()          // Check if actual >= target
-```
-
-### ProjectOutput Model
-```php
-// Relations
-$output->application()        // BelongsTo Application
-$output->documents()          // BelongsToMany Document
-
-// Methods
-$output->isOverdue()          // Check if past planned date
-$output->isOnTime()           // Check if actual <= planned
-$output->markAsDelivered()    // Set status to 'completed'
-$output->getDeliveryStatusLabel()
-```
-
-### Application Model Extensions
-```php
-// New relations added:
-$application->kpis()     // HasMany ProjectKpi
-$application->outputs()  // HasMany ProjectOutput
-```
-
-## API Endpoints
-
-### KPI Endpoints
-```
-GET    /api/applications/{applicationId}/kpis
-GET    /api/applications/{applicationId}/kpis/statistics
-POST   /api/applications/{applicationId}/kpis
-GET    /api/kpis/{id}
-PATCH  /api/kpis/{id}
-DELETE /api/kpis/{id}
-```
-
-### Output Endpoints
-```
-GET    /api/applications/{applicationId}/outputs
-GET    /api/applications/{applicationId}/outputs/statistics
-POST   /api/applications/{applicationId}/outputs
-GET    /api/outputs/{id}
-PATCH  /api/outputs/{id}
-DELETE /api/outputs/{id}
-POST   /api/outputs/{id}/mark-as-delivered
-POST   /api/outputs/{id}/attach-documents
-POST   /api/outputs/{id}/detach-documents
-```
-
-See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for complete API documentation with examples.
-
-## Usage Examples
-
-### Create a KPI
+**Model:**
 
 ```php
-// Controller example
-$kpi = ProjectKpi::create([
-    'application_id' => 10,
-    'metric_name' => 'Efficiency Score',
-    'target_value' => 85,
-    'unit' => '%',
-    'description' => 'Overall project efficiency',
-]);
+class ProjectKpi extends Model
+{
+    protected $table = 'project_kpi';
+
+    protected $fillable = [
+        'application_id', 'metric_name',
+        'target_value', 'actual_value',
+        'unit', 'description',
+    ];
+}
 ```
 
-### Track KPI Progress
+**Computed atribúty a metódy:**
 
 ```php
-// Update actual value
-$kpi->update(['actual_value' => 92.5]);
+// Percento dosiahnutia KPI
+// Vracia null ak target_value = 0 (delenie nulou)
+public function getAchievementPercentageAttribute(): ?float
+{
+    if ($this->target_value == 0) {
+        return null;
+    }
+    return ($this->actual_value / $this->target_value) * 100;
+}
 
-// Check achievement
-$achievement = $kpi->achievement_percentage;  // 108.82%
-$metTarget = $kpi->isTargetMet();             // true
+// Či bol cieľ splnený
+public function isTargetMet(): bool
+{
+    return $this->actual_value !== null
+        && $this->actual_value >= $this->target_value;
+}
 ```
 
-### Manage Project Outputs
+---
+
+### ProjectOutput
+
+**Tabuľka:** `project_output`
+
+```
+project_output
+├── id
+├── application_id    (FK → application.id)
+├── output_name       (string)
+├── description       (text, nullable)
+├── output_type       (string, nullable)
+├── status            (string: pending/completed/delivered)
+├── planned_delivery  (timestamp, nullable)
+├── actual_delivery   (timestamp, nullable)
+└── timestamps
+```
+
+**Model:**
 
 ```php
-// Create output
-$output = ProjectOutput::create([
-    'application_id' => 10,
-    'output_name' => 'Final Report',
-    'output_type' => 'report',
-    'status' => 'pending',
-    'planned_delivery' => now()->addMonth(),
-]);
+class ProjectOutput extends Model
+{
+    protected $table = 'project_output';
 
-// Attach documents
-$output->documents()->sync([5, 6, 7]);
-
-// Check status
-$isOverdue = $output->isOverdue();
-$isOnTime = $output->isOnTime();
-
-// Mark as delivered
-$output->markAsDelivered();
+    protected $fillable = [
+        'application_id', 'output_name', 'description',
+        'output_type', 'status', 'planned_delivery', 'actual_delivery',
+    ];
+}
 ```
 
-## Authorization Rules
+**Relácie:**
 
-| Operation | Admin | Mentor | Creator | Others |
-|-----------|-------|--------|---------|--------|
-| View | ✅ | ✅* | ✅ | ❌ |
-| Create | ✅ | ✅ | ✅ | ❌ |
-| Update | ✅ | ✅* | ✅ | ❌ |
-| Delete | ✅ | ✅* | ✅ | ❌ |
+| Metóda | Typ | Cieľ |
+|--------|-----|------|
+| `application()` | `BelongsTo` | `Application` |
+| `documents()` | `BelongsToMany` | `Document` cez `document_has_project_output` |
 
-*Only for projects they are assigned to as mentor
+**Metódy:**
 
-## Validation Rules
-
-### ProjectKpiRequest
 ```php
-'application_id' => 'required|integer|exists:application,id',
-'metric_name' => 'required|string|max:255',
-'target_value' => 'required|numeric|min:0',
-'actual_value' => 'nullable|numeric|min:0',
-'unit' => 'nullable|string|max:50',
-'description' => 'nullable|string|max:1000',
+// Overenie, či je output meškajúci
+public function isOverdue(): bool;
+
+// Overenie, či je výstup doručený včas
+public function isOnTime(): bool;
+
+// Nastavenie stavu na 'delivered' a actual_delivery = now()
+public function markAsDelivered(): void;
+
+// Štítok stavu doručenia
+public function getDeliveryStatusLabel(): string;
+// Vracia: 'Pending' | 'Completed' | 'Delivered' | 'Unknown'
 ```
 
-### ProjectOutputRequest
+---
+
+### ExportRequest
+
+**Tabuľka:** `export_request`
+
+```
+export_request
+├── id
+├── user_id       (FK → users.id)
+├── export_key    (string)             – slug/kľúč typu exportu
+├── kind          (string: excel/pdf)
+├── format        (string: xlsx/csv/pdf)
+├── status        (string: pending/processing/completed/failed)
+├── file_name     (string, nullable)
+├── storage_disk  (string, nullable)
+├── storage_path  (string, nullable)
+├── meta          (json, nullable)     – extra parametre exportu
+├── error_message (text, nullable)
+├── queued_at     (timestamp, nullable)
+├── processed_at  (timestamp, nullable)
+├── completed_at  (timestamp, nullable)
+├── failed_at     (timestamp, nullable)
+└── timestamps
+```
+
+**Model:**
+
 ```php
-'application_id' => 'required|integer|exists:application,id',
-'output_name' => 'required|string|max:255',
-'description' => 'nullable|string|max:2000',
-'output_type' => 'nullable|string|max:100',
-'status' => 'nullable|in:pending,completed,delivered',
-'planned_delivery' => 'nullable|date_format:Y-m-d H:i:s|after_or_equal:now',
-'document_ids' => 'nullable|array|exists:document,id',
+class ExportRequest extends Model
+{
+    protected $fillable = [
+        'user_id', 'export_key', 'kind', 'format',
+        'status', 'file_name', 'storage_disk', 'storage_path',
+        'meta', 'error_message', 'queued_at', 'processed_at',
+        'completed_at', 'failed_at',
+    ];
+
+    protected $casts = [
+        'meta'         => 'array',
+        'queued_at'    => 'datetime',
+        'processed_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'failed_at'    => 'datetime',
+    ];
+}
 ```
 
-## Events & Listeners
+---
 
-Currently, the module triggers standard Laravel model events:
-- `created` – When KPI or Output is created
-- `updated` – When KPI or Output is updated
-- `deleted` – When KPI or Output is deleted
+## FormRequest triedy
 
-These can be extended with custom listeners in the future for:
-- Sending notifications
-- Creating audit logs
-- Triggering workflow transitions
+> Tento modul je **jediný** v celom projekte, ktorý obsahuje FormRequest triedy.
 
-## Testing
+### StoreProjectKpiRequest
 
-Unit and integration tests are located in:
-```
-tests/
-├── Unit/
-│   ├── ProjectKpiTest.php
-│   └── ProjectOutputTest.php
-└── Feature/
-    ├── ProjectKpiApiTest.php
-    └── ProjectOutputApiTest.php
-```
+**Súbor:** `app/Http/Requests/StoreProjectKpiRequest.php`
 
-Run tests:
-```bash
-php artisan test Modules/Reporting
+```php
+public function rules(): array
+{
+    return [
+        'application_id' => ['required', 'exists:application,id'],
+        'metric_name'    => ['required', 'max:255'],
+        'target_value'   => ['required', 'numeric', 'min:0'],
+        'actual_value'   => ['nullable'],
+        'unit'           => ['nullable', 'max:50'],
+        'description'    => ['nullable', 'max:1000'],
+    ];
+}
 ```
 
-## Configuration
+---
 
-The module requires no special configuration beyond standard Laravel setup. Ensure:
-- Database migrations are run: `php artisan migrate`
-- Sanctum is configured for API authentication
-- AuthServiceProvider is registered in the module
+### StoreProjectOutputRequest
 
-## Integration with Other Modules
+**Súbor:** `app/Http/Requests/StoreProjectOutputRequest.php`
 
-### Applications Module
-- KPIs and Outputs are linked to `Application` model
-- Creator and team context inherited from Application
+```php
+public function rules(): array
+{
+    return [
+        'application_id'  => ['required', 'exists:application,id'],
+        'output_name'     => ['required', 'max:255'],
+        'description'     => ['nullable', 'max:2000'],
+        'output_type'     => ['nullable', 'max:100'],
+        'status'          => ['nullable', 'in:pending,completed,delivered'],
+        'planned_delivery' => [
+            'nullable',
+            'date_format:Y-m-d H:i:s',
+            'after_or_equal:now',
+        ],
+        'document_ids'    => ['nullable', 'array'],
+        'document_ids.*'  => ['exists:document,id'],
+    ];
+}
+```
 
-### Mentorship Module
-- Mentors have access to KPIs/Outputs for their assigned projects
-- Mentorship relation used in Policy authorization
+---
 
-### Notifications Module (Future)
-- Can be extended to send notifications on status changes
-- Webhook triggers for external integrations
+## Export systém
 
-### AuditCompliance Module (Future)
-- All operations can be logged for compliance
-- User action tracking and data export support
+### GenerateExportRequestFileJob
 
-## Development Roadmap
+**Súbor:** `app/Jobs/GenerateExportRequestFileJob.php`
 
-- [ ] Advanced KPI scoring algorithms
-- [ ] Bulk operations for KPIs/Outputs
-- [ ] Export to Excel/PDF reports
-- [ ] KPI achievement trends and forecasting
-- [ ] Notification system integration
-- [ ] Webhooks for external systems
-- [ ] Mobile app API optimization
-- [ ] Real-time progress dashboards
+Job spracúva asynchrónne generovania exportov.
 
-## Troubleshooting
+**Postup:**
 
-### 403 Forbidden
-- User doesn't have permission for this KPI/Output
-- Check if mentor is assigned or user is creator
+1. Prijme `ExportRequest` model
+2. Nastaví `status = 'processing'`, `processed_at = now()`
+3. Generuje súbor podľa `kind`:
+   - **`excel`** – cez `Maatwebsite\Excel`
+   - **`pdf`** – cez `Barryvdh\DomPDF`
+4. Uloží na `storage_disk` do cesty `exports/{user_id}/{slug}-{id}.{format}`
+5. Nastaví `status = 'completed'`, `completed_at = now()`
+6. Pri chybe: `status = 'failed'`, `failed_at = now()`, `error_message = ...`
 
-### 404 Not Found
-- Application, KPI, or Output doesn't exist
-- Verify IDs in request
+**Cesta k súboru:**
 
-### 422 Unprocessable Entity
-- Validation failed
-- Check request body against FormRequest validation rules
+```
+exports/{user_id}/{export_key}-{export_request_id}.{format}
+```
 
-### Soft Deleted Records
-- Deleted KPIs/Outputs are not returned by default
-- Use `withTrashed()` in queries to include them
+### Typy exportov
 
-## License
+| export_key | Popis |
+|------------|-------|
+| `applications` | Export všetkých žiadostí |
+| `call-report` | Report o výzve |
+| `call-closure-report` | Report o uzavretí výzvy |
+| `evaluations` | Export hodnotení |
 
-This module is part of the NTI project and follows the same license terms.
+---
 
-## Support
+## Kontroléry a logika
 
-For issues or questions, refer to:
-- [API Documentation](./API_DOCUMENTATION.md)
-- Project technical specification
-- Laravel Eloquent documentation
+### ExportController
+
+Obsluhuje exporty – vrátane exportov z modulu Applications (routes sú registrované v Applications module).
+
+| Metóda | Popis |
+|--------|-------|
+| `showExportRequest($id)` | Detail ExportRequest záznamu |
+| `downloadExportRequest($id)` | Stiahnutie vygenerovaného súboru |
+| `callClosureReport()` | Spustenie reportu o uzavretí výzvy |
+| `callReport()` | Spustenie výzva-reportu |
+| `exportEvaluations()` | Spustenie exportu hodnotení |
+
+### ProjectKpiController
+
+| Metóda | Popis |
+|--------|-------|
+| `index()` | KPI pre danú žiadosť |
+| `store()` | Vytvorenie KPI (používa StoreProjectKpiRequest) |
+| `show($id)` | Detail KPI |
+| `update($id)` | Aktualizácia KPI |
+| `destroy($id)` | Zmazanie KPI |
+
+### ProjectOutputController
+
+| Metóda | Popis |
+|--------|-------|
+| `index()` | Výstupy pre danú žiadosť |
+| `store()` | Vytvorenie výstupu (používa StoreProjectOutputRequest) |
+| `show($id)` | Detail výstupu |
+| `update($id)` | Aktualizácia výstupu |
+| `destroy($id)` | Zmazanie výstupu |
+| `markAsDelivered($id)` | Označenie ako doručené |
+| `attachDocuments($id)` | Priradenie dokumentov |
+| `detachDocuments($id)` | Odopnutie dokumentov |
+
+### ReportingController
+
+| Metóda | Popis |
+|--------|-------|
+| `adminDashboard()` | Dashboard počty pre admina |
+| `superAdminDashboard()` | Štatistiky pre super admina |
+| `securityLogs()` | Bezpečnostné logy (super admin) |
+
+---
+
+## API Routes
+
+**Súbor:** `routes/api.php`
+
+Všetky routes vyžadujú autentifikáciu (`auth:sanctum`) a overený email (`verified`).
+
+### Exporty
+
+| Metóda | URL | Popis |
+|--------|-----|-------|
+| `GET` | `/api/exports/{id}` | Detail ExportRequest |
+| `GET` | `/api/exports/{id}/download` | Stiahnutie exportu |
+| `POST` | `/api/exports/call-closure-report` | Spustenie report uzavretia výzvy |
+| `POST` | `/api/exports/call-report` | Spustenie reportu výzvy |
+| `POST` | `/api/exports/evaluations` | Spustenie exportu hodnotení |
+
+### KPI
+
+| Metóda | URL | Popis |
+|--------|-----|-------|
+| `GET` | `/api/project-kpis` | Zoznam KPI |
+| `POST` | `/api/project-kpis` | Vytvorenie KPI |
+| `GET` | `/api/project-kpis/{kpi}` | Detail KPI |
+| `PUT` | `/api/project-kpis/{kpi}` | Aktualizácia KPI |
+| `DELETE` | `/api/project-kpis/{kpi}` | Zmazanie KPI |
+
+### Výstupy (Outputs)
+
+| Metóda | URL | Popis |
+|--------|-----|-------|
+| `GET` | `/api/project-outputs` | Zoznam výstupov |
+| `POST` | `/api/project-outputs` | Vytvorenie výstupu |
+| `GET` | `/api/project-outputs/{output}` | Detail výstupu |
+| `PUT` | `/api/project-outputs/{output}` | Aktualizácia |
+| `DELETE` | `/api/project-outputs/{output}` | Zmazanie |
+| `POST` | `/api/project-outputs/{output}/mark-delivered` | Označenie ako doručené |
+| `POST` | `/api/project-outputs/{output}/documents/attach` | Priradenie dokumentov |
+| `POST` | `/api/project-outputs/{output}/documents/detach` | Odopnutie dokumentov |
+
+### Dashboardy
+
+| Metóda | URL | Popis |
+|--------|-----|-------|
+| `GET` | `/api/admin/dashboard` | Admin dashboard počty |
+| `GET` | `/api/super-admin/dashboard` | Super admin štatistiky |
+| `GET` | `/api/v1/admin/security/logs` | Bezpečnostné logy |
+
+---
+
+## Integrácie
+
+### Applications
+- `ProjectKpi.application_id` → `application.id`
+- `ProjectOutput.application_id` → `application.id`
+- `Application.kpis()` → `HasMany(ProjectKpi)`
+- `Application.outputs()` → `HasMany(ProjectOutput)`
+- `ExportController` obsluhuje export-related routes z Applications module
+
+### AuditCompliance
+- `securityLogs()` endpoint číta `SystemEvent` záznamy
+
+### IdentityAccess
+- `ExportRequest.user_id` → `users.id`
+
+---
+
+## Chybové stavy
+
+| HTTP Kód | Situácia |
+|----------|----------|
+| `200` | KPI/Output načítaný / export dostupný |
+| `201` | KPI/Output vytvorený |
+| `202` | Export zaradený do fronty |
+| `403` | Nedostatočné oprávnenia |
+| `404` | KPI/Output/Export nenájdený |
+| `410` | Export súbor už nie je dostupný |
+| `422` | Validačná chyba |
+
+---
+
+*Modul Reporting – NTI Backend | Laravel 12*
