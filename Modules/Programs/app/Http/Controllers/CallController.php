@@ -1067,7 +1067,8 @@ class CallController extends Controller
             })
             ->pluck('id');
 
-        $totalMemberCount = $allMemberIds->count();
+        $totalMemberCount   = $allMemberIds->count();
+        $commissionAssigned = $totalMemberCount > 0;
 
         $applications = Application::query()
             ->with([
@@ -1123,8 +1124,9 @@ class CallController extends Controller
         $allApplicationsEvaluated = $data->every(fn ($a) => $a['all_evaluated']);
 
         return response()->json([
-            'data'                      => $data,
+            'data'                       => $data,
             'all_applications_evaluated' => $allApplicationsEvaluated,
+            'commission_assigned'        => $commissionAssigned,
         ]);
     }
 
