@@ -41,7 +41,7 @@ class MentorDemoSeeder extends Seeder
             [
                 'name' => '1. Analýza požiadaviek a špecifikácia',
                 'start_date' => now(),
-                'deadline' => now()->subDays(5), // 💎 MÍĽNIK UŽ MEŠKÁ (Overdue ak by bol v riešení, ale tento je Schválený)
+                'deadline' => now()->subDays(5),
                 'status_id' => $approvedId,
                 'comments' => [
                     ['author' => 'mentor', 'text' => 'Analýza schválená. Zadanie spĺňa všetky biznis požiadavky inkubátora.'],
@@ -51,7 +51,7 @@ class MentorDemoSeeder extends Seeder
                 'name' => '2. Architektonický návrh a ERD',
                 'start_date' => now(),
                 'deadline' => now()->addDays(4),
-                'status_id' => $rejectedId, // 💎 VRÁTENÉ NA DOPLNENIE (Zobrazí sa oranžový draft/revision border)
+                'status_id' => $approvedId,
                 'comments' => [
                     ['author' => 'creator', 'text' => 'Posielame prvý návrh diagramov.'],
                     ['author' => 'mentor', 'text' => 'Chýba vám tam relácia medzi aplikáciou a výzvou cez call_id. Prerobte a doplňte to prosím.'],
@@ -61,7 +61,7 @@ class MentorDemoSeeder extends Seeder
                 'name' => '3. Vývoj základného MVP',
                 'start_date' => now(),
                 'deadline' => now()->addWeeks(2),
-                'status_id' => $completedId, // 💎 DOKONČENÉ (Na frontende svieti ako 'pending_approval' - mentor tu má tlačidlá Schváliť/Vrátiť)
+                'status_id' => $inProgressId,
                 'comments' => [
                     ['author' => 'creator', 'text' => 'MVP prototyp je nasadený na stagingu. Všetky základné CRUD operácie fungujú.'],
                 ],
@@ -69,11 +69,9 @@ class MentorDemoSeeder extends Seeder
             [
                 'name' => '4. API Integrácia a Autentifikácia',
                 'start_date' => now(),
-                'deadline' => now()->subDays(2), // 💎 ŠPECIÁLNY STAV: Deadline bol pred 2 dňami a stále svieti V riešení => "OVERDUE" (Červený alert)
-                'status_id' => $inProgressId,
-                'comments' => [
-                    ['author' => 'creator', 'text' => 'Zasekli sme sa na OAuth integrácii, pracujeme na tom.'],
-                ],
+                'deadline' => now()->addWeeks(5),
+                'status_id' => $plannedId,
+                'comments' => []
             ],
             [
                 'name' => '5. Finálne testovanie a nasadenie',
@@ -127,7 +125,9 @@ class MentorDemoSeeder extends Seeder
                 if ($milestoneId !== null) {
                     // Seedovanie komentárov chronologicky
                     foreach ($template['comments'] as $commentIndex => $commentTemplate) {
-                        $author = $commentTemplate['author'] === 'mentor'
+                        $authorKey = $commentTemplate['author'] ?? 'creator';
+
+                        $author = $authorKey === 'mentor'
                             ? $mentor
                             : ($application->creator ?? $mentor);
 

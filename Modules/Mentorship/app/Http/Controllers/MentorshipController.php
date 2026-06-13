@@ -207,6 +207,10 @@ class MentorshipController extends Controller
         $mentor      = $this->currentMentor($request);
         $application = $this->mentorApplicationOrFail($mentor->id, $project);
 
+        if($application->active_status == 7){ //Paused application
+            abort(403, "You cant update application that has been paused !");
+        }
+
         $user = $request->user(); // Načítanie prihláseného usera (mentora)
 
         $hasEditAny  = $user->hasPermission('mentorship.edit_any');
@@ -369,6 +373,10 @@ class MentorshipController extends Controller
     {
         $mentor      = $this->currentMentor($request);
         $application = $this->mentorApplicationOrFail($mentor->id, $project);
+
+        if($application->active_status == 7){ //Paused application
+           abort(403, "You cant update application that has been paused !");
+        }
 
         /** @var Milestone $milestoneModel */
         $milestoneModel = $application->milestones->firstWhere('id', $milestone);

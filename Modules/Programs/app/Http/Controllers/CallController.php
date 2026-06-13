@@ -539,11 +539,7 @@ class CallController extends Controller
             'language_id'             => ['required', 'integer', 'exists:languages,id'],
             'document_ids'            => ['nullable', 'array'],
             'document_ids.*'          => ['integer', 'exists:document,id'],
-
-            // Manual close override — reversible, admin can set back to false
             'force_closed'            => ['sometimes', 'boolean'],
-
-            // ── NEW: qualification stack ──────────────────────────────────
             'qualification_stack_id'  => ['sometimes', 'nullable', 'integer', 'exists:qualification_stacks,id'],
 
             'application_form_schema'                      => ['nullable', 'array'],
@@ -559,7 +555,6 @@ class CallController extends Controller
             'application_form_schema.fields.*.options.*'   => ['nullable', 'string', 'max:255'],
             'application_form_schema.fields.*.accept'      => ['nullable', 'string', 'max:255'],
 
-            // Criteria with pivot data
             'criteria'                      => ['nullable', 'array'],
             'criteria.*.id'                 => ['required', 'integer', 'exists:criterion,id'],
             'criteria.*.weight'             => ['sometimes', 'integer', 'min:1', 'max:10'],
@@ -581,86 +576,98 @@ class CallController extends Controller
             }
         }
 
-        try{
-        return DB::transaction(function () use ($validated, $call, $request): JsonResponse {
+        // ── Guard: block program_id change once call has left Draft ───────────
+        if (
+            isset($validated['program_id']) &&
+            (int) $validated['program_id'] !== (int) $call->program_id
+        ) {
+            $currentMachine = $call->program_id == 1
+                ? new CallStateMachineProgramA($call)
+                : new CallStateMachine($call);
 
-            if ($request->filled('po_email') && empty($validated['po_user_id'])) {
-                $poUser = $this->resolveOrInvitePoUser(
-                    $request->po_email,
-                    $validated['organization_id'] ?? $call->organization_id,
-                    $request->cookie('i18n_redirected', 'sk'),
-                );
-                $validated['po_user_id'] = $poUser->id;
+            if ($currentMachine->currentState() !== CallStateMachine::STATE_DRAFT) {
+                return response()->json([
+                    'message' => 'Program nie je možné zmeniť po prechode z Draft stavu.',
+                    'errors'  => ['program_id' => ['Výzva je už v stave, ktorý nezodpovedá novému programu.']],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
+        }
 
-            $call->update(
-                collect($validated)
-                    ->only([
-                        'name', 'description', 'application_start',
-                        'application_deadline', 'project_start', 'project_end',
-                        'program_id', 'application_form_schema',
-                        'force_closed',
+        try {
+            return DB::transaction(function () use ($validated, $call, $request): JsonResponse {
 
-                        'budget', 'budget_type',
-                        'tech_spec', 'tech_tags',
-                        'po_user_id',
-                        'organization_id',
-                        // ── NEW ───────────────────────────────────────────
-                        'qualification_stack_id',
-                    ])
-                    ->toArray()
-            );
+                if ($request->filled('po_email') && empty($validated['po_user_id'])) {
+                    $poUser = $this->resolveOrInvitePoUser(
+                        $request->po_email,
+                        $validated['organization_id'] ?? $call->organization_id,
+                        $request->cookie('i18n_redirected', 'sk'),
+                    );
+                    $validated['po_user_id'] = $poUser->id;
+                }
 
-            $call->callTranslations()->updateOrCreate(
-                ['language_id' => $validated['language_id']],
-                [
-                    'name'        => $validated['name']        ?? $call->name,
-                    'description' => $validated['description'] ?? '',
-                ]
-            );
+                $call->update(
+                    collect($validated)
+                        ->only([
+                            'name', 'description', 'application_start',
+                            'application_deadline', 'project_start', 'project_end',
+                            'program_id', 'application_form_schema',
+                            'force_closed',
+                            'budget', 'budget_type',
+                            'tech_spec', 'tech_tags',
+                            'po_user_id',
+                            'organization_id',
+                            'qualification_stack_id',
+                        ])
+                        ->toArray()
+                );
 
-            foreach ($validated['translations'] ?? [] as $tr) {
                 $call->callTranslations()->updateOrCreate(
-                    ['language_id' => $tr['language_id']],
-                    ['name' => $tr['name'], 'description' => $tr['description'] ?? '']
+                    ['language_id' => $validated['language_id']],
+                    [
+                        'name'        => $validated['name']        ?? $call->name,
+                        'description' => $validated['description'] ?? '',
+                    ]
                 );
-            }
 
-            $targetStatusModel = StatusOfCall::find($validated['status_id'] ?? null);
-            if($targetStatusModel) {
-                $callMachine = null;
-                if($call->program_id == 1){
-                    $callMachine = new CallStateMachineProgramA($call);
-                } else if($call->program_id == 2){
-                    $callMachine = new CallStateMachine($call);
+                foreach ($validated['translations'] ?? [] as $tr) {
+                    $call->callTranslations()->updateOrCreate(
+                        ['language_id' => $tr['language_id']],
+                        ['name' => $tr['name'], 'description' => $tr['description'] ?? '']
+                    );
                 }
 
-                if ($targetStatusModel->name !== $callMachine->currentState()) {
-                    $callMachine->transitionTo($targetStatusModel->name, 'Zmena stavu cez editor výzvy.');
+                $targetStatusModel = StatusOfCall::find($validated['status_id'] ?? null);
+
+                if ($targetStatusModel) {
+                    $callMachine = $call->program_id == 1
+                        ? new CallStateMachineProgramA($call)
+                        : new CallStateMachine($call);
+
+                    if ($targetStatusModel->name !== $callMachine->currentState()) {
+                        $callMachine->transitionTo($targetStatusModel->name, 'Zmena stavu cez editor výzvy.');
+                    }
                 }
-            }
 
-            if (array_key_exists('criteria', $validated)) {
-                $call->callCriteria()->sync(
-                    $this->buildCriteriaSyncData($validated['criteria'] ?? [])
+                if (array_key_exists('criteria', $validated)) {
+                    $call->callCriteria()->sync(
+                        $this->buildCriteriaSyncData($validated['criteria'] ?? [])
+                    );
+                }
+
+                if (array_key_exists('document_ids', $validated)) {
+                    $call->documents()->sync($validated['document_ids'] ?? []);
+                }
+
+                $this->syncPoUserOrgRole($call->fresh());
+
+                return response()->json(
+                    $call->load(['callTranslations', 'callCriteria'])
                 );
-            }
-
-            if (array_key_exists('document_ids', $validated)) {
-                $call->documents()->sync($validated['document_ids'] ?? []);
-            }
-
-            $this->syncPoUserOrgRole($call->fresh());
-
-            return response()->json(
-                $call->load(['callTranslations', 'callCriteria'])
-            );
-        });} catch (\Exception $e){
+            });
+        } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Neplatný stav výzvy alebo chýbajúce polia.',
-                'errors'  => [
-                    'status_id' => [$e->getMessage()]
-                ],
+                'errors'  => ['status_id' => [$e->getMessage()]],
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }

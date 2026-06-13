@@ -40,6 +40,12 @@ class ApplicationObserver
             return;
         }
 
+        $isProgramB = $call->program_id == 2;
+
+        if (!$isProgramB) {
+            return;
+        }
+
         $sm = new CallStateMachine($call);
 
         if ($sm->canTransitionTo(CallStateMachine::STATE_MATCHING)) {

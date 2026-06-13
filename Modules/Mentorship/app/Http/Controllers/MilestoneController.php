@@ -231,6 +231,11 @@ public function fetchMilestonesForStudent(Request $request)
             })
             ->exists();
 
+        $applicationCheck = Application::where('call_id', $milestone->call_id)->first()?->active_status;
+        if($applicationCheck == 7){
+            abort(403, "You can't update application that has been paused !");
+        }
+
         if (!$hasAccess) {
             abort(403, 'You are not a member of the team assigned to this milestone.');
         }
