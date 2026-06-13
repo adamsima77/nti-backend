@@ -21,6 +21,7 @@ class IdentityAccessDatabaseSeeder extends Seeder
 
         // Predvídateľný študentský účet na testovanie (e-mail zodpovedá menu).
         $this->call([
+            DemoNtiAdminUserSeeder::class,
             DemoStudentUserSeeder::class,
             DemoMentorUserSeeder::class,
             DemoEvaluatorUserSeeder::class,

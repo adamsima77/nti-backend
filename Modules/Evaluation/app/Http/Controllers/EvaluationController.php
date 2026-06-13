@@ -260,6 +260,7 @@ public function fetchForEvaluator(Request $request)
                     ->firstWhere('language_id', LanguageType::SLOVAK->value);
 
                 return [
+                    'criterion_id' => $criterion->id,
                     'name' => $translation?->name ?? $criterion->name ?? ('Kritérium #'.$criterion->id),
                     'max_score' => 20,
                     'score' => $score?->score !== null ? (float) $score->score : null,
@@ -567,12 +568,15 @@ public function fetchForEvaluator(Request $request)
         if ($currentState === \Modules\Applications\StateMachines\ApplicationStateMachine::STATE_SUBMITTED) {
             $sm->transitionTo(\Modules\Applications\StateMachines\ApplicationStateMachine::STATE_IN_EVALUATION);
             $applicationState->refresh();
+            app(\App\Services\NotificationService::class)
+                ->notifyTeamApplicationStatusChange($applicationState, 'V hodnotení', null, $request->user());
         } elseif ($currentState !== \Modules\Applications\StateMachines\ApplicationStateMachine::STATE_IN_EVALUATION) {
             abort(403, "Prihlášku už nemôžete hodnotiť !");
         }
 
         $validated = $request->validate([
             'criteria' => ['required', 'array', 'min:1'],
+            'criteria.*.criterion_id' => ['nullable', 'integer'],
             'criteria.*.name' => ['required', 'string'],
             'criteria.*.max_score' => ['required', 'numeric', 'min:0'],
             'criteria.*.score' => ['required', 'numeric', 'min:0'],
@@ -639,11 +643,13 @@ public function fetchForEvaluator(Request $request)
             EvaluationScore::query()->where('evaluation_id', $evaluation->id)->delete();
 
             foreach ($validated['criteria'] as $criterion) {
-                $criterionId = Criterion::query()
-                    ->whereHas('criterionTranslations', function ($query) use ($criterion) {
-                        $query->where('name', $criterion['name']);
-                    })
-                    ->value('id');
+                $criterionId = !empty($criterion['criterion_id'])
+                    ? (int) $criterion['criterion_id']
+                    : Criterion::query()
+                        ->whereHas('criterionTranslations', function ($query) use ($criterion) {
+                            $query->where('name', $criterion['name']);
+                        })
+                        ->value('id');
 
                 if ($criterionId === null) {
                     continue;

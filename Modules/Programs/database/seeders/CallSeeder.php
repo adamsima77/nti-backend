@@ -32,7 +32,7 @@ class CallSeeder extends Seeder
             $this->command->error('Chýbajú základné dáta (Organizácia, Typ výzvy alebo Status).');
             return;
         }
-        
+
         $partnerRole = Role::where('name', 'partner')->first();
         $orgPoRole = OrganizationRole::where('name', 'org_product_owner')->first();
 
