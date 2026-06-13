@@ -10,44 +10,26 @@ use Modules\Content\Models\Language;
 
 class CategorySeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-         $category = Category::create(['slug' => 'events']);
-         $category_1 = Category::create(['slug' => 'announcements']);
-         $category_2 = Category::create(['slug' => 'blog']);
+        $items = [
+            ['slug' => 'events',        'sk' => 'Udalosti',  'en' => 'Events'],
+            ['slug' => 'announcements', 'sk' => 'Oznámenia', 'en' => 'Announcements'],
+            ['slug' => 'blog',          'sk' => 'Blog',      'en' => 'Blog'],
+        ];
 
-        $category->categoryTranslations()->create([
-            'name' => 'Udalosti',
-            'language_id' => LanguageType::SLOVAK->value
-        ]);
+        foreach ($items as $item) {
+            $category = Category::firstOrCreate(['slug' => $item['slug']]);
 
-         $category->categoryTranslations()->create([
-             'name' => 'Events',
-             'language_id' => LanguageType::ENGLISH->value
-         ]);
+            $category->categoryTranslations()->updateOrCreate(
+                ['language_id' => LanguageType::SLOVAK->value],
+                ['name' => $item['sk']]
+            );
 
-         $category_1->categoryTranslations()->create([
-             'name' => 'Oznámenia',
-             'language_id' => LanguageType::SLOVAK->value
-         ]);
-
-        $category_1->categoryTranslations()->create([
-             'name' => 'Announcements',
-             'language_id' => LanguageType::ENGLISH->value
-         ]);
-
-        $category_2->categoryTranslations()->create([
-             'name' => 'Blog',
-             'language_id' => LanguageType::SLOVAK->value
-         ]);
-
-         $category_2->categoryTranslations()->create([
-             'name' => 'Blog',
-             'language_id' => LanguageType::ENGLISH->value
-         ]);
+            $category->categoryTranslations()->updateOrCreate(
+                ['language_id' => LanguageType::ENGLISH->value],
+                ['name' => $item['en']]
+            );
+        }
     }
 }
-

@@ -29,12 +29,12 @@ class DemoProjectSeeder extends Seeder
         // 1. Načítanie základných väzieb
         $organization = Organization::query()->first();
         $publicCallType = CallType::query()->where('name', 'Verejná výzva')->first();
-        $publishedStatus = StatusOfCall::query()->where('name', 'Publikované')->first()
-            ?? StatusOfCall::query()->where('name', 'LIKE', '%realiz%')->first();
+        $publishedStatus = StatusOfCall::query()->where('name', 'Publikované')->firstOrFail();
+        $realizaciaStatus = StatusOfCall::query()->where('name', 'V realizácii')->firstOrFail();
 
         $qStack = QualificationStack::query()->first(); // Pre Program A
 
-        if (!$organization || !$publicCallType || !$publishedStatus) {
+        if (!$organization || !$publicCallType || !$publishedStatus || !$realizaciaStatus) {
             return;
         }
 
@@ -52,28 +52,26 @@ class DemoProjectSeeder extends Seeder
         }
 
         // 2. Vytvorenie / Seedovanie špecifického Product Ownera (Pre Program B)
-        $poUser = User::query()->where('email', 'peter.owner@slovakinnovation.sk')->first();
-        if (!$poUser) {
-            $poUser = User::create([
+        $poUser = User::query()->updateOrCreate(
+            ['email' => 'peter.owner@slovakinnovation.sk'],
+            [
                 'name'         => 'Peter',
                 'surname'      => 'Garant',
-                'email'        => 'peter.owner@slovakinnovation.sk',
-                'password'     => Hash::make('secret123'),
+                'password'     => Hash::make('Password123!'),
                 'status_id'    => UserStatus::ACTIVE->value,
                 'job_position' => 'Innovation Manager',
+            ]
+        );
+        $partnerRole = Role::where('name', 'partner')->first();
+        if ($partnerRole) {
+            $poUser->roles()->syncWithoutDetaching([$partnerRole->id]);
+        }
+
+        $orgPoRole = OrganizationRole::where('name', 'org_product_owner')->first();
+        if ($orgPoRole && !$organization->users()->where('user_id', $poUser->id)->exists()) {
+            $organization->users()->attach($poUser->id, [
+                'organization_role' => $orgPoRole->id,
             ]);
-
-            $partnerRole = Role::where('name', 'partner')->first();
-            if ($partnerRole) {
-                $poUser->roles()->attach($partnerRole->id);
-            }
-
-            $orgPoRole = OrganizationRole::where('name', 'org_product_owner')->first();
-            if ($orgPoRole) {
-                $organization->users()->attach($poUser->id, [
-                    'organization_role' => $orgPoRole->id
-                ]);
-            }
         }
 
         // ── FORM SCHÉMA PRE PROGRAM A ──
@@ -200,20 +198,71 @@ class DemoProjectSeeder extends Seeder
             ],
             [
                 'call_name' => 'AI chatbot pre zákaznícku podporu',
+                'po_email'  => 'peter.owner@slovakinnovation.sk',
                 'program' => $programB,
                 'is_program_b' => true,
-                'team_name' => 'AI Innovators',
+                'team_name' => 'DataPulse',
                 'description' => 'Chatbot pre zákaznícku podporu s integráciou AI odpovedí.',
                 'description_en' => 'Chatbot for customer support with AI response integration.',
-                'status' => 'Draft',
-                'budget' => 20000.00,
-                'budget_type' => 'contractor',
+                'status' => 'Zamietnuté',
+                'call_status' => 'V realizácii',
+                'milestones' => [
+                    ['name' => 'Návrh architektúry a výber LLM modelu',    'start' => '-90 days', 'deadline' => '-70 days', 'status' => 'Schválené'],
+                    ['name' => 'Implementácia chatbot jadra a REST API',    'start' => '-69 days', 'deadline' => '-40 days', 'status' => 'Schválené'],
+                    ['name' => 'Integrácia do zákazníckeho portálu a UAT', 'start' => '-39 days', 'deadline' => '+2 days', 'status' => 'V riešení'],
+                ],
+                'budget' => 2000.00,
+                'budget_type' => 'Po míľnikoch',
                 'tech_spec' => 'Požaduje sa integrácia LLM modelov cez REST API a základná znalosť Pythonu/Node.js.',
                 'tech_tags' => ['Python', 'Node.js', 'OpenAI API', 'Vue.js'],
                 'team' => [
-                    ['email' => 'ai.lead@test.nti.local', 'name' => 'Peter', 'surname' => 'Kováč', 'role' => 'Vedúci tímu'],
-                    ['email' => 'ai.backend@test.nti.local', 'name' => 'Marek', 'surname' => 'Blaho', 'role' => 'Člen tímu'],
-                    ['email' => 'ai.frontend@test.nti.local', 'name' => 'Nina', 'surname' => 'Vargová', 'role' => 'Člen tímu'],
+                    ['email' => 'datapulse.lead@test.nti.local', 'name' => 'Rastislav', 'surname' => 'Fedor', 'role' => 'Vedúci tímu'],
+                    ['email' => 'datapulse.dev@test.nti.local', 'name' => 'Simona', 'surname' => 'Krajčí', 'role' => 'Člen tímu'],
+                ],
+            ],
+            [
+                'call_name' => 'Výzva 2026 - Logistická Optimalizácia',
+                'po_email'  => 'martin.kral@digitalworks.sk',
+                'program' => $programB,
+                'is_program_b' => true,
+                'team_name' => 'LogiCore',
+                'description' => 'Zadanie zamerané na prediktívnu analýzu dodávateľských reťazcov a trasovanie vozidiel v reálnom čase.',
+                'description_en' => 'Challenge focused on predictive analysis of supply chains and real-time vehicle routing.',
+                'status' => 'Ukončené',
+                'call_status' => 'Uzavreté',
+                'budget' => 1800.00,
+                'budget_type' => 'Mesačne',
+                'tech_spec' => 'Algoritmus musí zvládnuť spracovanie veľkého množstva geodát s nízkou latenciou.',
+                'tech_tags' => ['Go', 'TypeScript', 'Node.js', 'Redis', 'Docker'],
+                'milestones' => [
+                    ['name' => 'Analýza požiadaviek a návrh architektúry', 'start' => '-120 days', 'deadline' => '-90 days', 'status' => 'Schválené'],
+                    ['name' => 'Implementácia prediktívneho modulu',        'start' => '-89 days',  'deadline' => '-60 days', 'status' => 'Schválené'],
+                    ['name' => 'Integrácia GPS trasovania v reálnom čase',  'start' => '-59 days',  'deadline' => '-30 days', 'status' => 'Schválené'],
+                    ['name' => 'Testovanie a odovzdanie záverečnej správy', 'start' => '-29 days',  'deadline' => '-5 days',  'status' => 'Schválené'],
+                ],
+                'team' => [
+                    ['email' => 'logicore.lead@test.nti.local',  'name' => 'Andrej',   'surname' => 'Mináč',    'role' => 'Vedúci tímu'],
+                    ['email' => 'logicore.dev@test.nti.local',   'name' => 'Kristína', 'surname' => 'Polláková', 'role' => 'Člen tímu'],
+                    ['email' => 'logicore.data@test.nti.local',  'name' => 'Ondrej',   'surname' => 'Takáč',    'role' => 'Člen tímu'],
+                ],
+            ],
+            [
+                'call_name' => 'Výzva 2026 - Logistická Optimalizácia',
+                'po_email'  => 'martin.kral@digitalworks.sk',
+                'program' => $programB,
+                'is_program_b' => true,
+                'team_name' => 'RouteX',
+                'description' => 'Zadanie zamerané na prediktívnu analýzu dodávateľských reťazcov a trasovanie vozidiel v reálnom čase.',
+                'description_en' => 'Challenge focused on predictive analysis of supply chains and real-time vehicle routing.',
+                'status' => 'Zamietnuté',
+                'call_status' => 'Uzavreté',
+                'budget' => 1800.00,
+                'budget_type' => 'Mesačne',
+                'tech_spec' => 'Algoritmus musí zvládnuť spracovanie veľkého množstva geodát s nízkou latenciou.',
+                'tech_tags' => ['Go', 'TypeScript', 'Node.js', 'Redis', 'Docker'],
+                'team' => [
+                    ['email' => 'routex.lead@test.nti.local', 'name' => 'Dominika', 'surname' => 'Čierna',  'role' => 'Vedúci tímu'],
+                    ['email' => 'routex.dev@test.nti.local',  'name' => 'Lukáš',    'surname' => 'Sedlák',  'role' => 'Člen tímu'],
                 ],
             ],
             [
@@ -248,10 +297,13 @@ class DemoProjectSeeder extends Seeder
 
             // Aplikovanie vetvenia na základe typu programu
             if ($definition['is_program_b']) {
+                $callPoUser = isset($definition['po_email'])
+                    ? User::query()->where('email', $definition['po_email'])->first() ?? $poUser
+                    : $poUser;
                 $attributes['organization_id']         = $organization->id;
-                $attributes['po_user_id']             = $poUser->id;
+                $attributes['po_user_id']             = $callPoUser->id;
                 $attributes['budget']                 = $definition['budget'] ?? 0.00;
-                $attributes['budget_type']            = $definition['budget_type'] ?? 'contractor';
+                $attributes['budget_type']            = $definition['budget_type'] ?? 'Po míľnikoch';
                 $attributes['tech_spec']              = $definition['tech_spec'] ?? null;
                 $attributes['tech_tags']              = $definition['tech_tags'] ?? null;
                 $attributes['qualification_stack_id'] = null;
@@ -259,7 +311,7 @@ class DemoProjectSeeder extends Seeder
                 $attributes['organization_id']         = null;
                 $attributes['po_user_id']             = null;
                 $attributes['budget']                 = 0.00;
-                $attributes['budget_type']            = 'grant';
+                $attributes['budget_type']            = 'Po míľnikoch';
                 $attributes['tech_spec']              = null;
                 $attributes['tech_tags']              = null;
                 $attributes['qualification_stack_id'] = $qStack?->id;
@@ -287,15 +339,15 @@ class DemoProjectSeeder extends Seeder
             }
 
             // Priradenie statusu výzvy
-            StatusOfCallHasCall::query()->updateOrCreate(
-                [
-                    'call_id'           => $call->id,
-                    'status_of_call_id' => $publishedStatus->id,
-                ],
-                [
-                    'note' => 'Demo projektový call. Plne validné schémy aj váhy kritérií.',
-                ]
-            );
+            $callStatus = isset($definition['call_status'])
+                ? StatusOfCall::query()->where('name', $definition['call_status'])->first() ?? $publishedStatus
+                : $publishedStatus;
+            StatusOfCallHasCall::query()->where('call_id', $call->id)->delete();
+            StatusOfCallHasCall::query()->create([
+                'call_id'           => $call->id,
+                'status_of_call_id' => $callStatus->id,
+                'note'              => 'Demo projektový call. Plne validné schémy aj váhy kritérií.',
+            ]);
 
             // Jazykové preklady (SK / EN)
             $call->callTranslations()->updateOrCreate(
@@ -350,6 +402,9 @@ class DemoProjectSeeder extends Seeder
             }
 
             // 6. Vytvorenie samotnej prihlášky (Application)
+            $statusId = StatusOfApplication::query()->where('name', $definition['status'])->value('id')
+                ?? StatusOfApplication::query()->where('name', 'Podané')->value('id');
+
             $application = Application::query()->updateOrCreate(
                 [
                     'call_id' => $call->id,
@@ -359,14 +414,88 @@ class DemoProjectSeeder extends Seeder
                     'submitted_at'  => now()->subDays(7 - $index),
                     'last_update'   => now()->subDays(1),
                     'created_by'    => $creator->id,
-                    'active_status' => StatusOfApplication::query()->where('name', 'Draft')->value('id')
+                    'active_status' => $statusId,
                 ]
             );
+            $application->statusHistory()->delete();
             $application->statusHistory()->create([
-                'status_of_application_id' => 1, // Draft
-                'note' => 'Draft !',
+                'status_of_application_id' => $statusId,
+                'note' => $definition['status'],
                 'changed_by' => null,
             ]);
+
+            if (!empty($definition['milestones'])) {
+                $milestoneIds = DB::table('project_milestones')->where('call_id', $call->id)->pluck('id');
+                DB::table('milestone_comments')->whereIn('milestone_id', $milestoneIds)->delete();
+                DB::table('document_has_milestone')->whereIn('milestone_id', $milestoneIds)->delete();
+                DB::table('project_milestones')->where('call_id', $call->id)->delete();
+                foreach ($definition['milestones'] as $m) {
+                    $milestoneStatusId = DB::table('milestone_status')->where('name', $m['status'])->value('id') ?? 1;
+                    DB::table('project_milestones')->insert([
+                        'name'                => $m['name'],
+                        'start_date'          => now()->modify($m['start'])->toDateString(),
+                        'deadline'            => now()->modify($m['deadline'])->toDateString(),
+                        'milestone_status_id' => $milestoneStatusId,
+                        'call_id'             => $call->id,
+                        'created_at'          => now(),
+                        'updated_at'          => now(),
+                    ]);
+                }
+            }
+        }
+
+        // Tím NovakDev + prihláška pre jan.novak@test.nti.local
+        $novakUser = User::query()->where('email', 'jan.novak@test.nti.local')->first();
+        $aiChatbotCall = Call::query()->where('name', 'AI chatbot pre zákaznícku podporu')->first();
+
+        if ($novakUser && $aiChatbotCall) {
+            $novakTeam = Team::query()->firstOrCreate(['name' => 'NovakDev']);
+
+            $novakMembersData = [
+                ['email' => 'jan.novak@test.nti.local',         'name' => 'Ján',    'surname' => 'Novák',   'role' => 'leader'],
+                ['email' => 'novakdev.member1@test.nti.local',  'name' => 'Martin', 'surname' => 'Horváth', 'role' => 'member'],
+                ['email' => 'novakdev.member2@test.nti.local',  'name' => 'Petra',  'surname' => 'Vlčková', 'role' => 'member'],
+            ];
+
+            foreach ($novakMembersData as $md) {
+                $member = User::query()->updateOrCreate(
+                    ['email' => $md['email']],
+                    [
+                        'name'      => $md['name'],
+                        'surname'   => $md['surname'],
+                        'password'  => Hash::make('Password123!'),
+                        'status_id' => UserStatus::ACTIVE->value,
+                    ]
+                );
+                $member->forceFill(['email_verified_at' => now()])->saveQuietly();
+                $member->roles()->syncWithoutDetaching([$studentRole->id]);
+                \Modules\Students\Models\Student::query()->firstOrCreate(['user_id' => $member->id]);
+
+                $teamRoleId = $md['role'] === 'leader' ? $leaderTeamRole->id : $memberTeamRole->id;
+                DB::table('team_members')->updateOrInsert(
+                    ['user_id' => $member->id, 'team_id' => $novakTeam->id],
+                    ['user_id' => $member->id, 'team_id' => $novakTeam->id, 'team_role_id' => $teamRoleId]
+                );
+            }
+
+            $aktivnyStatus = StatusOfApplication::query()->where('name', 'Aktívny projekt')->first();
+            if ($aktivnyStatus) {
+                $novakApp = Application::query()->updateOrCreate(
+                    ['call_id' => $aiChatbotCall->id, 'team_id' => $novakTeam->id],
+                    [
+                        'submitted_at'  => now()->subDays(10),
+                        'last_update'   => now()->subDays(1),
+                        'created_by'    => $novakUser->id,
+                        'active_status' => $aktivnyStatus->id,
+                    ]
+                );
+                $novakApp->statusHistory()->delete();
+                $novakApp->statusHistory()->create([
+                    'status_of_application_id' => $aktivnyStatus->id,
+                    'note'       => 'Aktívny projekt',
+                    'changed_by' => null,
+                ]);
+            }
         }
     }
 }

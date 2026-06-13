@@ -18,10 +18,9 @@ class DatabaseSeeder extends Seeder
             \Modules\Organizations\Database\Seeders\OrganizationsDatabaseSeeder::class,
             \Modules\Applications\Database\Seeders\ApplicationsDatabaseSeeder::class,
             \Modules\Programs\Database\Seeders\ProgramsDatabaseSeeder::class,
-            \Modules\Applications\Database\Seeders\DemoProjectSeeder::class,
             \Modules\Mentorship\Database\Seeders\MentorshipDatabaseSeeder::class,
+            \Modules\Applications\Database\Seeders\DemoProjectSeeder::class,
             \Modules\Evaluation\Database\Seeders\EvaluationDatabaseSeeder::class,
-            \Modules\Notifications\Database\Seeders\NotificationsDatabaseSeeder::class,
         ]);
     }
 }

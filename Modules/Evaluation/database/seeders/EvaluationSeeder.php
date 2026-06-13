@@ -4,47 +4,73 @@ namespace Modules\Evaluation\Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Modules\Applications\Models\Application;
-use Modules\Evaluation\Models\Commission;
+use Modules\Applications\Models\StatusOfApplication;
 use Modules\Evaluation\Models\CommissionMember;
 use Modules\Evaluation\Models\Decision;
 use Modules\Evaluation\Models\Evaluation;
+use Modules\Evaluation\Models\EvaluationScore;
+use Modules\Programs\Models\Criterion;
 
 class EvaluationSeeder extends Seeder
 {
     public function run(): void
     {
-        //Commented for testing workflow
-        /*
-        $applicationIds = Application::query()
-            ->orderBy('id')
+        $draftStatusId = StatusOfApplication::query()->where('name', 'Draft')->value('id');
+
+        $draftApplicationIds = Application::query()
+            ->where('active_status', $draftStatusId)
             ->pluck('id');
 
-        $commissionMember = CommissionMember::query()
-            ->orderBy('id')
-            ->first();
+        if ($draftApplicationIds->isNotEmpty()) {
+            Evaluation::query()->whereIn('application_id', $draftApplicationIds)->delete();
+        }
 
-        $decision = Decision::query()
+        $applications = Application::query()
+            ->where('active_status', '!=', $draftStatusId)
             ->orderBy('id')
-            ->first();
+            ->get();
 
-        if ($commissionMember === null || $decision === null || $applicationIds->isEmpty()) {
+        $members = CommissionMember::query()->orderBy('id')->get();
+        $approvedDecision = Decision::query()->where('name', 'Schválené')->first();
+        $criteria = Criterion::query()->orderBy('id')->get();
+
+        if ($members->isEmpty() || $applications->isEmpty()) {
+            $this->command?->warn('Žiadni členovia komisie alebo prihlášky. Spusti CommissionMemberSeeder a DemoProjectSeeder najskôr.');
             return;
         }
 
-        foreach ($applicationIds->take(3) as $applicationId) {
-            Evaluation::query()->updateOrCreate(
-                [
-                    'application_id' => $applicationId,
-                    'commission_member_id' => $commissionMember->id,
-                ],
-                [
-                    'application_id' => $applicationId,
-                    'commission_member_id' => $commissionMember->id,
-                    'decision_id' => $decision->id,
-                ]
-            );
-        }
-         */
-    }
+        foreach ($applications as $application) {
+            $statusName = StatusOfApplication::query()->find($application->active_status)?->name;
+            $isApproved = $statusName === 'Schválené';
 
+            foreach ($members as $member) {
+                $evaluation = Evaluation::query()->updateOrCreate(
+                    [
+                        'application_id'      => $application->id,
+                        'commission_member_id' => $member->id,
+                    ],
+                    [
+                        'decision_id'   => $isApproved ? $approvedDecision?->id : null,
+                        'submitted_at'  => $isApproved ? now()->subDays(3) : null,
+                        'internal_note' => $isApproved ? 'Automaticky vygenerované hodnotenie (seed).' : null,
+                    ]
+                );
+
+                if ($isApproved && $criteria->isNotEmpty()) {
+                    foreach ($criteria as $index => $criterion) {
+                        EvaluationScore::query()->updateOrCreate(
+                            [
+                                'evaluation_id' => $evaluation->id,
+                                'criterion_id'  => $criterion->id,
+                            ],
+                            [
+                                'score'   => min(5, 3.5 + ($index * 0.5)),
+                                'comment' => 'Seed hodnotenie.',
+                            ]
+                        );
+                    }
+                }
+            }
+        }
+    }
 }

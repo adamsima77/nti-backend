@@ -28,7 +28,7 @@ class DemoOrganizationUserSeeder extends Seeder
         $user = User::query()->updateOrCreate(
             ['email' => self::EMAIL],
             [
-                'name'      => 'Adriana',
+                'name'      => 'Andrea',
                 'surname'   => 'Orgánová',
                 'password'  => bcrypt(self::PASSWORD),
                 'status_id' => UserStatus::ACTIVE->value,
@@ -71,6 +71,29 @@ class DemoOrganizationUserSeeder extends Seeder
             $user->id => ['organization_role' => $orgRole->id],
         ]);
 
+        // 6b. Seed an org_member for the same organization
+        $orgMemberRole = OrganizationRole::query()->firstOrCreate(
+            ['name' => 'org_member'],
+            ['name' => 'org_member']
+        );
+        $memberUser = User::query()->updateOrCreate(
+            ['email' => 'member.org@nitra-digital.local'],
+            [
+                'name'      => 'Katarína',
+                'surname'   => 'Šimková',
+                'password'  => bcrypt(self::PASSWORD),
+                'status_id' => UserStatus::ACTIVE->value,
+            ]
+        );
+        $memberUser->forceFill(['email_verified_at' => now()])->saveQuietly();
+        $partnerRole = Role::query()->where('name', 'partner')->first();
+        if ($partnerRole) {
+            $memberUser->roles()->syncWithoutDetaching([$partnerRole->id]);
+        }
+        $organization->users()->syncWithoutDetaching([
+            $memberUser->id => ['organization_role' => $orgMemberRole->id],
+        ]);
+
         // 7. Output success
         $this->command?->newLine();
         $this->command?->info('✅ Demo organization user created:');
@@ -79,7 +102,7 @@ class DemoOrganizationUserSeeder extends Seeder
             [
                 ['Email', self::EMAIL],
                 ['Password', self::PASSWORD],
-                ['Name', 'Adriana Orgánová'],
+                ['Name', 'Andrea Orgánová'],
                 ['Organization', 'Nitra Digital Solutions s.r.o.'],
                 ['Role', 'organization'],
                 ['Org Role', $orgRole->name],
