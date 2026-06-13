@@ -22,7 +22,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:30,1'])->group(function
 });
 
 
-Route::middleware(['auth:sanctum', 'verified', 'throttle:30,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'verified', 'throttle:120,1'])->group(function () {
 
     // Academic Records Modifications
     Route::post('student/academic-record', [StudentsController::class, 'storeAcademicRecord']);
@@ -36,7 +36,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:30,1'])->group(function
 });
 
 
-Route::middleware(['auth:sanctum', 'verified', 'throttle:120,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'verified', 'throttle:200,1'])->group(function () {
 
     // Profile Identity Lookups
     Route::get('students/me', [StudentsController::class, 'showMe']);

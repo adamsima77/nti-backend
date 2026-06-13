@@ -9,6 +9,7 @@ class MilestoneSeeder extends Seeder
 {
     public function run(): void
     {
+        /*
         $callIds = DB::table('call')->orderBy('id')->pluck('id');
         $statusId = DB::table('milestone_status')->where('name', 'Plánované')->value('id');
 
@@ -33,5 +34,6 @@ class MilestoneSeeder extends Seeder
                 ]
             );
         }
+        */
     }
 }

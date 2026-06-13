@@ -211,6 +211,16 @@ class MilestoneController extends Controller
             abort(403, 'This milestone is not open for answers at this time.');
         }
 
+        // 2.5. Sequential gate — all preceding milestones must be finalised (Schválené=4 or Zamietnuté=5)
+        $blockedByPrevious = Milestone::where('call_id', $milestone->call_id)
+            ->where('id', '<', $milestone->id)
+            ->whereNotIn('milestone_status_id', [4, 5])
+            ->exists();
+
+        if ($blockedByPrevious) {
+            abort(403, 'All previous milestones must be approved or rejected before you can answer this one.');
+        }
+
         // 3. Team membership check
         $hasAccess = Application::where('call_id', $milestone->call_id)
             ->whereHas('team.members', function ($query) use ($user) {
@@ -246,24 +256,20 @@ class MilestoneController extends Controller
         // 5. Validation
         $validated = $request->validate([
             'comment' => ['required', 'string', 'max:2000'],
-            'files' => ['nullable', 'array', 'max:5'],
+            'files'   => ['nullable', 'array', 'max:5'],
             'files.*' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,zip,txt', 'max:5120'],
         ]);
 
         // 6. Persist comment, files and status transition atomically
         DB::transaction(function () use ($milestone, $validated, $user) {
 
-            // Create the student comment
             $milestone->comments()->create([
-                'comment_text' => $validated['comment'],
-                'user_id' => $user->id,
+                'comment_text'      => $validated['comment'],
+                'user_id'           => $user->id,
                 'parent_comment_id' => null,
             ]);
 
-            // Process uploaded files with Smart Versioning
             if (!empty($validated['files'])) {
-
-                // Načítame existujúce dokumenty tohto míľnika aj s ich najnovšou verziou (kvôli overeniu názvu)
                 $existingDocuments = $milestone->documents()->with('latestVersion')->get();
 
                 foreach ($validated['files'] as $file) {
@@ -271,35 +277,26 @@ class MilestoneController extends Controller
                         $originalName = $file->getClientOriginalName();
                         $path = $file->store('milestones/' . $milestone->id, 'local');
 
-                        // Skontrolujeme, či už existuje dokument s rovnakým názvom súboru v najnovšej verzii
-                        $existingDoc = $existingDocuments->first(function ($doc) use ($originalName) {
-                            return $doc->latestVersion && $doc->latestVersion->file_name === $originalName;
-                        });
+                        $existingDoc = $existingDocuments->first(
+                            fn($doc) => $doc->latestVersion && $doc->latestVersion->file_name === $originalName
+                        );
 
                         if ($existingDoc) {
-                            // PREPOJENIE NA EXISTUJÚCI: Vytvoríme novú verziu pod starý Document ID
                             $existingDoc->versions()->create([
                                 'file_name' => $originalName,
                                 'file_path' => $path,
                             ]);
-
-                            // Netreba robiť attach(), väzba v pivot tabuľke medzi míľnikom a document_id už existuje
                         } else {
-                            // NOVÝ DOKUMENT: Ak súbor s takým názvom neexistuje, vytvoríme nový záznam
                             $doc = Document::create([
-                                'owner_id' => $user->id,
-                                'security_classification_id' => 3,
+                                'owner_id'                    => $user->id,
+                                'security_classification_id'  => 3,
                             ]);
-
                             $doc->versions()->create([
                                 'file_name' => $originalName,
                                 'file_path' => $path,
                             ]);
-
-                            // Keďže je to nový dokument, musíme ho naviazať na míľnik
                             $milestone->documents()->attach($doc->id);
                         }
-
                     } catch (\Exception $e) {
                         Log::error('Chyba pri nahrávaní súboru míľnika: ' . $e->getMessage());
                         throw $e;
@@ -307,15 +304,14 @@ class MilestoneController extends Controller
                 }
             }
 
-            // Transition status to "Dokončené" (3)
             $milestone->update(['milestone_status_id' => 3]);
         });
 
-        // 7. Return the refreshed milestone with corrected relationships
+        // 7. Return the refreshed milestone
         $milestone->refresh()->load([
-            'documents' => fn($q) => $q->with('latestVersion'),
+            'documents'       => fn($q) => $q->with('latestVersion'),
             'milestoneStatus',
-            'comments'
+            'comments',
         ]);
 
         return response()->json($milestone, Response::HTTP_OK);

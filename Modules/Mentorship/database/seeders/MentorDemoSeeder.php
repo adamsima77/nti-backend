@@ -40,6 +40,7 @@ class MentorDemoSeeder extends Seeder
         $milestoneTemplates = [
             [
                 'name' => '1. Analýza požiadaviek a špecifikácia',
+                'start_date' => now(),
                 'deadline' => now()->subDays(5), // 💎 MÍĽNIK UŽ MEŠKÁ (Overdue ak by bol v riešení, ale tento je Schválený)
                 'status_id' => $approvedId,
                 'comments' => [
@@ -48,6 +49,7 @@ class MentorDemoSeeder extends Seeder
             ],
             [
                 'name' => '2. Architektonický návrh a ERD',
+                'start_date' => now(),
                 'deadline' => now()->addDays(4),
                 'status_id' => $rejectedId, // 💎 VRÁTENÉ NA DOPLNENIE (Zobrazí sa oranžový draft/revision border)
                 'comments' => [
@@ -57,6 +59,7 @@ class MentorDemoSeeder extends Seeder
             ],
             [
                 'name' => '3. Vývoj základného MVP',
+                'start_date' => now(),
                 'deadline' => now()->addWeeks(2),
                 'status_id' => $completedId, // 💎 DOKONČENÉ (Na frontende svieti ako 'pending_approval' - mentor tu má tlačidlá Schváliť/Vrátiť)
                 'comments' => [
@@ -65,6 +68,7 @@ class MentorDemoSeeder extends Seeder
             ],
             [
                 'name' => '4. API Integrácia a Autentifikácia',
+                'start_date' => now(),
                 'deadline' => now()->subDays(2), // 💎 ŠPECIÁLNY STAV: Deadline bol pred 2 dňami a stále svieti V riešení => "OVERDUE" (Červený alert)
                 'status_id' => $inProgressId,
                 'comments' => [
@@ -73,6 +77,7 @@ class MentorDemoSeeder extends Seeder
             ],
             [
                 'name' => '5. Finálne testovanie a nasadenie',
+                'start_date' => now(),
                 'deadline' => now()->addWeeks(6),
                 'status_id' => $plannedId, // 💎 PLÁNOVANÉ (Sivý zamknutý míľnik, mentor ho môže odomknúť ak sú predošlé hotové)
                 'comments' => [],

@@ -6,6 +6,7 @@ use Illuminate\Auth\Access\HandlesAuthorization;
 use Illuminate\Support\Facades\DB;
 use Modules\Applications\Models\Document;
 use Modules\IdentityAccess\Models\User;
+use Modules\Mentorship\Models\Mentorship;
 use Modules\Teams\Models\TeamMember;
 
 class DocumentPolicy
@@ -78,6 +79,18 @@ class DocumentPolicy
             return $document->applications()
                 ->where('created_by', $user->id)
                 ->exists();
+        }
+
+        if ($user->isMentor()) {
+            $isMentorOfTeam = Mentorship::where('mentor_user_id', $user->id)
+                ->whereHas('application', function ($query) use ($ownerTeamIds) {
+                    $query->whereIn('team_id', $ownerTeamIds);
+                })
+                ->exists();
+
+            if ($isMentorOfTeam) {
+                return true;
+            }
         }
 
         return false;

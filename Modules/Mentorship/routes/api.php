@@ -9,12 +9,12 @@ use Modules\Mentorship\Http\Controllers\MilestoneDocumentController;
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
 
-    Route::middleware(['throttle:35,1'])->group(function () {
+    Route::middleware(['throttle:200,1'])->group(function () {
         Route::get('calls/{call}/milestones/{milestone}/documents/{document}/download', [MilestoneDocumentController::class, 'download']);
     });
 
 
-    Route::middleware(['throttle:30,1'])->group(function () {
+    Route::middleware(['throttle:200,1'])->group(function () {
 
         Route::delete('calls/{call}/milestones/{milestone}', [CallMilestoneController::class, 'destroy']);
         Route::delete('calls/{call}/milestones/{milestone}/documents/{document}', [MilestoneDocumentController::class, 'destroy']);
@@ -32,7 +32,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         });
     });
 
-    Route::middleware(['throttle:100,1'])->group(function () {
+    Route::middleware(['throttle:200,1'])->group(function () {
 
 
         Route::get('/mentors', [MentorshipController::class, 'fetchMentors']);

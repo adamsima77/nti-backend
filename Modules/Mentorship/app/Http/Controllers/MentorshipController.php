@@ -799,6 +799,7 @@ class MentorshipController extends Controller
 
 
         $commentsCollection = $milestone->comments()->get();
+        $docs = $milestone->documents()->get();
 
         return [
             'id'          => $milestone->id,
@@ -806,6 +807,7 @@ class MentorshipController extends Controller
             'dueDate'     => $milestone->deadline?->format('Y-m-d'),
             'status'      => $this->milestoneStatusSlug($milestone),
             'description' => $descriptionText,
+            'documents' => $docs,
             'comments'    => $commentsCollection->map(fn (MilestoneComment $c) => [
                 'id'     => $c->id,
                 'author' => trim(($c->user?->name ?? '') . ' ' . ($c->user?->surname ?? ''))

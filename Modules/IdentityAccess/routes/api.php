@@ -48,7 +48,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:20,1'])->group(function
 });
 
 
-Route::middleware(['auth:sanctum', 'verified', 'throttle:120,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'verified', 'throttle:200,1'])->group(function () {
     // Roles & Permissions
     Route::get('/roles-permissions', [RoleController::class, 'fetchRolesPermissions']);
     Route::post('/sync-permissions/{role}/permissions', [RoleController::class, 'syncPermissions']);
@@ -72,6 +72,6 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:120,1'])->group(functio
     Route::apiResource('user-consents', UserConsentController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
 });
 
-Route::middleware(['throttle:60,1'])->group(function () {
+Route::middleware(['throttle:200,1'])->group(function () {
     Route::get('fetch-mentors', [UserController::class, 'getMentors']);
 });

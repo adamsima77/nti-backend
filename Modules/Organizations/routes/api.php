@@ -6,7 +6,7 @@ use Modules\Organizations\Http\Controllers\ProductOwnerController;
 use Modules\Organizations\Http\Controllers\SectorController;
 
 
-Route::middleware(['auth:sanctum', 'verified', 'throttle:30,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'verified', 'throttle:200,1'])->group(function () {
 
 
     Route::post('/organizations/{organization}/activate', [OrganizationController::class, 'activate']);
@@ -25,7 +25,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:30,1'])->group(function
     });
 });
 
-Route::middleware(['auth:sanctum', 'verified', 'throttle:120,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'verified', 'throttle:200,1'])->group(function () {
 
 
     Route::get('my-organization', [OrganizationController::class, 'myOrganization']);

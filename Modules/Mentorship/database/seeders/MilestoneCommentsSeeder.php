@@ -9,6 +9,7 @@ class MilestoneCommentsSeeder extends Seeder
 {
     public function run(): void
     {
+        /*
         $milestoneId = DB::table('project_milestones')->orderBy('id')->value('id');
         $userId = DB::table('users')->orderBy('id')->value('id');
 
@@ -30,6 +31,8 @@ class MilestoneCommentsSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
-        );
+        );*/
+
     }
+
 }

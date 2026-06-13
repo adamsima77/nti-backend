@@ -51,7 +51,7 @@ class ApplicationsServiceProvider extends ModuleServiceProvider
             $key = sha1($userId . '|' . $request->ip());
 
             return [
-                Limit::perMinute(50)->by($key),
+                Limit::perMinute(200)->by($key),
             ];
         });
     }

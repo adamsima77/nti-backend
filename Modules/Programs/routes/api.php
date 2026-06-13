@@ -12,7 +12,7 @@ use Modules\Programs\Http\Controllers\TypeOfProgramController;
 use Modules\Reporting\Http\Controllers\ExportController;
 
 
-Route::middleware(['throttle:60,1'])->group(function () {
+Route::middleware(['throttle:200,1'])->group(function () {
     Route::get('/calls/{id}/lang/{lang}', [CallController::class, 'fetchCallByIdAndLang'])->whereNumber('id');
     Route::get('/programs/lang/{lang}',   [ProgramsController::class, 'getProgramByLang']);
     Route::get('/calls/lang/{lang}',      [CallController::class, 'fetchCallByLang']);
@@ -27,12 +27,12 @@ Route::middleware(['throttle:35,1'])->group(function () {
 });
 
 
-Route::middleware(['auth:sanctum', 'verified', 'throttle:5,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'verified', 'throttle:20,1'])->group(function () {
     Route::get('calls/export/{format?}', [ExportController::class, 'calls'])->name('calls.export');
 });
 
 
-Route::middleware(['auth:sanctum', 'verified', 'throttle:30,1'])->prefix('v1')->group(function () {
+Route::middleware(['auth:sanctum', 'verified', 'throttle:200,1'])->prefix('v1')->group(function () {
 
     // Core Resource Write Operations
     Route::apiResource('programs', ProgramsController::class)->only(['store', 'update', 'destroy'])->names('programs');
@@ -70,7 +70,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:30,1'])->prefix('v1')->
 });
 
 
-Route::middleware(['auth:sanctum', 'verified', 'throttle:120,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'verified', 'throttle:200,1'])->group(function () {
 
     // Read-only actions for core setup systems
     Route::apiResource('/program-types', TypeOfProgramController::class)->only(['index', 'show']);
