@@ -87,101 +87,114 @@ class UserController extends Controller
             Storage::delete($user->avatar);
         }
 
-        $user->update([
-            'name'              => 'Anonymized',
-            'surname'           => 'User',
-            'email'             => 'anonymized' . $user->id . '@nti.com',
-            'password'          => bcrypt(Str::random(64)),
-            'job_position'      => null,
-            'avatar'            => null,
-        ]);
+        // Wrap in a transaction to prevent partial state corruption if anything breaks
+        \Illuminate\Support\Facades\DB::transaction(function () use ($user) {
 
-        $user->forceFill([
-            'email_verified_at' => null,
-            'anonymized_at' => now(),
-        ])->save();
+            // ==========================================
+            // STEP 1: HANDLE STUDENT SPECIFIC DEPENDENCIES FIRST
+            // ==========================================
+            if ($user->isStudent()) {
+                if ($user->student?->cv) {
+                    Storage::delete($user->student->cv);
+                }
 
-        $user->setStatus(UserStatus::ANONYMIZED);
-        $user->userConsents()->delete();
+                $user->student?->update([
+                    'cv_document_id' => null,
+                    'portfolio_url'  => null,
+                ]);
 
-        if ($user->isStudent()) {
-            if ($user->student?->cv) {
-                Storage::delete($user->student->cv);
+                if ($user->student) {
+                    $user->student->academicFlags()->detach();
+                }
+
+                // CRITICAL: Clear the academic record reference BEFORE touching any document tables
+                if ($user->student?->academicRecord) {
+                    $academicRecord = $user->student->academicRecord;
+
+                    // Track the ID of the document to manually target it next
+                    $transcriptFileId = $academicRecord->transcript_file;
+
+                    // Delete the referencing row first
+                    $academicRecord->delete();
+
+                    // Now clean up its files and versions
+                    $transcriptDoc = \Modules\Applications\Models\Document::find($transcriptFileId);
+                    if ($transcriptDoc) {
+                        foreach ($transcriptDoc->versions as $version) {
+                            if ($version->file_path && Storage::exists($version->file_path)) {
+                                Storage::delete($version->file_path);
+                            }
+                            $version->delete();
+                        }
+                        $transcriptDoc->delete();
+                    }
+                }
+
+            } elseif ($user->isPartner()) {
+                $user->organizations()->detach();
             }
-            $user->student?->update([
-                'cv_document_id' => null,
-                'portfolio_url'  => null,
+
+            // ==========================================
+            // STEP 2: METADATA ANONYMIZATION
+            // ==========================================
+            $user->update([
+                'name'              => 'Anonymized',
+                'surname'           => 'User',
+                'email'             => 'anonymized' . $user->id . '@nti.com',
+                'password'          => bcrypt(Str::random(64)),
+                'job_position'      => null,
+                'avatar'            => null,
             ]);
-            if($user->student){
-                $user->student->academicFlags()->detach();
+
+            $user->forceFill([
+                'email_verified_at' => null,
+                'anonymized_at' => now(),
+            ])->save();
+
+            $user->setStatus(UserStatus::ANONYMIZED);
+            $user->userConsents()->delete();
+            $user->roles()->detach();
+            $user->teams()->detach();
+
+            // ==========================================
+            // STEP 3: APPLICATION & GENERAL DOCUMENT CLEANUP
+            // ==========================================
+            foreach (Application::where('created_by', $user->id)->cursor() as $application) {
+                $application->delete();
             }
-        } elseif ($user->isPartner()) {
-            $user->organizations()->detach();
-        }
 
-        $user->roles()->detach();
+            // Fix the NOT NULL constraint & remove remaining owned documents safely
+            $remainingDocuments = \Modules\Applications\Models\Document::where('owner_id', $user->id)->get();
+            foreach ($remainingDocuments as $doc) {
+                foreach ($doc->versions as $version) {
+                    if ($version->file_path && Storage::exists($version->file_path)) {
+                        Storage::delete($version->file_path);
+                    }
+                    $version->delete();
+                }
+                $doc->applications()->detach();
+                $doc->delete();
+            }
 
-        foreach (Application::where('created_by', $user->id)->cursor() as $application) {
-            $application->delete();
-        }
-        AuditCompliance::create([
-            'user_id' => null,
-            'action' => 'gdpr.anonymize.applications',
-            'object_type' => 'User',
-            'object_id' => $user->id,
-            'ip' => 'system',
-            'result' => 'success',
-            'result_payload' => [
-                'actor' => 'system',
-                'object' => 'User:' . $user->id,
-            ],
-            'time_of_action' => now(),
-        ]);
+            CommissionMember::where('user_id', $user->id)->update(['user_id' => null]);
 
-        $user->teams()->detach();
-        AuditCompliance::create([
-            'user_id' => null,
-            'action' => 'gdpr.anonymize.team_members',
-            'object_type' => 'User',
-            'object_id' => $user->id,
-            'ip' => 'system',
-            'result' => 'success',
-            'result_payload' => [
-                'actor' => 'system',
-                'object' => 'User:' . $user->id,
-            ],
-            'time_of_action' => now(),
-        ]);
-
-        Document::where('owner_id', $user->id)->update(['owner_id' => null]);
-        AuditCompliance::create([
-            'user_id' => null,
-            'action' => 'gdpr.anonymize.documents',
-            'object_type' => 'User',
-            'object_id' => $user->id,
-            'ip' => 'system',
-            'result' => 'success',
-            'result_payload' => [
-                'actor' => 'system',
-                'object' => 'User:' . $user->id,
-            ],
-            'time_of_action' => now(),
-        ]);
-
-        CommissionMember::where('user_id', $user->id)->update(['user_id' => null]);
-        AuditCompliance::create([
-            'user_id' => null,
-            'action' => 'gdpr.anonymize.evaluations',
-            'object_type' => 'User',
-            'object_id' => $user->id,
-            'ip' => 'system',
-            'result' => 'success',
-            'result_payload' => [
-                'actor' => 'system',
-                'object' => 'User:' . $user->id,
-            ],
-            'time_of_action' => now(),
-        ]);
+            // ==========================================
+            // STEP 4: AUDIT COMPLIANCE LOGGING
+            // ==========================================
+            AuditCompliance::create([
+                'user_id' => null,
+                'action' => 'gdpr.user.anonymize_full',
+                'object_type' => 'User',
+                'object_id' => $user->id,
+                'ip' => 'system',
+                'result' => 'success',
+                'result_payload' => [
+                    'actor' => 'system',
+                    'object' => 'User:' . $user->id,
+                ],
+                'time_of_action' => now(),
+            ]);
+        });
 
         return response()->json(['message' => 'User was successfully anonymized'], Response::HTTP_OK);
     }

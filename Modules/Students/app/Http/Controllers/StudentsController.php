@@ -67,6 +67,7 @@ class StudentsController extends Controller
     /**
      * Store or update the authenticated student's academic record.
      */
+
     public function storeAcademicRecord(Request $request)
     {
         $student = $request->user()?->student;
@@ -88,48 +89,47 @@ class StudentsController extends Controller
                 : ['required', 'file', 'mimes:pdf', 'max:5120'],
         ]);
 
-        // Use a transaction to ensure database and storage stay in sync
         return DB::transaction(function () use ($request, $student, $validated, $hasExistingDocument) {
 
-            // 1. If a new file is uploaded, replace the old one (GDPR compliance)
+            // 1. If a new file is uploaded, we handle versioning
             if ($request->hasFile('transcript_file')) {
-                if ($hasExistingDocument) {
-                    $oldDoc = Document::find($student->academicRecord->transcript_file);
 
-                    if ($oldDoc) {
-                        // Delete actual files from disk
-                        foreach ($oldDoc->versions as $version) {
-                            Storage::disk('local')->delete($version->file_path);
-                        }
-                        // Cascade delete will automatically remove entries in document_version
-                        $oldDoc->delete();
-                    }
-                }
-
-                // 2. Process the new file
                 $uploadedTranscript = $request->file('transcript_file');
                 $storedName = Str::uuid() . '_' . $uploadedTranscript->getClientOriginalName();
                 $filePath = $uploadedTranscript->storeAs('documents', $storedName, 'local');
 
-                $securityClassification = SecurityClassification::where('name', 'internal')->firstOrFail();
+                if ($hasExistingDocument) {
+                    // VERZIONOVANIE: Použijeme existujúci Document kontajner
+                    $doc = Document::findOrFail($student->academicRecord->transcript_file);
 
-                // 3. Create new document and version records
-                $doc = Document::create([
-                    'owner_id'                   => $request->user()->id,
-                    'security_classification_id' => $securityClassification->id,
-                ]);
+                    // Voliteľné (GDPR čistenie disku): Zmaže staré súbory z disku pred pridaním novej verzie
+                    foreach ($doc->versions as $oldVersion) {
+                        Storage::disk('local')->delete($oldVersion->file_path);
+                        // Ak chceš vymazať aj staré verzie z DB tabuľky `document_version`:
+                        $oldVersion->delete();
+                    }
+                } else {
+                    // Ak dokument ešte neexistuje, vytvoríme nový kontajner
+                    $securityClassification = SecurityClassification::where('name', 'internal')->firstOrFail();
 
+                    $doc = Document::create([
+                        'owner_id'                   => $request->user()->id,
+                        'security_classification_id' => $securityClassification->id,
+                    ]);
+                }
+
+                // Vytvoríme novú verziu dokumentu (či už pre starý alebo nový Document)
                 DocumentVersion::create([
                     'document_id' => $doc->id,
                     'file_name'   => $uploadedTranscript->getClientOriginalName(),
                     'file_path'   => $filePath,
                 ]);
 
-                // 4. Update the AcademicRecord with the new document ID
+                // 2. Aktualizujeme alebo vytvoríme akademický záznam študenta
                 $student->academicRecord()->updateOrCreate(
                     ['student_id' => $student->id],
                     [
-                        'transcript_file'             => $doc->id,
+                        'transcript_file'             => $doc->id, // ID zostáva rovnaké pri existujúcom doku
                         'honor_declaration'           => $validated['honor_declaration'],
                         'honor_declaration_signed_at' => now(),
                     ]

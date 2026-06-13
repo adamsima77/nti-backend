@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Modules\IdentityAccess\Models\User;
+use Modules\Students\Models\AcademicRecord;
 
 class Document extends Model
 {
@@ -48,5 +49,10 @@ class Document extends Model
             'document_id',
             'application_id'
         );
+    }
+
+    public function academicRecords(): HasMany
+    {
+        return $this->hasMany(AcademicRecord::class, 'transcript_file');
     }
 }

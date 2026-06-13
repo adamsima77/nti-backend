@@ -5,6 +5,7 @@ namespace Modules\Students\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Applications\Models\Document;
 
 class AcademicRecord extends Model
 {
@@ -27,5 +28,10 @@ class AcademicRecord extends Model
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class, 'student_id');
+    }
+
+    public function transcriptDocument(): BelongsTo
+    {
+        return $this->belongsTo(Document::class, 'transcript_file');
     }
 }
