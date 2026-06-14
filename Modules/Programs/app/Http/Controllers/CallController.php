@@ -1368,6 +1368,8 @@ class CallController extends Controller
     private function formatCallForLang(Call $call, Language $language, string $lang): array
     {
         $translation = $call->callTranslations->firstWhere('language_id', $language->id);
+        $stack = $call->qualificationStack;
+        $stackTranslation = $stack?->translations?->firstWhere('language_id', $language->id);
 
         return [
             'id'                      => $call->id,
@@ -1400,6 +1402,10 @@ class CallController extends Controller
                 ])
                 ->values(),
             'form_schema' => CallFormSchema::build($call, $language, $lang),
+            'qualification_stack' => $stack ? [
+                'id'   => $stack->id,
+                'name' => $stackTranslation?->name ?? 'Názov chýba',
+            ] : null
         ];
     }
 }

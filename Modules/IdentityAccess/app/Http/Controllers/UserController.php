@@ -173,10 +173,16 @@ class UserController extends Controller
                     $version->delete();
                 }
                 $doc->applications()->detach();
+                DB::table('document_has_milestone')
+                    ->where('document_id', $doc->id)
+                    ->delete();
                 $doc->delete();
             }
 
-            CommissionMember::where('user_id', $user->id)->update(['user_id' => null]);
+            //Temporary fix sets evaluation to admin
+            CommissionMember::where('user_id', $user->id)->update([
+                'user_id' => auth()->id()
+            ]);
 
             // ==========================================
             // STEP 4: AUDIT COMPLIANCE LOGGING

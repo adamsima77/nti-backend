@@ -284,7 +284,7 @@ public function fetchForEvaluator(Request $request)
         return app(ApplicationWorkflowService::class);
     }
 
-    private function applicationSummary(Application $application, ?int $myCommissionMemberId = null): array
+    private function applicationSummary(Application $application, ?array $myCommissionMemberIds = null): array
     {
         $application->loadMissing([
             'call.program.typeOfProgram:id,name',
@@ -306,7 +306,7 @@ public function fetchForEvaluator(Request $request)
             $total = $this->evaluationTotal($evaluation);
             $totals[] = $total;
 
-            if ($myCommissionMemberId !== null && (int) $evaluation->commission_member_id === $myCommissionMemberId) {
+            if ($myCommissionMemberIds !== null && in_array((int) $evaluation->commission_member_id, $myCommissionMemberIds, true)) {
                 $myScore = $total;
             }
         }
@@ -336,13 +336,13 @@ public function fetchForEvaluator(Request $request)
             'category' => $application->category ? [
                 'id' => $application->category->id,
                 'name' => $application->category->categoryTranslations
-                    ->firstWhere('language_id', LanguageType::SLOVAK->value)?->name
+                        ->firstWhere('language_id', LanguageType::SLOVAK->value)?->name
                     ?? $application->category->slug,
             ] : null,
         ];
     }
 
-    private function callPayload(ProgramCall $call, ?int $currentCommissionMemberId = null): array
+    private function callPayload(ProgramCall $call, ?array $myCommissionMemberIds = null): array
     {
         $applications = $call->applications()
             ->whereNotNull('submitted_at')
@@ -363,7 +363,7 @@ public function fetchForEvaluator(Request $request)
             $total = $this->evaluationTotal($evaluation);
             $scoresByApplication[$evaluation->application_id]['totals'][] = $total;
 
-            if ($currentCommissionMemberId !== null && (int) $evaluation->commission_member_id === $currentCommissionMemberId) {
+            if ($myCommissionMemberIds !== null && in_array((int) $evaluation->commission_member_id, $myCommissionMemberIds, true)) {
                 $scoresByApplication[$evaluation->application_id]['my_score'] = $total;
             }
         }
@@ -523,7 +523,7 @@ public function fetchForEvaluator(Request $request)
                 ];
             })->values(),
             'evaluation' => $currentEvaluation ? $this->evaluationPayload($currentEvaluation, $callCriteria) : null,
-            'call' => $application->call ? $this->callPayload($application->call, $currentCommissionMemberId) : null,
+            'call' => $application->call ? $this->callPayload($application->call, [$currentCommissionMemberId]) : null,
             'teamMembers' => $application->team?->members?->map(function ($member) use ($teamRoleMap) {
                     $student = $member->student;
                     $record = $student?->academicRecord;
@@ -593,18 +593,16 @@ public function fetchForEvaluator(Request $request)
             ])
             ->findOrFail($applicationId);
 
-
+        // Existing row for THIS commission member + application, regardless of
+        // what evaluation id (if any) the frontend has cached.
         $existingEvaluation = Evaluation::query()
             ->where('application_id', $application->id)
             ->where('commission_member_id', $commissionMember->id)
             ->first();
-        // ──────────────────────────────────────────────────────────────────────────
 
-        if ($evaluationId === null) {
-            $this->authorize('create', Evaluation::class);
-        }
+        $evaluation = $existingEvaluation;
+        $isNewRecord = false;
 
-        $evaluation = null;
         if ($evaluationId !== null) {
             $evaluation = Evaluation::query()
                 ->where('id', $evaluationId)
@@ -613,14 +611,20 @@ public function fetchForEvaluator(Request $request)
                 ->firstOrFail();
 
             $this->authorize('update', $evaluation);
+        } elseif ($evaluation !== null) {
+            // A row for this (application, commission_member) already exists
+            // (e.g. seeded draft) — update it instead of creating a duplicate.
+            $this->authorize('update', $evaluation);
+        } else {
+            $this->authorize('create', Evaluation::class);
+            $isNewRecord = true;
         }
 
         $decisionId = $this->resolveDecisionId($validated['recommendation']);
         $isFinal = (bool) $validated['is_final'] && $validated['recommendation'] !== 'supplement';
 
-        $evaluation = DB::transaction(function () use ($evaluation, $validated, $application, $commissionMember, $decisionId, $evaluationId, $isFinal) {
-            if ($evaluationId !== null) {
-
+        $evaluation = DB::transaction(function () use ($evaluation, $validated, $application, $commissionMember, $decisionId, $isFinal) {
+            if ($evaluation) {
                 $evaluation->update([
                     'decision_id' => $decisionId,
                     'internal_note' => $validated['internal_note'] ?? null,
@@ -669,7 +673,7 @@ public function fetchForEvaluator(Request $request)
         return response()->json([
             'message' => $isFinal ? 'Hodnotenie bolo úspešne odoslané.' : 'Koncept bol úspešne uložený.',
             'evaluation' => $this->evaluationPayload($evaluation, $application->call?->callCriteria ?? collect()),
-        ], $evaluationId === null ? Response::HTTP_CREATED : Response::HTTP_OK);
+        ], $isNewRecord ? Response::HTTP_CREATED : Response::HTTP_OK);
     }
 
     public function pending(Request $request): JsonResponse
@@ -720,93 +724,97 @@ public function fetchForEvaluator(Request $request)
         return response()->json($applications);
     }
 
-public function dashboard(Request $request): JsonResponse
-{
-    $commissionMemberIds = $this->resolveCommissionMemberIds($request);
-    $currentCommissionMemberId = $commissionMemberIds->first();
+    public function dashboard(Request $request): JsonResponse
+    {
+        $commissionMemberIds = $this->resolveCommissionMemberIds($request);
+        $currentCommissionMemberId = $commissionMemberIds->first();
 
-    if ($currentCommissionMemberId === null) {
+        if ($currentCommissionMemberId === null) {
+            return response()->json([
+                'stats' => ['total' => 0, 'pending' => 0, 'evaluated' => 0, 'decided' => 0],
+                'calls' => [],
+                'applications' => [],
+                'recentApplications' => [],
+                'urgentApplications' => [],
+            ]);
+        }
+
+        $myCommissionMemberIds = $commissionMemberIds->map(fn ($id) => (int) $id)->all();
+
+        $assignedApplicationIds = Evaluation::whereIn('commission_member_id', $commissionMemberIds)
+            ->pluck('application_id')
+            ->unique();
+
+        $applications = Application::query()
+            ->with(['call.program.typeOfProgram:id,name', 'team.members', 'status:id,name'])
+            ->whereIn('id', $assignedApplicationIds)
+            ->whereNotNull('submitted_at')
+            ->latest('id')
+            ->get();
+
+        $evaluations = Evaluation::query()
+            ->with('scores')
+            ->whereIn('application_id', $assignedApplicationIds)
+            ->get();
+
+        $myDecisions = $evaluations->whereIn('commission_member_id', $myCommissionMemberIds)
+            ->whereNotNull('submitted_at')
+            ->whereNotNull('decision_id');
+
+        $myDecidedApplicationIds = $myDecisions->pluck('application_id');
+
+        $mySubmittedAtByApplication = [];
+        foreach ($evaluations as $evaluation) {
+            if (in_array((int) $evaluation->commission_member_id, $myCommissionMemberIds, true)) {
+                $mySubmittedAtByApplication[$evaluation->application_id] = $evaluation->submitted_at;
+            }
+        }
+
+        $summaries = $applications->map(function (Application $application) use ($mySubmittedAtByApplication, $myCommissionMemberIds) {
+            $summary = $this->applicationSummary($application, $myCommissionMemberIds);
+            $summary['has_decision'] = false; // set below if needed
+            $summary['my_submitted_at'] = $mySubmittedAtByApplication[$application->id] ?? null;
+            return $summary;
+        })->values();
+
+        // mark has_decision now that we have my_submitted_at / decisions resolved
+        $summaries = $summaries->map(function (array $summary) use ($myDecidedApplicationIds) {
+            $summary['has_decision'] = $myDecidedApplicationIds->contains($summary['id']);
+            return $summary;
+        })->values();
+
+        $assignedCallIds = $applications->pluck('call_id')->unique()->filter();
+
+        $calls = ProgramCall::query()
+            ->withCount('applications')
+            ->with(['program.typeOfProgram:id,name', 'currentStatusHistory.status:id,name', 'callCriteria.criterionTranslations:id,criterion_id,language_id,name', 'applications.team.members', 'applications.status:id,name'])
+            ->whereIn('id', $assignedCallIds)
+            ->get()
+            ->map(fn (ProgramCall $call) => $this->callPayload($call, [$myCommissionMemberIds]))
+            ->values();
+
+        $stats = [
+            'total' => $summaries->count(),
+            'pending' => $summaries->filter(fn (array $summary) =>
+                !$myDecidedApplicationIds->contains($summary['id']) &&
+                in_array($summary['status'], ['submitted', 'under_review', 'evaluating', 'supplement'], true)
+            )->count(),
+            'evaluated' => $summaries->filter(fn (array $summary) => !empty($summary['my_submitted_at']))->count(),
+            'decided' => $myDecidedApplicationIds->count(),
+        ];
+
         return response()->json([
-            'stats' => ['total' => 0, 'pending' => 0, 'evaluated' => 0, 'decided' => 0],
-            'calls' => [],
-            'applications' => [],
-            'recentApplications' => [],
-            'urgentApplications' => [],
+            'stats' => $stats,
+            'calls' => $calls,
+            'applications' => $summaries,
+            'recentApplications' => $summaries->take(3)->values(),
+            'urgentApplications' => $summaries->filter(fn (array $summary) =>
+                !$myDecidedApplicationIds->contains($summary['id']) &&
+                in_array($summary['status'], ['submitted', 'under_review', 'evaluating'], true) &&
+                empty($summary['my_submitted_at'])
+            )->values(),
         ]);
     }
-
-    $assignedApplicationIds = Evaluation::whereIn('commission_member_id', $commissionMemberIds)
-        ->pluck('application_id')
-        ->unique();
-
-    $applications = Application::query()
-        ->with(['call.program.typeOfProgram:id,name', 'team.members', 'status:id,name'])
-        ->whereIn('id', $assignedApplicationIds)
-        ->whereNotNull('submitted_at')
-        ->latest('id')
-        ->get();
-
-    $evaluations = Evaluation::query()
-        ->with('scores')
-        ->whereIn('application_id', $assignedApplicationIds)
-        ->get();
-
-    $myDecisions = $evaluations->where('commission_member_id', $currentCommissionMemberId)
-        ->whereNotNull('submitted_at')
-        ->whereNotNull('decision_id');
-
-    $myDecidedApplicationIds = $myDecisions->pluck('application_id');
-
-    $applicationMetrics = [];
-    foreach ($evaluations as $evaluation) {
-        $total = $this->evaluationTotal($evaluation);
-        $applicationMetrics[$evaluation->application_id]['totals'][] = $total;
-
-        if ((int) $evaluation->commission_member_id === $currentCommissionMemberId) {
-            $applicationMetrics[$evaluation->application_id]['my_score'] = $total;
-            $applicationMetrics[$evaluation->application_id]['my_decision'] = $evaluation->decision_id;
-            $applicationMetrics[$evaluation->application_id]['my_submitted_at'] = $evaluation->submitted_at;
-        }
-    }
-
-    $summaries = $applications->map(function (Application $application) use ($applicationMetrics, $currentCommissionMemberId) {
-        $summary = $this->applicationSummary($application, $currentCommissionMemberId);
-        $summary['has_decision'] = isset($applicationMetrics[$application->id]['my_decision']);
-        $summary['my_submitted_at'] = $applicationMetrics[$application->id]['my_submitted_at'] ?? null;
-        return $summary;
-    })->values();
-
-    $assignedCallIds = $applications->pluck('call_id')->unique()->filter();
-
-    $calls = ProgramCall::query()
-        ->withCount('applications')
-        ->with(['program.typeOfProgram:id,name', 'currentStatusHistory.status:id,name', 'callCriteria.criterionTranslations:id,criterion_id,language_id,name', 'applications.team.members', 'applications.status:id,name'])
-        ->whereIn('id', $assignedCallIds)
-        ->get()
-        ->map(fn (ProgramCall $call) => $this->callPayload($call, $currentCommissionMemberId))
-        ->values();
-
-    $stats = [
-        'total' => $summaries->count(),
-        'pending' => $summaries->filter(fn (array $summary) =>
-            !$myDecidedApplicationIds->contains($summary['id']) &&
-            in_array($summary['status'], ['submitted', 'under_review', 'evaluating', 'supplement'], true)
-        )->count(),
-        'evaluated' => $summaries->filter(fn (array $summary) => !empty($summary['my_submitted_at']))->count(),
-        'decided' => $myDecidedApplicationIds->count(),
-    ];
-
-    return response()->json([
-        'stats' => $stats,
-        'calls' => $calls,
-        'applications' => $summaries,
-        'recentApplications' => $summaries->take(3)->values(),
-        'urgentApplications' => $summaries->filter(fn (array $summary) =>
-            !$myDecidedApplicationIds->contains($summary['id']) &&
-            in_array($summary['status'], ['submitted', 'under_review', 'evaluating'], true)
-        )->values(),
-    ]);
-}
     /*
     public function calls(Request $request): JsonResponse
     {
