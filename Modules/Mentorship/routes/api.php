@@ -33,7 +33,13 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     });
 
     Route::middleware(['throttle:500,1'])->group(function () {
-
+        Route::prefix('v1/admin')->middleware(['auth:sanctum'])->group(function () {
+            Route::get('/fetch-milestones-admin',                [MilestoneController::class, 'fetchMilestonesForAdmin']);
+            Route::get('calls/{call}/milestones-admin',   [MilestoneController::class, 'forCall']);
+            Route::post('/save-milestone',               [MilestoneController::class, 'saveMilestones']);
+            Route::put('/update-milestone/{id}',           [MilestoneController::class, 'updateMilestone']);
+            Route::delete('/delete-milestone/{id}',        [MilestoneController::class, 'deleteMilestone']);
+        });
 
         Route::get('/mentors', [MentorshipController::class, 'fetchMentors']);
         Route::get('/fetch-student-milestones', [MilestoneController::class, 'fetchMilestonesForStudent']);

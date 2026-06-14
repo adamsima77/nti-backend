@@ -324,5 +324,92 @@ public function fetchMilestonesForStudent(Request $request)
 
         return response()->json($milestone, Response::HTTP_OK);
     }
+
+
+
+    public function fetchMilestonesForAdmin(Request $request): JsonResponse
+    {
+        if (!$request->user()->isAdmin() && !$request->user()->isSuperAdmin()) {
+            abort(403, "You cant fetch milestones !");
+        }
+        $query = Milestone::query()->with(['call:id,name', 'milestoneStatus']);
+
+        if ($callId = $request->query('call_id')) {
+            $query->where('call_id', $callId);
+        }
+
+        return response()->json([
+            'data' => $query->orderBy('start_date')->get(),
+        ]);
+    }
+
+    public function forCall(Request $request, int $callId): JsonResponse
+    {
+        if (!$request->user()->isAdmin() && !$request->user()->isSuperAdmin()) {
+            abort(403, "You cant fetch milestones !");
+        }
+        $milestones = Milestone::query()
+            ->with(['call:id,name', 'milestoneStatus'])
+            ->where('call_id', $callId)
+            ->orderBy('start_date')
+            ->get();
+
+        return response()->json(['data' => $milestones]);
+    }
+
+    public function saveMilestones(Request $request): JsonResponse
+    {
+        if (!$request->user()->isAdmin() && !$request->user()->isSuperAdmin()) {
+            abort(403, "You cant fetch milestones !");
+        }
+        $validated = $request->validate([
+            'name'                => ['required', 'string', 'max:255'],
+            'description'         => ['nullable', 'string'],
+            'start_date'          => ['nullable', 'date'],
+            'deadline'            => ['nullable', 'date'],
+            'call_id'             => ['nullable', 'integer', 'exists:call,id'],
+            'milestone_status_id' => ['nullable', 'integer', 'exists:milestone_status,id'],
+        ]);
+
+        $milestone = Milestone::create($validated);
+
+        return response()->json(
+            $milestone->load(['call:id,name', 'milestoneStatus']),
+            201
+        );
+    }
+
+    public function updateMilestone(Request $request, int $id): JsonResponse
+    {
+        if (!$request->user()->isAdmin() && !$request->user()->isSuperAdmin()) {
+            abort(403, "You cant fetch milestones !");
+        }
+
+        $milestone = Milestone::findOrFail($id);
+
+        $validated = $request->validate([
+            'name'                => ['sometimes', 'required', 'string', 'max:255'],
+            'description'         => ['nullable', 'string'],
+            'start_date'          => ['nullable', 'date'],
+            'deadline'            => ['nullable', 'date'],
+            'call_id'             => ['nullable', 'integer', 'exists:call,id'],
+            'milestone_status_id' => ['nullable', 'integer', 'exists:milestone_status,id'],
+        ]);
+
+        $milestone->update($validated);
+
+        return response()->json($milestone->load(['call:id,name', 'milestoneStatus']));
+    }
+
+    public function deleteMilestone(Request $request, int $id): JsonResponse
+    {
+        if (!$request->user()->isAdmin() && !$request->user()->isSuperAdmin()) {
+            abort(403, "You cant fetch milestones !");
+        }
+        $milestone = Milestone::findOrFail($id);
+        $milestone->delete();
+
+        return response()->json(['message' => 'Míľnik bol odstránený.']);
+    }
 }
 

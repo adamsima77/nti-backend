@@ -17,7 +17,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:35,1'])->group(function
 });
 
 
-Route::middleware(['auth:sanctum', 'verified', 'throttle:30,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'verified', 'throttle:80,1'])->group(function () {
 
     // KPI Data Modifications
     Route::post('applications/{applicationId}/kpis', [ProjectKpiController::class, 'store'])->name('kpis.store');
@@ -34,7 +34,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:30,1'])->group(function
 });
 
 
-Route::middleware(['auth:sanctum', 'verified', 'throttle:30,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'verified', 'throttle:500,1'])->group(function () {
     Route::get('/security-alerts', [SuperAdminDashboardController::class, 'securityAlertsNewer']);
     Route::get('/active-problems', [SuperAdminDashboardController::class, 'activeSystemProblemsCount']);
     Route::get('/gdpr-prune', [SuperAdminDashboardController::class, 'fetchGdprPrune']);
@@ -44,7 +44,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:30,1'])->group(function
 });
 
 
-Route::middleware(['auth:sanctum', 'verified', 'throttle:60,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'verified', 'throttle:230,1'])->group(function () {
 
     // General Management Visual Aggregations
     Route::get('/admin/application-count', [AdminDashboardController::class, 'fetchApplicationsCount']);
