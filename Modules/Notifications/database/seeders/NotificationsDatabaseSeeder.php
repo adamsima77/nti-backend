@@ -16,8 +16,6 @@ class NotificationsDatabaseSeeder extends Seeder
             NotificationCategoryTranslationSeeder::class,
             EmailTemplateSeeder::class,
             EmailTemplateTranslationSeeder::class,
-            NotificationSeeder::class,
-            NotificationTranslationSeeder::class,
         ]);
     }
 }

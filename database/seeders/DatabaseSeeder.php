@@ -22,8 +22,7 @@ class DatabaseSeeder extends Seeder
             \Modules\Applications\Database\Seeders\DemoProjectSeeder::class,
             \Modules\Mentorship\Database\Seeders\MentorshipDatabaseSeeder::class,
             \Modules\Evaluation\Database\Seeders\EvaluationDatabaseSeeder::class,
-            \Modules\Notifications\Database\Seeders\NotificationCategorySeeder::class,
-            \Modules\Notifications\Database\Seeders\NotificationCategoryTranslationSeeder::class,
+            \Modules\Notifications\Database\Seeders\NotificationsDatabaseSeeder::class,
         ]);
     }
 }
