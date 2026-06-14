@@ -128,35 +128,15 @@ $callDescription = $tr->description ?? $call->description ?? '-';
 <p class="section-empty">{{ $l['no_kpi'] }}</p>
 @endif
 
-<h2>{{ $l['outputs'] }}</h2>
-@if ($application->outputs->isNotEmpty())
-<table>
-    <tr><th>{{ $l['output'] }}</th><th>{{ $l['type'] }}</th><th>{{ $l['planned_delivery'] }}</th><th>{{ $l['actual_delivery'] }}</th><th>{{ $l['status'] }}</th></tr>
-    @foreach ($application->outputs as $output)
-    <tr>
-        <td>{{ $output->output_name }}</td>
-        <td>{{ $output->output_type ?? '-' }}</td>
-        <td>{{ $output->planned_delivery?->format('d.m.Y') ?? '-' }}</td>
-        <td>{{ $output->actual_delivery?->format('d.m.Y') ?? '-' }}</td>
-        <td>{{ $output->getDeliveryStatusLabel() }}</td>
-    </tr>
-    @endforeach
-</table>
-@else
-<p class="section-empty">{{ $l['no_outputs'] }}</p>
-@endif
-
 <h2>{{ $l['milestones'] }}</h2>
 @if ($application->milestones->isNotEmpty())
 <table>
-    <tr><th>#</th><th>{{ $l['milestone_name'] }}</th><th>{{ $l['milestone_deadline'] }}</th><th>{{ $l['milestone_status'] }}</th><th>{{ $l['milestone_comment'] }}</th></tr>
+    <tr><th>#</th><th>{{ $l['milestone_name'] }}</th><th>{{ $l['milestone_deadline'] }}</th></tr>
     @foreach ($application->milestones->sortBy('deadline') as $milestone)
     <tr>
         <td>{{ $loop->iteration }}</td>
         <td>{{ $milestone->name }}</td>
         <td>{{ $milestone->deadline?->format('d.m.Y') ?? '-' }}</td>
-        <td>{{ $milestone->status ?? '-' }}</td>
-        <td>{{ $milestone->comments ?? '-' }}</td>
     </tr>
     @endforeach
 </table>

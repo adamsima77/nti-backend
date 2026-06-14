@@ -295,6 +295,7 @@ class CallController extends Controller
             'project_start'            => $call->project_start,
             'project_end'              => $call->project_end,
             'force_closed'             => (bool) $call->force_closed,
+            'po_closure_approved_at'   => $call->po_closure_approved_at?->toDateTimeString(),
             'is_open'                  => !$call->force_closed && (
                 $call->application_deadline
                     ? now()->lt($call->application_deadline)

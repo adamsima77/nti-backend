@@ -811,6 +811,7 @@ class MentorshipController extends Controller
 
         return [
             'id'          => $milestone->id,
+            'call_id'     => $milestone->call_id,
             'title'       => $milestone->name,
             'dueDate'     => $milestone->deadline?->format('Y-m-d'),
             'start_date' => $milestone->start_date?->format('Y-m-d'),

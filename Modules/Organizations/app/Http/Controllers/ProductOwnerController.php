@@ -91,7 +91,8 @@ class ProductOwnerController extends Controller
                 'program'              => $call->program?->typeOfProgram?->name,
                 'organization'         => $call->organization?->name,
                 'budget'               => $call->budget,
-                'budget_type'          => $call->budget_type,
+                'budget_type'              => $call->budget_type,
+                'po_closure_approved_at'   => $call->po_closure_approved_at?->toDateTimeString(),
                 'requirements'         => $call->callCriteria?->pluck('name') ?? [],
                 'documents'            => $call->documents?->map(fn ($d) => [
                     'id'   => $d->id,
@@ -211,6 +212,19 @@ class ProductOwnerController extends Controller
         }
 
         return response()->json(['message' => 'Míľnik bol zamietnutý.', 'status' => MilestoneStateMachine::STATE_IN_PROGRESS]);
+    }
+
+    // ── Final project closure approval ────────────────────────────────────
+
+    public function approveProjectClosure(Request $request, Call $call): JsonResponse
+    {
+        $this->authorizePoCall($request, $call);
+
+        abort_if($call->po_closure_approved_at !== null, 422, 'Uzavretie projektu už bolo schválené.');
+
+        $call->update(['po_closure_approved_at' => now()]);
+
+        return response()->json(['message' => 'Schválenie uzavretia projektu bolo odoslané NTI administrátorovi.']);
     }
 
     // ── Auth helper ────────────────────────────────────────────────────────

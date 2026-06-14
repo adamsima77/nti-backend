@@ -37,6 +37,7 @@ class Call extends Model
         'tech_spec',
         'tech_tags',
         'po_user_id',
+        'po_closure_approved_at',
     ];
 
     protected $casts = [
@@ -47,6 +48,7 @@ class Call extends Model
         'project_start' => 'datetime',
         'project_end' => 'datetime',
         'tech_tags' => 'array',
+        'po_closure_approved_at' => 'datetime',
         'budget' => 'decimal:2',
     ];
 

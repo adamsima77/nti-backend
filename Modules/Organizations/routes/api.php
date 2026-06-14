@@ -22,6 +22,7 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:200,1'])->group(functio
         Route::put('calls/{call}', [ProductOwnerController::class, 'updateCall']);
         Route::patch('calls/{call}/milestone-approvals/{milestone}/approve', [ProductOwnerController::class, 'approveMilestone']);
         Route::patch('calls/{call}/milestone-approvals/{milestone}/reject', [ProductOwnerController::class, 'rejectMilestone']);
+        Route::post('calls/{call}/approve-closure', [ProductOwnerController::class, 'approveProjectClosure']);
     });
 });
 

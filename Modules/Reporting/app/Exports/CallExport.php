@@ -173,28 +173,11 @@ class CallExport implements FromArray, ShouldAutoSize, WithEvents
             }
             $rows[] = $blank;
 
-            array_push($rows, ...$section($l['outputs']));
-            if ($application->outputs->isNotEmpty()) {
-                $rows[] = [$l['output'], $l['type'], $l['planned_delivery'], $l['actual_delivery'], $l['status']];
-                foreach ($application->outputs as $o) {
-                    $rows[] = [
-                        $o->output_name,
-                        $o->output_type ?? '-',
-                        $o->planned_delivery?->format('d.m.Y') ?? '-',
-                        $o->actual_delivery?->format('d.m.Y') ?? '-',
-                        $o->getDeliveryStatusLabel(),
-                    ];
-                }
-            } else {
-                $rows[] = [$l['no_outputs'], ''];
-            }
-            $rows[] = $blank;
-
             array_push($rows, ...$section($l['milestones']));
             if ($application->milestones->isNotEmpty()) {
-                $rows[] = ['#', $l['milestone_name'], $l['deadline_col'], $l['milestone_status'], $l['comment']];
+                $rows[] = ['#', $l['milestone_name'], $l['deadline_col']];
                 foreach ($application->milestones->sortBy('deadline')->values() as $i => $ms) {
-                    $rows[] = [$i + 1, $ms->name, $ms->deadline?->format('d.m.Y') ?? '-', $ms->status ?? '-', $ms->comments ?? '-'];
+                    $rows[] = [$i + 1, $ms->name, $ms->deadline?->format('d.m.Y') ?? '-'];
                 }
             } else {
                 $rows[] = [$l['no_milestones'], ''];

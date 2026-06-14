@@ -97,55 +97,38 @@ class MentorDemoSeeder extends Seeder
                 ]
             );
 
+            // Pridaj komentáre k existujúcim míľnikom (vytvorené DemoProjectSeederom)
+            $existingMilestones = DB::table('project_milestones')
+                ->where('call_id', $application->call_id)
+                ->orderBy('id')
+                ->get();
+
             foreach ($milestoneTemplates as $milestoneIndex => $template) {
-                // Zápis míľnikov do project_milestones
-                DB::table('project_milestones')->updateOrInsert(
-                    [
-                        'call_id' => $application->call_id,
-                        'name'    => $template['name'],
-                    ],
-                    [
-                        'call_id'             => $application->call_id,
-                        'name'                => $template['name'],
-                        'start_date'          => $template['start_date']->toDateString(),
-                        'deadline'            => $template['deadline']->toDateString(),
-                        'milestone_status_id' => $template['status_id'],
-                        'comments'            => null,
-                        'created_at'          => now()->subDays(10),
-                        'updated_at'          => now(),
-                    ]
-                );
+                if (empty($template['comments'])) continue;
 
-                // Získanie ID práve vytvoreného míľnika pre správne naviazanie komentárov
-                $milestoneId = DB::table('project_milestones')
-                    ->where('call_id', $application->call_id)
-                    ->where('name', $template['name'])
-                    ->value('id');
+                $milestone = $existingMilestones->get($milestoneIndex);
+                if (! $milestone) continue;
 
-                if ($milestoneId !== null) {
-                    // Seedovanie komentárov chronologicky
-                    foreach ($template['comments'] as $commentIndex => $commentTemplate) {
-                        $authorKey = $commentTemplate['author'] ?? 'creator';
+                foreach ($template['comments'] as $commentIndex => $commentTemplate) {
+                    $authorKey = $commentTemplate['author'] ?? 'creator';
+                    $author    = $authorKey === 'mentor'
+                        ? $mentor
+                        : ($application->creator ?? $mentor);
 
-                        $author = $authorKey === 'mentor'
-                            ? $mentor
-                            : ($application->creator ?? $mentor);
-
-                        DB::table('milestone_comments')->updateOrInsert(
-                            [
-                                'milestone_id' => $milestoneId,
-                                'comment_text' => $commentTemplate['text'],
-                            ],
-                            [
-                                'milestone_id'      => $milestoneId,
-                                'user_id'           => $author->id,
-                                'parent_comment_id' => null,
-                                'comment_text'      => $commentTemplate['text'],
-                                'created_at'        => now()->subDays(5 - $commentIndex),
-                                'updated_at'        => now(),
-                            ]
-                        );
-                    }
+                    DB::table('milestone_comments')->updateOrInsert(
+                        [
+                            'milestone_id' => $milestone->id,
+                            'comment_text' => $commentTemplate['text'],
+                        ],
+                        [
+                            'milestone_id'      => $milestone->id,
+                            'user_id'           => $author->id,
+                            'parent_comment_id' => null,
+                            'comment_text'      => $commentTemplate['text'],
+                            'created_at'        => now()->subDays(5 - $commentIndex),
+                            'updated_at'        => now(),
+                        ]
+                    );
                 }
             }
 

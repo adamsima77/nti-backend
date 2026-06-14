@@ -209,7 +209,7 @@ class DemoProjectSeeder extends Seeder
                 'milestones' => [
                     ['name' => 'Návrh architektúry a výber LLM modelu',    'start' => '-90 days', 'deadline' => '-70 days', 'status' => 'Schválené'],
                     ['name' => 'Implementácia chatbot jadra a REST API',    'start' => '-69 days', 'deadline' => '-40 days', 'status' => 'Schválené'],
-                    ['name' => 'Integrácia do zákazníckeho portálu a UAT', 'start' => '-39 days', 'deadline' => '+2 days', 'status' => 'V riešení'],
+                    ['name' => 'Integrácia do zákazníckeho portálu a UAT', 'start' => '-39 days', 'deadline' => '-5 days', 'status' => 'Dokončené'],
                 ],
                 'budget' => 2000.00,
                 'budget_type' => 'Po míľnikoch',
