@@ -469,18 +469,18 @@ Premenné v emailových šablónach majú `$` prefix:
 
 | Modul | README |
 |-------|--------|
-| Applications | [Modules/Applications/README.md](Modules/Applications/README.md) |
-| AuditCompliance | [Modules/AuditCompliance/README.md](Modules/AuditCompliance/README.md) |
-| Content | [Modules/Content/README.md](Modules/Content/README.md) |
-| Evaluation | [Modules/Evaluation/README.md](Modules/Evaluation/README.md) |
-| IdentityAccess | [Modules/IdentityAccess/README.md](Modules/IdentityAccess/README.md) |
-| Mentorship | [Modules/Mentorship/README.md](Modules/Mentorship/README.md) |
-| Notifications | [Modules/Notifications/README.md](Modules/Notifications/README.md) |
-| Organizations | [Modules/Organizations/README.md](Modules/Organizations/README.md) |
-| Programs | [Modules/Programs/README.md](Modules/Programs/README.md) |
-| Reporting | [Modules/Reporting/README.md](Modules/Reporting/README.md) |
-| Students | [Modules/Students/README.md](Modules/Students/README.md) |
-| Teams | [Modules/Teams/README.md](Modules/Teams/README.md) |
+| Applications | [Modules/Applications/README.md](app/Modules/Applications/README.md) |
+| AuditCompliance | [Modules/AuditCompliance/README.md](app/Modules/AuditCompliance/README.md) |
+| Content | [Modules/Content/README.md](app/Modules/Content/README.md) |
+| Evaluation | [Modules/Evaluation/README.md](app/Modules/Evaluation/README.md) |
+| IdentityAccess | [Modules/IdentityAccess/README.md](app/Modules/IdentityAccess/README.md) |
+| Mentorship | [Modules/Mentorship/README.md](app/Modules/Mentorship/README.md) |
+| Notifications | [Modules/Notifications/README.md](app/Modules/Notifications/README.md) |
+| Organizations | [Modules/Organizations/README.md](app/Modules/Organizations/README.md) |
+| Programs | [Modules/Programs/README.md](app/Modules/Programs/README.md) |
+| Reporting | [Modules/Reporting/README.md](app/Modules/Reporting/README.md) |
+| Students | [Modules/Students/README.md](app/Modules/Students/README.md) |
+| Teams | [Modules/Teams/README.md](app/Modules/Teams/README.md) |
 
 ---
 

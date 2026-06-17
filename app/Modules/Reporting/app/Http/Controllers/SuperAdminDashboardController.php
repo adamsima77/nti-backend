@@ -202,7 +202,7 @@ public function fetchLogs(Request $request)
 
 
         $merged = $systemEvents
-            ->merge($auditEvents)
+            ->concat($auditEvents)
             ->sortByDesc('created_at')
             ->values();
 

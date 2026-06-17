@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use App\Services\Pdf\PdfService;
+use Modules\AuditCompliance\Models\GdprReport;
 use Modules\IdentityAccess\Enums\UserStatus;
 use Modules\IdentityAccess\Models\Role;
 use Modules\IdentityAccess\Models\User;
@@ -90,6 +91,40 @@ class UserController extends Controller
         // Wrap in a transaction to prevent partial state corruption if anything breaks
         \Illuminate\Support\Facades\DB::transaction(function () use ($user) {
 
+            // Safely delete a Document: clear every known reference to it first
+            // (GdprReport attachments, application/milestone/call pivots), then
+            // its versions and files, then the row itself. Centralizing this
+            // means every deletion site gets the same cleanup instead of each
+            // one re-discovering a missing FK cleanup via a 500 error.
+            $deleteDocumentSafely = function ($document) {
+                if (!$document) {
+                    return;
+                }
+
+                \Modules\AuditCompliance\Models\GdprReport::withTrashed()
+                    ->where('attachment_id', $document->id)
+                    ->get()
+                    ->each(fn ($report) => $report->forceDelete());
+
+                $document->applications()->detach();
+
+                DB::table('document_has_milestone')
+                    ->where('document_id', $document->id)
+                    ->delete();
+
+                DB::table('document_has_call')
+                    ->where('document_id', $document->id)
+                    ->delete();
+
+                foreach ($document->versions as $version) {
+                    if ($version->file_path && Storage::exists($version->file_path)) {
+                        Storage::delete($version->file_path);
+                    }
+                    $version->delete();
+                }
+                $document->delete();
+            };
+
             // ==========================================
             // STEP 1: HANDLE STUDENT SPECIFIC DEPENDENCIES FIRST
             // ==========================================
@@ -118,16 +153,7 @@ class UserController extends Controller
                     $academicRecord->delete();
 
                     // Now clean up its files and versions
-                    $transcriptDoc = \Modules\Applications\Models\Document::find($transcriptFileId);
-                    if ($transcriptDoc) {
-                        foreach ($transcriptDoc->versions as $version) {
-                            if ($version->file_path && Storage::exists($version->file_path)) {
-                                Storage::delete($version->file_path);
-                            }
-                            $version->delete();
-                        }
-                        $transcriptDoc->delete();
-                    }
+                    $deleteDocumentSafely(\Modules\Applications\Models\Document::find($transcriptFileId));
                 }
 
             } elseif ($user->isPartner()) {
@@ -166,17 +192,7 @@ class UserController extends Controller
             // Fix the NOT NULL constraint & remove remaining owned documents safely
             $remainingDocuments = \Modules\Applications\Models\Document::where('owner_id', $user->id)->get();
             foreach ($remainingDocuments as $doc) {
-                foreach ($doc->versions as $version) {
-                    if ($version->file_path && Storage::exists($version->file_path)) {
-                        Storage::delete($version->file_path);
-                    }
-                    $version->delete();
-                }
-                $doc->applications()->detach();
-                DB::table('document_has_milestone')
-                    ->where('document_id', $doc->id)
-                    ->delete();
-                $doc->delete();
+                $deleteDocumentSafely($doc);
             }
 
             //Temporary fix sets evaluation to admin
